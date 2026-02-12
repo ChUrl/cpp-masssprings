@@ -34,35 +34,6 @@ rec {
       # Define custom dependencies
       # ===========================================================================================
 
-      # Python package example
-      # typed-ffmpeg = pkgs.python313Packages.buildPythonPackage rec {
-      #   pname = "typed_ffmpeg";
-      #   version = "3.6";
-      #
-      #   src = pkgs.python313Packages.fetchPypi {
-      #     inherit pname version;
-      #     hash = "sha256-YPspq/lqI/jx/9FCQntmQPw4lrPIsdxtHTUg0F0QbrM=";
-      #   };
-      #
-      #   pyproject = true;
-      #   build-system = [
-      #     pkgs.python313Packages.setuptools
-      #     pkgs.python313Packages.setuptools-scm
-      #   ];
-      # };
-
-      # python = pkgs.python313.withPackages (p:
-      #   with p; [
-      #     # numpy
-      #     # matplotlib
-      #     # typed-ffmpeg
-      #     # pyside6
-      #   ]);
-
-      # rust = pkgs.rust-bin.stable.latest.default.override {
-      #   extensions = ["rust-src"]; # Include the Rust stdlib source (for IntelliJ)
-      # };
-
       # 64 bit C/C++ compilers that don't collide (use the same libc)
       bintools = pkgs.wrapBintoolsWith {
         bintools = pkgs.bintools.bintools; # Unwrapped bintools
@@ -130,24 +101,6 @@ rec {
           # Point CMake to the nixpkgs raylib so it doesn't try to fetch its own
           "-Draylib_DIR=${pkgs.raylib}/lib/cmake/raylib"
         ];
-
-        # # https://github.com/raysan5/raylib/wiki/CMake-Build-Options
-        # cmakeFlags =
-        #   [
-        #     "-DCUSTOMIZE_BUILD=ON"
-        #     "-DPLATFORM=${platform}"
-        #   ]
-        #   ++ optional (platform == "Desktop") "-DUSE_EXTERNAL_GLFW=ON"
-        #   ++ optional includeEverything "-DINCLUDE_EVERYTHING=ON"
-        #   ++ optional sharedLib "-DBUILD_SHARED_LIBS=ON";
-
-        # appendRunpaths = optional stdenv.hostPlatform.isLinux (
-        #   lib.makeLibraryPath (optional alsaSupport alsa-lib ++ optional pulseSupport libpulseaudio)
-        # );
-
-        # passthru.tests = {
-        #   inherit raylib-games;
-        # };
       };
 
       # ===========================================================================================
@@ -162,16 +115,12 @@ rec {
       # - Interpreters needed by patchShebangs for build scripts (with the --build flag), which can be the case for e.g. perl
       nativeBuildInputs = with pkgs; [
         # Languages:
-        # python
-        # rust
         # bintools
         gcc
         # clang
         # bintools_multilib
         # gcc_multilib
         # clang_multilib
-        # clojure
-        # jdk
 
         # C/C++:
         gdb
@@ -180,20 +129,7 @@ rec {
         cmake
         # pkg-config
         # clang-tools
-
-        # Clojure:
-        # leiningen
-        # clj-nix.packages.${system}.deps-lock
-
-        # Java:
-        # gradle
-
-        # Python:
-        # hatch
-        # py-spy
-
-        # Qt:
-        # qt6.wrapQtAppsHook # For the shellHook
+        # compdb
       ];
 
       # Add dependencies to buildInputs if they will end up copied or linked into the final output or otherwise used at runtime:
@@ -205,10 +141,7 @@ rec {
         # sfml
         raylib
         raylib-cpp
-
-        # Qt:
-        # qt6.qtbase
-        # qt6.full
+        tinyobjloader
       ];
       # ===========================================================================================
       # Define buildable + installable packages
@@ -223,23 +156,6 @@ rec {
       #     mkdir -p $out/bin
       #     mv ./BINARY $out/bin
       #   '';
-      # };
-      # package = clj-nix.lib.mkCljApp {
-      #   inherit pkgs;
-      #   modules = [
-      #     # Option list: https://jlesquembre.github.io/clj-nix/options/
-      #     {
-      #       name = "";
-      #       version = "1.0.0";
-      #       main-ns = "";
-      #       projectSrc = ./.;
-      #       withLeiningen = true;
-      #       buildCommand = "lein uberjar"; # Requires "withLeiningen = true;"
-      #       jdk = pkgs.jdk; # Default is pkgs.jdk_headless
-      #       # customJdk.enable = true;
-      #       # nativeImage.enable = true;
-      #     }
-      #   ];
       # };
     in rec {
       # Provide package for "nix build"
@@ -256,9 +172,6 @@ rec {
         # =========================================================================================
         # Define environment variables
         # =========================================================================================
-
-        # Rust stdlib source:
-        # RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
 
         # Custom dynamic libraries:
         # LD_LIBRARY_PATH = builtins.concatStringsSep ":" [
@@ -278,15 +191,6 @@ rec {
 
         # Dynamic libraries from buildinputs:
         # LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath buildInputs;
-
-        # QT imports to use with "qmlls -E"
-        # QML_IMPORT_PATH = "${pkgs.qt6.full}/lib/qt-6/qml";
-
-        # Set PYTHONPATH
-        # PYTHONPATH = ".";
-
-        # Set matplotlib backend
-        # MPLBACKEND = "TkAgg";
 
         # =========================================================================================
         # Define shell environment
@@ -308,11 +212,25 @@ rec {
               cd cmake-build-${typeLower}
 
               echo "Running cmake"
-              cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE="${type}" -DCMAKE_EXPORT_COMPILE_COMMANDS="On" ..
+              cmake -G "Unix Makefiles" \
+                    -DCMAKE_BUILD_TYPE="${type}" \
+                    -DRAYLIB_CPP_INCLUDE_DIR="${raylib-cpp}/include" \
+                    -DTINYOBJLOADER_INCLUDE_DIR="${pkgs.tinyobjloader}/include" \
+                    ..
+
+              echo "Generating .clangd"
+              echo "CompileFlags:" >> .clangd
+              echo "  Add:" >> .clangd
+              echo "    - \"-I${pkgs.raylib}/include\"" >> .clangd
+              echo "    - \"-I${raylib-cpp}/include\"" >> .clangd
+              echo "    - \"-I${pkgs.tinyobjloader}/include\"" >> .clangd
 
               echo "Linking compile_commands.json"
               cd ..
               ln -sf ./cmake-build-${typeLower}/compile_commands.json ./compile_commands.json
+
+              echo "Linking .clangd"
+              ln -sf ./cmake-build-${typeLower}/.clangd ./.clangd
             '';
 
           cmakeDebug = mkCmakeScript "Debug";
@@ -342,10 +260,10 @@ rec {
             # abbr -a build-release-windows "CARGO_FEATURE_PURE=1 cargo xwin build --release --target x86_64-pc-windows-msvc"
 
             # C/C++:
-            # abbr -a cmake-debug "${cmakeDebug}"
-            # abbr -a cmake-release "${cmakeRelease}"
-            # abbr -a build-debug "${buildDebug}"
-            # abbr -a build-release "${buildRelease}"
+            abbr -a cmake-debug "${cmakeDebug}"
+            abbr -a cmake-release "${cmakeRelease}"
+            abbr -a build-debug "${buildDebug}"
+            abbr -a build-release "${buildRelease}"
 
             # Clojure:
             # abbr -a clojure-deps "deps-lock --lein"
@@ -361,14 +279,6 @@ rec {
             ''
               exec "$(type -p fish)" -C "source ${initProjectShell} && abbr -a menu '${pkgs.bat}/bin/bat "${initProjectShell}"'"
             ''
-
-            # Qt: Launch into wrapped fish shell
-            # https://nixos.org/manual/nixpkgs/stable/#sec-language-qt
-            # ''
-            #   fishdir=$(mktemp -d)
-            #   makeWrapper "$(type -p fish)" "$fishdir/fish" "''${qtWrapperArgs[@]}"
-            #   exec "$fishdir/fish" -C "source ${initProjectShell} && abbr -a menu '${pkgs.bat}/bin/bat "${initProjectShell}"'"
-            # ''
           ];
       };
     });
