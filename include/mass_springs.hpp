@@ -3,27 +3,34 @@
 
 #include <cstddef>
 #include <raylib.h>
+#include <raymath.h>
 #include <vector>
 
 class Mass {
 public:
   float mass;
   Vector3 position;
+  Vector3 previous_position; // for verlet integration
   Vector3 velocity;
   Vector3 force;
   bool fixed;
 
 public:
   Mass(float mass, Vector3 position, bool fixed)
-      : mass(mass), position(position), fixed(fixed) {}
+      : mass(mass), position(position), previous_position(position),
+        velocity(Vector3Zero()), force(Vector3Zero()), fixed(fixed) {}
 
   Mass(const Mass &copy)
-      : mass(copy.mass), position(copy.position), fixed(copy.fixed) {};
+      : mass(copy.mass), position(copy.position),
+        previous_position(copy.previous_position), velocity(copy.velocity),
+        force(copy.force), fixed(copy.fixed) {};
 
   Mass &operator=(const Mass &copy) = delete;
 
   Mass(Mass &&move)
-      : mass(move.mass), position(move.position), fixed(move.fixed) {};
+      : mass(move.mass), position(move.position),
+        previous_position(move.previous_position), velocity(move.velocity),
+        force(move.force), fixed(move.fixed) {};
 
   Mass &operator=(Mass &&move) = delete;
 
@@ -35,6 +42,8 @@ public:
   auto CalculateVelocity(const float delta_time) -> void;
 
   auto CalculatePosition(const float delta_time) -> void;
+
+  auto VerletUpdate(const float delta_time) -> void;
 };
 
 using MassList = std::vector<Mass>;
@@ -43,7 +52,6 @@ class Spring {
 public:
   Mass &massA;
   Mass &massB;
-  int indexB;
   float spring_constant;
   float dampening_constant;
   float rest_length;
@@ -110,6 +118,8 @@ public:
   auto IntegrateVelocities(const float delta_time) -> void;
 
   auto IntegratePositions(const float delta_time) -> void;
+
+  auto VerletUpdate(const float delta_time) -> void;
 };
 
 #endif

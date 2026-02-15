@@ -1,5 +1,7 @@
 #include "mass_springs.hpp"
 
+#define VERLET_UPDATE
+
 #include <iostream>
 #include <raylib.h>
 #include <raymath.h>
@@ -28,15 +30,11 @@ auto main(int argc, char *argv[]) -> int {
   MassSpringSystem mass_springs;
   mass_springs.AddMass(1.0, Vector3(-0.5, 0.5, 0.0), true);
   mass_springs.AddMass(1.0, Vector3(0.5, 0.5, 0.0), false);
+  mass_springs.AddMass(1.0, Vector3(0.5, 0.0, 0.0), false);
   mass_springs.AddSpring(0, 1, DEFAULT_SPRING_CONSTANT,
                          DEFAULT_DAMPENING_CONSTANT, DEFAULT_REST_LENGTH);
-
-  Mass &massA = mass_springs.masses[0];
-  Mass &massB = mass_springs.masses[1];
-  std::cout << "Position: A: (" << massA.position.x << ", " << massA.position.y
-            << ", " << massA.position.z << ")" << std::endl;
-  std::cout << "Position: B: (" << massB.position.x << ", " << massB.position.y
-            << ", " << massB.position.z << ")" << std::endl;
+  mass_springs.AddSpring(1, 2, DEFAULT_SPRING_CONSTANT,
+                         DEFAULT_DAMPENING_CONSTANT, DEFAULT_REST_LENGTH);
 
   Renderer renderer(WIDTH, HEIGHT);
 
@@ -47,8 +45,12 @@ auto main(int argc, char *argv[]) -> int {
     frametime = GetFrameTime();
     mass_springs.ClearForces();
     mass_springs.CalculateSpringForces();
+#ifdef VERLET_UPDATE
+    mass_springs.VerletUpdate(frametime * SIM_SPEED);
+#else
     mass_springs.IntegrateVelocities(frametime * SIM_SPEED);
     mass_springs.IntegratePositions(frametime * SIM_SPEED);
+#endif
 
     // std::cout << "Calculating Spring Forces: A: (" << massA.force.x << ", "
     //           << massA.force.y << ", " << massA.force.z << ") B: ("

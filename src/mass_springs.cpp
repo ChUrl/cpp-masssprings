@@ -23,10 +23,30 @@ auto Mass::CalculatePosition(const float delta_time) -> void {
     return;
   }
 
+  previous_position = position;
+
   Vector3 temp;
 
   temp = Vector3Scale(velocity, delta_time);
   position = Vector3Add(position, temp);
+}
+
+auto Mass::VerletUpdate(const float delta_time) -> void {
+  if (fixed) {
+    return;
+  }
+
+  Vector3 acceleration = Vector3Scale(force, 1.0 / mass);
+  Vector3 temp_position = position;
+
+  Vector3 displacement = Vector3Subtract(position, previous_position);
+  Vector3 accel_term = Vector3Scale(acceleration, delta_time * delta_time);
+
+  // Minimal dampening
+  displacement = Vector3Scale(displacement, 0.99);
+
+  position = Vector3Add(Vector3Add(position, displacement), accel_term);
+  previous_position = temp_position;
 }
 
 auto Spring::CalculateSpringForce() -> void {
@@ -93,5 +113,11 @@ auto MassSpringSystem::IntegrateVelocities(const float delta_time) -> void {
 auto MassSpringSystem::IntegratePositions(const float delta_time) -> void {
   for (auto &mass : masses) {
     mass.CalculatePosition(delta_time);
+  }
+}
+
+auto MassSpringSystem::VerletUpdate(const float delta_time) -> void {
+  for (auto &mass : masses) {
+    mass.VerletUpdate(delta_time);
   }
 }
