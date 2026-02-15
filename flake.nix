@@ -1,5 +1,5 @@
 rec {
-  description = "C++ ObjRender";
+  description = "C++ MassSprings";
 
   inputs = {
     nixpkgs.url = "nixpkgs"; # Use nixpkgs from system registry
@@ -143,8 +143,8 @@ rec {
         # boost
         # sfml
         raylib
-        raylib-cpp
-        tinyobjloader
+        # raylib-cpp
+        # tinyobjloader
         # gperftools
       ];
       # ===========================================================================================
@@ -218,16 +218,12 @@ rec {
               echo "Running cmake"
               cmake -G "Unix Makefiles" \
                     -DCMAKE_BUILD_TYPE="${type}" \
-                    -DRAYLIB_CPP_INCLUDE_DIR="${raylib-cpp}/include" \
-                    -DTINYOBJLOADER_INCLUDE_DIR="${pkgs.tinyobjloader}/include" \
                     ..
 
               echo "Generating .clangd"
               echo "CompileFlags:" >> .clangd
               echo "  Add:" >> .clangd
               echo "    - \"-I${pkgs.raylib}/include\"" >> .clangd
-              echo "    - \"-I${raylib-cpp}/include\"" >> .clangd
-              echo "    - \"-I${pkgs.tinyobjloader}/include\"" >> .clangd
 
               echo "Linking compile_commands.json"
               cd ..
