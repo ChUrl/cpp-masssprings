@@ -124,12 +124,15 @@ rec {
 
         # C/C++:
         gdb
-        # valgrind
+        valgrind
         # gnumake
         cmake
         # pkg-config
         # clang-tools
         # compdb
+        # pprof
+        gprof2dot
+        kdePackages.kcachegrind
       ];
 
       # Add dependencies to buildInputs if they will end up copied or linked into the final output or otherwise used at runtime:
@@ -142,6 +145,7 @@ rec {
         raylib
         raylib-cpp
         tinyobjloader
+        # gperftools
       ];
       # ===========================================================================================
       # Define buildable + installable packages
