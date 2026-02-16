@@ -115,9 +115,7 @@ public:
 
   auto CalculateSpringForces() -> void;
 
-  auto IntegrateVelocities(const float delta_time) -> void;
-
-  auto IntegratePositions(const float delta_time) -> void;
+  auto EulerUpdate(const float delta_time) -> void;
 
   auto VerletUpdate(const float delta_time) -> void;
 };

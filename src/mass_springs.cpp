@@ -104,14 +104,9 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
   }
 }
 
-auto MassSpringSystem::IntegrateVelocities(const float delta_time) -> void {
+auto MassSpringSystem::EulerUpdate(const float delta_time) -> void {
   for (auto &mass : masses) {
     mass.CalculateVelocity(delta_time);
-  }
-}
-
-auto MassSpringSystem::IntegratePositions(const float delta_time) -> void {
-  for (auto &mass : masses) {
     mass.CalculatePosition(delta_time);
   }
 }

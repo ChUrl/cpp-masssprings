@@ -23,9 +23,6 @@ auto main(int argc, char *argv[]) -> int {
 
   InitWindow(WIDTH, HEIGHT, "MassSprings");
 
-  Edge3Set edges;
-  Edge2Set viewport;
-  viewport.reserve(edges.size());
 
   MassSpringSystem mass_springs;
   mass_springs.AddMass(1.0, Vector3(-0.5, 0.5, 0.0), true);
@@ -37,6 +34,10 @@ auto main(int argc, char *argv[]) -> int {
                          DEFAULT_DAMPENING_CONSTANT, DEFAULT_REST_LENGTH);
 
   Renderer renderer(WIDTH, HEIGHT);
+  Edge2Set edges;
+  edges.reserve(mass_springs.springs.size());
+  Vertex2Set vertices;
+  vertices.reserve(mass_springs.masses.size());
 
   float frametime;
   float abstime = 0.0;
@@ -48,28 +49,15 @@ auto main(int argc, char *argv[]) -> int {
 #ifdef VERLET_UPDATE
     mass_springs.VerletUpdate(frametime * SIM_SPEED);
 #else
-    mass_springs.IntegrateVelocities(frametime * SIM_SPEED);
-    mass_springs.IntegratePositions(frametime * SIM_SPEED);
+    mass_springs.EulerUpdate(frametime * SIM_SPEED);
 #endif
 
-    // std::cout << "Calculating Spring Forces: A: (" << massA.force.x << ", "
-    //           << massA.force.y << ", " << massA.force.z << ") B: ("
-    //           << massB.force.x << ", " << massB.force.y << ", " <<
-    //           massB.force.z
-    //           << ")" << std::endl;
-    // std::cout << "Calculating Velocities: A: (" << massA.velocity.x << ", "
-    //           << massA.velocity.y << ", " << massA.velocity.z << ") B: ("
-    //           << massB.velocity.x << ", " << massB.velocity.y << ", "
-    //           << massB.velocity.z << ")" << std::endl;
-    // std::cout << "Calculating Positions: A: (" << massA.position.x << ", "
-    //           << massA.position.y << ", " << massA.position.z << ") B: ("
-    //           << massB.position.x << ", " << massB.position.y << ", "
-    //           << massB.position.z << ")" << std::endl;
+    renderer.Transform(edges, vertices, mass_springs, abstime * ROTATION_SPEED,
+                       CAMERA_DISTANCE);
+    renderer.DrawMassSprings(edges, vertices);
 
-    renderer.Transform(viewport, mass_springs, 0.0, CAMERA_DISTANCE);
     renderer.Draw(viewport);
-
-    abstime += frametime * SIM_SPEED;
+    abstime += frametime;
   }
 
   CloseWindow();

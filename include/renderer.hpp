@@ -8,8 +8,11 @@
 
 #include "mass_springs.hpp"
 
-using Edge2Set = std::vector<std::pair<Vector2, Vector2>>;
 using Edge3Set = std::vector<std::pair<Vector3, Vector3>>;
+using Edge2Set = std::vector<std::pair<Vector2, Vector2>>;
+using Vertex2Set =
+    std::vector<Vector3>; // Vertex2Set uses Vector3 to retain the z-coordinate
+                          // for circle size adaptation
 
 class Renderer {
 private:
@@ -40,10 +43,12 @@ private:
   auto Map(const Vector2 &a) -> Vector2;
 
 public:
-  auto Transform(Edge2Set &edges, const MassSpringSystem &mass_springs,
-                 const float angle, const float distance) -> void;
+  auto Transform(Edge2Set &edges, Vertex2Set &vertices,
+                 const MassSpringSystem &mass_springs, const float angle,
+                 const float distance) -> void;
 
-  auto Draw(const Edge2Set &edges) -> void;
+  auto DrawMassSprings(const Edge2Set &edges, const Vertex2Set &vertices)
+      -> void;
 };
 
 #endif
