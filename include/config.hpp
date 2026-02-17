@@ -3,23 +3,32 @@
 
 #include <raylib.h>
 
-constexpr int WIDTH = 800;
-constexpr int HEIGHT = 800;
+// Window
+constexpr int WIDTH = 1000;
+constexpr int HEIGHT = 1000;
 
-constexpr float VERTEX_SIZE = 0.1;
+// Camera Controls
+constexpr float SIM_SPEED = 4.0;
+constexpr float CAMERA_DISTANCE = 4.0;
+constexpr float MIN_CAMERA_DISTANCE = 2.0;
+constexpr float MAX_CAMERA_DISTANCE = 50.0;
+constexpr float ZOOM_SPEED = 1.0;
+constexpr float PAN_SPEED = 1.0;
+constexpr float ROT_SPEED = 1.0;
+
+// Physics Engine
+constexpr float SPRING_CONSTANT = 1.5;
+constexpr float DAMPENING_CONSTANT = 0.8;
+constexpr float REST_LENGTH = 1.0;
+constexpr float REPULSION_FORCE = 0.05;
+constexpr float VERLET_DAMPENING = 0.01; // [0, 1]
+
+// Graph Drawing
+constexpr float VERTEX_SIZE = 0.05;
 constexpr Color VERTEX_COLOR = GREEN;
 constexpr Color EDGE_COLOR = DARKGREEN;
 
-constexpr float SIM_SPEED = 4.0;
-constexpr float ROTATION_SPEED = 1.0;
-constexpr float CAMERA_DISTANCE = 2.2;
-constexpr float CULLING_TOLERANCE = 0.1; // percentage
-
-constexpr float DEFAULT_SPRING_CONSTANT = 1.5;
-constexpr float DEFAULT_DAMPENING_CONSTANT = 0.1;
-constexpr float DEFAULT_REST_LENGTH = 0.5;
-constexpr float DEFAULT_REPULSION_FORCE = 0.01;
-
+// Klotski Drawing
 constexpr int BOARD_PADDING = 5;
 constexpr int BLOCK_PADDING = 5;
 constexpr Color BLOCK_COLOR = DARKGREEN;

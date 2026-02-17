@@ -1,20 +1,20 @@
 #include "klotski.hpp"
 
-auto Block::Hash() -> int {
+auto Block::Hash() const -> int {
   std::string s = std::format("{},{},{},{}", x, y, width, height);
   return std::hash<std::string>{}(s);
 }
 
-auto Block::Invalid() -> Block const {
+auto Block::Invalid() -> Block {
   Block block = Block(0, 0, 1, 1, false);
   block.width = 0;
   block.height = 0;
   return block;
 }
 
-auto Block::IsValid() -> bool { return width != 0 && height != 0; }
+auto Block::IsValid() const -> bool { return width != 0 && height != 0; }
 
-auto Block::ToString() -> std::string {
+auto Block::ToString() const -> std::string {
   if (target) {
     return std::format("{}{}",
                        static_cast<char>(width + static_cast<int>('a') - 1),
@@ -24,16 +24,16 @@ auto Block::ToString() -> std::string {
   }
 }
 
-auto Block::Covers(int xx, int yy) -> bool {
+auto Block::Covers(int xx, int yy) const -> bool {
   return xx >= x && xx < x + width && yy >= y && yy < y + height;
 }
 
-auto Block::Collides(const Block &other) -> bool {
+auto Block::Collides(const Block &other) const -> bool {
   return x < other.x + other.width && x + width > other.x &&
          y < other.y + other.height && y + height > other.y;
 }
 
-auto State::Hash() -> int { return std::hash<std::string>{}(state); }
+auto State::Hash() const -> int { return std::hash<std::string>{}(state); }
 
 auto State::AddBlock(Block block) -> bool {
   if (block.x + block.width > width || block.y + block.height > height) {
@@ -52,7 +52,7 @@ auto State::AddBlock(Block block) -> bool {
   return true;
 }
 
-auto State::GetBlock(int x, int y) -> Block {
+auto State::GetBlock(int x, int y) const -> Block {
   if (x >= width || y >= height) {
     return Block::Invalid();
   }
@@ -127,4 +127,61 @@ auto State::MoveBlockAt(int x, int y, Direction dir) -> bool {
   AddBlock(target);
 
   return true;
+}
+
+auto State::GetNextStates() const -> std::vector<State> {
+  std::vector<State> new_states;
+
+  for (const Block &b : *this) {
+    State north = *this;
+    if (north.MoveBlockAt(b.x, b.y, Direction::NOR)) {
+      new_states.push_back(north);
+    }
+
+    State east = *this;
+    if (east.MoveBlockAt(b.x, b.y, Direction::EAS)) {
+      new_states.push_back(east);
+    }
+
+    State south = *this;
+    if (south.MoveBlockAt(b.x, b.y, Direction::SOU)) {
+      new_states.push_back(south);
+    }
+
+    State west = *this;
+    if (west.MoveBlockAt(b.x, b.y, Direction::WES)) {
+      new_states.push_back(west);
+    }
+  }
+
+  return new_states;
+}
+
+auto State::Closure() const
+    -> std::pair<std::unordered_set<std::string>,
+                 std::vector<std::pair<std::string, std::string>>> {
+  std::unordered_set<std::string> states;
+  std::vector<std::pair<std::string, std::string>> links;
+
+  std::unordered_set<State> remaining_states;
+  remaining_states.insert(*this);
+
+  do {
+    const State current = *remaining_states.begin();
+    remaining_states.erase(current);
+
+    std::vector<State> new_states = current.GetNextStates();
+    for (State &s : new_states) {
+      if (!states.contains(s.state)) {
+        remaining_states.insert(s);
+        states.insert(s.state);
+      }
+      links.emplace_back(current.state, s.state);
+    }
+  } while (remaining_states.size() > 0);
+
+  std::cout << "Closure contains " << states.size() << " states with "
+            << links.size() << " links." << std::endl;
+
+  return std::make_pair(states, links);
 }

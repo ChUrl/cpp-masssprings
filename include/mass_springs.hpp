@@ -1,21 +1,19 @@
 #ifndef __MASS_SPRINGS_HPP_
 #define __MASS_SPRINGS_HPP_
 
-#include <cstddef>
 #include <raylib.h>
 #include <raymath.h>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 class Mass {
 public:
-  float mass;
+  const float mass;
   Vector3 position;
   Vector3 previous_position; // for verlet integration
   Vector3 velocity;
   Vector3 force;
-  bool fixed;
+  const bool fixed;
 
 public:
   Mass(float mass, Vector3 position, bool fixed)
@@ -48,15 +46,13 @@ public:
   auto VerletUpdate(const float delta_time) -> void;
 };
 
-using MassList = std::vector<Mass>;
-
 class Spring {
 public:
   Mass &massA;
   Mass &massB;
-  float spring_constant;
-  float dampening_constant;
-  float rest_length;
+  const float spring_constant;
+  const float dampening_constant;
+  const float rest_length;
 
 public:
   Spring(Mass &massA, Mass &massB, float spring_constant,
@@ -83,15 +79,13 @@ public:
   ~Spring() {}
 
 public:
-  auto CalculateSpringForce() -> void;
+  auto CalculateSpringForce() const -> void;
 };
-
-using SpringList = std::vector<Spring>;
 
 class MassSpringSystem {
 public:
   std::unordered_map<std::string, Mass> masses;
-  SpringList springs;
+  std::unordered_map<std::string, Spring> springs;
 
 public:
   MassSpringSystem() {};
@@ -104,8 +98,8 @@ public:
   ~MassSpringSystem() {};
 
 public:
-  auto AddMass(float mass, Vector3 position, bool fixed, std::string state)
-      -> void;
+  auto AddMass(float mass, Vector3 position, bool fixed,
+               const std::string &state) -> void;
 
   auto GetMass(const std::string &state) -> Mass &;
 
@@ -121,9 +115,9 @@ public:
 
   auto CalculateRepulsionForces() -> void;
 
-  auto EulerUpdate(const float delta_time) -> void;
+  auto EulerUpdate(float delta_time) -> void;
 
-  auto VerletUpdate(const float delta_time) -> void;
+  auto VerletUpdate(float delta_time) -> void;
 };
 
 #endif

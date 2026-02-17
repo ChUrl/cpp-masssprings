@@ -1,7 +1,7 @@
 #include "mass_springs.hpp"
 #include "config.hpp"
 
-#include <cstddef>
+#include <format>
 #include <raymath.h>
 
 auto Mass::ClearForce() -> void { force = Vector3Zero(); }
@@ -44,13 +44,13 @@ auto Mass::VerletUpdate(const float delta_time) -> void {
   Vector3 accel_term = Vector3Scale(acceleration, delta_time * delta_time);
 
   // Minimal dampening
-  displacement = Vector3Scale(displacement, 0.99);
+  displacement = Vector3Scale(displacement, 1.0 - VERLET_DAMPENING);
 
   position = Vector3Add(Vector3Add(position, displacement), accel_term);
   previous_position = temp_position;
 }
 
-auto Spring::CalculateSpringForce() -> void {
+auto Spring::CalculateSpringForce() const -> void {
   Vector3 delta_position;
   float current_length;
   Vector3 delta_velocity;
@@ -74,7 +74,7 @@ auto Spring::CalculateSpringForce() -> void {
 }
 
 auto MassSpringSystem::AddMass(float mass, Vector3 position, bool fixed,
-                               std::string state) -> void {
+                               const std::string &state) -> void {
   if (!masses.contains(state)) {
     masses.insert(std::make_pair(state, Mass(mass, position, fixed)));
   }
@@ -89,8 +89,18 @@ auto MassSpringSystem::AddSpring(const std::string &massA,
                                  float spring_constant,
                                  float dampening_constant, float rest_length)
     -> void {
-  springs.emplace_back(GetMass(massA), GetMass(massB), spring_constant,
-                       dampening_constant, rest_length);
+  std::string states;
+  if (std::hash<std::string>{}(massA) < std::hash<std::string>{}(massB)) {
+    states = std::format("{}{}", massA, massB);
+  } else {
+    states = std::format("{}{}", massB, massA);
+  }
+
+  if (!springs.contains(states)) {
+    springs.insert(std::make_pair(
+        states, Spring(GetMass(massA), GetMass(massB), spring_constant,
+                       dampening_constant, rest_length)));
+  }
 }
 
 auto MassSpringSystem::Clear() -> void {
@@ -105,7 +115,7 @@ auto MassSpringSystem::ClearForces() -> void {
 }
 
 auto MassSpringSystem::CalculateSpringForces() -> void {
-  for (auto &spring : springs) {
+  for (auto &[states, spring] : springs) {
     spring.CalculateSpringForce();
   }
 }
@@ -116,25 +126,24 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
       Vector3 dx = Vector3Subtract(mass.position, m.position);
 
       // This can be accelerated with a spatial data structure
-      if (Vector3Length(dx) >= 3 * DEFAULT_REST_LENGTH) {
+      if (Vector3Length(dx) >= 3 * REST_LENGTH) {
         continue;
       }
 
-      mass.force =
-          Vector3Add(mass.force, Vector3Scale(Vector3Normalize(dx),
-                                              DEFAULT_REPULSION_FORCE));
+      mass.force = Vector3Add(
+          mass.force, Vector3Scale(Vector3Normalize(dx), REPULSION_FORCE));
     }
   }
 }
 
-auto MassSpringSystem::EulerUpdate(const float delta_time) -> void {
+auto MassSpringSystem::EulerUpdate(float delta_time) -> void {
   for (auto &[state, mass] : masses) {
     mass.CalculateVelocity(delta_time);
     mass.CalculatePosition(delta_time);
   }
 }
 
-auto MassSpringSystem::VerletUpdate(const float delta_time) -> void {
+auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
   for (auto &[state, mass] : masses) {
     mass.VerletUpdate(delta_time);
   }

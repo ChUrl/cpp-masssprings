@@ -1,6 +1,7 @@
 #include "renderer.hpp"
 
 #include <raylib.h>
+#include <raymath.h>
 
 #include "config.hpp"
 #include "mass_springs.hpp"
@@ -8,28 +9,50 @@
 auto OrbitCamera3D::Update() -> void {
   Vector2 mouse = GetMousePosition();
 
-  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+  if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
     dragging = true;
+    last_mouse = mouse;
+  } else if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+    panning = true;
     last_mouse = mouse;
   }
 
-  if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+  if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
     dragging = false;
+  }
+  if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+    panning = false;
   }
 
   if (dragging) {
     Vector2 dx = Vector2Subtract(mouse, last_mouse);
     last_mouse = mouse;
 
-    angle_x -= dx.x * 0.005;
-    angle_y += dx.y * 0.005;
+    angle_x -= dx.x * ROT_SPEED / 200.0;
+    angle_y += dx.y * ROT_SPEED / 200.0;
 
     angle_y = Clamp(angle_y, -1.5, 1.5); // Prevent flipping
   }
 
+  if (panning) {
+    Vector2 dx = Vector2Subtract(mouse, last_mouse);
+    last_mouse = mouse;
+
+    float speed = distance * PAN_SPEED / 1000.0;
+    Vector3 forward =
+        Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+    Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
+    Vector3 up = Vector3Normalize(Vector3CrossProduct(right, forward));
+
+    Vector3 offset = Vector3Add(Vector3Scale(right, -dx.x * speed),
+                                Vector3Scale(up, dx.y * speed));
+
+    target = Vector3Add(target, offset);
+  }
+
   float wheel = GetMouseWheelMove();
-  distance -= wheel * 2.0;
-  distance = Clamp(distance, 2.0, 50.0);
+  distance -= wheel * ZOOM_SPEED;
+  distance = Clamp(distance, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);
 
   float x = cos(angle_y) * sin(angle_x) * distance;
   float y = sin(angle_y) * distance;
@@ -48,7 +71,7 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings) -> void {
   BeginMode3D(camera.camera);
 
   // Draw springs
-  for (const auto &spring : masssprings.springs) {
+  for (const auto &[states, spring] : masssprings.springs) {
     const Mass a = spring.massA;
     const Mass b = spring.massB;
 
@@ -61,7 +84,7 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings) -> void {
              VERTEX_COLOR);
   }
 
-  DrawGrid(10, 1.0);
+  // DrawGrid(10, 1.0);
 
   EndMode3D();
 
@@ -70,7 +93,7 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings) -> void {
   EndTextureMode();
 }
 
-auto Renderer::DrawKlotski(State &state, int hov_x, int hov_y, int sel_x,
+auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
                            int sel_y) -> void {
   BeginTextureMode(klotski_target);
   ClearBackground(RAYWHITE);

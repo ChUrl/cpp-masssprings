@@ -20,11 +20,13 @@ private:
   float angle_y;
   Vector2 last_mouse;
   bool dragging;
+  bool panning;
 
 public:
   OrbitCamera3D(Vector3 target, float distance)
       : camera({0}), target(target), distance(distance), angle_x(0.0),
-        angle_y(0.3), last_mouse(Vector2Zero()), dragging(false) {
+        angle_y(0.3), last_mouse(Vector2Zero()), dragging(false),
+        panning(false) {
     camera.position = Vector3(0, 0, -1.0 * distance);
     camera.target = target;
     camera.up = Vector3(0, 1.0, 0);
@@ -40,8 +42,8 @@ public:
 
 class Renderer {
 private:
-  int width;
-  int height;
+  const int width;
+  const int height;
   OrbitCamera3D camera;
   RenderTexture render_target;
   RenderTexture klotski_target;
@@ -69,8 +71,8 @@ public:
 
   auto DrawMassSprings(const MassSpringSystem &masssprings) -> void;
 
-  auto DrawKlotski(State &state, int hov_x, int hov_y, int sel_x, int sel_y)
-      -> void;
+  auto DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
+                   int sel_y) -> void;
 
   auto DrawTextures() -> void;
 };

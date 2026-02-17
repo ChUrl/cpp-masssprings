@@ -6,6 +6,7 @@
 #include <format>
 #include <iostream>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 // #define DBG_PRINT
@@ -109,17 +110,17 @@ public:
   ~Block() {}
 
 public:
-  auto Hash() -> int;
+  auto Hash() const -> int;
 
-  static auto Invalid() -> Block const;
+  static auto Invalid() -> Block;
 
-  auto IsValid() -> bool;
+  auto IsValid() const -> bool;
 
-  auto ToString() -> std::string;
+  auto ToString() const -> std::string;
 
-  auto Covers(int xx, int yy) -> bool;
+  auto Covers(int xx, int yy) const -> bool;
 
-  auto Collides(const Block &other) -> bool;
+  auto Collides(const Block &other) const -> bool;
 };
 
 // A state is represented by a string "WxH:blocks", where W is the board width,
@@ -130,8 +131,8 @@ public:
 // block's pivot being its top-left corner.
 class State {
 public:
-  int width;
-  int height;
+  const int width;
+  const int height;
   std::string state;
 
   // https://en.cppreference.com/w/cpp/iterator/input_iterator.html
@@ -214,24 +215,32 @@ public:
 
   bool operator!=(const State &other) const { return !(*this == other); }
 
-  BlockIterator begin() { return BlockIterator(*this); }
+  BlockIterator begin() const { return BlockIterator(*this); }
 
-  BlockIterator end() { return BlockIterator(*this, width * height); }
+  BlockIterator end() const { return BlockIterator(*this, width * height); }
 
   ~State() {}
 
 public:
-  auto Hash() -> int;
+  auto Hash() const -> int;
 
   auto AddBlock(Block block) -> bool;
 
-  auto GetBlock(int x, int y) -> Block;
+  auto GetBlock(int x, int y) const -> Block;
 
   auto RemoveBlock(int x, int y) -> bool;
 
   auto MoveBlockAt(int x, int y, Direction dir) -> bool;
 
-  auto GetNextStates() -> std::vector<State>;
+  auto GetNextStates() const -> std::vector<State>;
+
+  auto Closure() const
+      -> std::pair<std::unordered_set<std::string>,
+                   std::vector<std::pair<std::string, std::string>>>;
+};
+
+template <> struct std::hash<State> {
+  std::size_t operator()(const State &s) const noexcept { return s.Hash(); }
 };
 
 #endif

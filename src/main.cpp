@@ -15,23 +15,23 @@ auto klotski_a() -> State {
   Block b = Block(1, 0, 2, 2, true);
   Block c = Block(3, 0, 1, 2, false);
   Block d = Block(0, 2, 1, 2, false);
-  Block e = Block(1, 2, 2, 1, false);
-  Block f = Block(3, 2, 1, 2, false);
-  Block g = Block(1, 3, 1, 1, false);
-  Block h = Block(2, 3, 1, 1, false);
-  Block i = Block(0, 4, 1, 1, false);
-  Block j = Block(3, 4, 1, 1, false);
+  // Block e = Block(1, 2, 2, 1, false);
+  // Block f = Block(3, 2, 1, 2, false);
+  // Block g = Block(1, 3, 1, 1, false);
+  // Block h = Block(2, 3, 1, 1, false);
+  // Block i = Block(0, 4, 1, 1, false);
+  // Block j = Block(3, 4, 1, 1, false);
 
   s.AddBlock(a);
   s.AddBlock(b);
   s.AddBlock(c);
   s.AddBlock(d);
-  s.AddBlock(e);
-  s.AddBlock(f);
-  s.AddBlock(g);
-  s.AddBlock(h);
-  s.AddBlock(i);
-  s.AddBlock(j);
+  // s.AddBlock(e);
+  // s.AddBlock(f);
+  // s.AddBlock(g);
+  // s.AddBlock(h);
+  // s.AddBlock(i);
+  // s.AddBlock(j);
 
   return s;
 }
@@ -57,6 +57,33 @@ auto main(int argc, char *argv[]) -> int {
   // Klotski configuration
   State board = klotski_a();
   mass_springs.AddMass(1.0, Vector3Zero(), true, board.state);
+
+  // Closure solving
+  std::pair<std::unordered_set<std::string>,
+            std::vector<std::pair<std::string, std::string>>>
+      closure = board.Closure();
+  for (const auto &state : closure.first) {
+    Vector3 pos =
+        Vector3(static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0,
+                static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0,
+                static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0);
+
+    mass_springs.AddMass(1.0, pos, false, state);
+  }
+  for (const auto &[from, to] : closure.second) {
+    mass_springs.AddSpring(from, to, SPRING_CONSTANT, DAMPENING_CONSTANT,
+                           REST_LENGTH);
+  }
+  std::cout << "Inserted " << mass_springs.masses.size() << " masses and "
+            << mass_springs.springs.size() << " springs." << std::endl;
+  std::cout << "Consuming "
+            << sizeof(decltype(*mass_springs.masses.begin())) *
+                   mass_springs.masses.size()
+            << " Bytes for masses." << std::endl;
+  std::cout << "Consuming "
+            << sizeof(decltype(*mass_springs.springs.begin())) *
+                   mass_springs.springs.size()
+            << " Bytes for springs." << std::endl;
 
   // Rendering configuration
   Renderer renderer(WIDTH, HEIGHT);
@@ -115,8 +142,9 @@ auto main(int argc, char *argv[]) -> int {
       if (board.MoveBlockAt(sel_x, sel_y, Direction::EAS)) {
         sel_x++;
       }
+    } else if (IsKeyPressed(KEY_P)) {
+      std::cout << board.state << std::endl;
     }
-    // TODO: Need to check for duplicate springs
     if (previous_state != board.state) {
       mass_springs.AddMass(
           1.0,
@@ -124,9 +152,8 @@ auto main(int argc, char *argv[]) -> int {
                   static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
                   static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0),
           false, board.state);
-      mass_springs.AddSpring(board.state, previous_state,
-                             DEFAULT_SPRING_CONSTANT,
-                             DEFAULT_DAMPENING_CONSTANT, DEFAULT_REST_LENGTH);
+      mass_springs.AddSpring(board.state, previous_state, SPRING_CONSTANT,
+                             DAMPENING_CONSTANT, REST_LENGTH);
     }
 
     // Physics update
