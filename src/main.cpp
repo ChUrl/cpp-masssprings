@@ -44,9 +44,10 @@ auto main(int argc, char *argv[]) -> int {
 
   SetTraceLogLevel(LOG_ERROR);
 
-  // SetTargetFPS(60);
+  // SetTargetFPS(165);
   SetConfigFlags(FLAG_VSYNC_HINT);
   SetConfigFlags(FLAG_MSAA_4X_HINT);
+  // SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
 
   InitWindow(WIDTH * 2, HEIGHT, "MassSprings");
 
@@ -59,17 +60,9 @@ auto main(int argc, char *argv[]) -> int {
 
   // Rendering configuration
   Renderer renderer(WIDTH, HEIGHT);
-  Edge2Set edges;
-  edges.reserve(mass_springs.springs.size());
-  Vertex2Set vertices;
-  vertices.reserve(mass_springs.masses.size());
 
   // Game loop
-  float camera_distance = CAMERA_DISTANCE;
-  float horizontal = 0.0;
-  float vertical = 0.0;
   float frametime;
-  float abstime = 0.0;
   int hov_x = 0;
   int hov_y = 0;
   int sel_x = 0;
@@ -78,7 +71,6 @@ auto main(int argc, char *argv[]) -> int {
     frametime = GetFrameTime();
 
     // Mouse handling
-    Vector2 m = GetMousePosition();
     float block_size;
     float x_offset = 0.0;
     float y_offset = 0.0;
@@ -89,6 +81,7 @@ auto main(int argc, char *argv[]) -> int {
       block_size = static_cast<float>(HEIGHT) / board.height;
       x_offset = (WIDTH - block_size * board.width) / 2.0;
     }
+    Vector2 m = GetMousePosition();
     if (m.x < x_offset) {
       hov_x = 100;
     } else {
@@ -103,7 +96,6 @@ auto main(int argc, char *argv[]) -> int {
       sel_x = hov_x;
       sel_y = hov_y;
     }
-    camera_distance += GetMouseWheelMove() / -10.0;
 
     // Key handling
     std::string previous_state = board.state;
@@ -136,15 +128,6 @@ auto main(int argc, char *argv[]) -> int {
                              DEFAULT_SPRING_CONSTANT,
                              DEFAULT_DAMPENING_CONSTANT, DEFAULT_REST_LENGTH);
     }
-    if (IsKeyPressed(KEY_UP)) {
-      vertical += 0.1;
-    } else if (IsKeyPressed(KEY_RIGHT)) {
-      horizontal += 0.1;
-    } else if (IsKeyPressed(KEY_DOWN)) {
-      vertical -= 0.1;
-    } else if (IsKeyPressed(KEY_LEFT)) {
-      horizontal -= 0.1;
-    }
 
     // Physics update
     mass_springs.ClearForces();
@@ -157,13 +140,10 @@ auto main(int argc, char *argv[]) -> int {
 #endif
 
     // Rendering
-    renderer.Transform(edges, vertices, mass_springs, abstime * ROTATION_SPEED,
-                       camera_distance, horizontal, vertical);
-    renderer.DrawMassSprings(edges, vertices);
+    renderer.DrawMassSprings(mass_springs);
     renderer.DrawKlotski(board, hov_x, hov_y, sel_x, sel_y);
     renderer.DrawTextures();
-
-    abstime += frametime;
+    renderer.UpdateCamera();
   }
 
   CloseWindow();

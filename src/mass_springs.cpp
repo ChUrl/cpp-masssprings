@@ -114,6 +114,12 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
   for (auto &[state, mass] : masses) {
     for (auto &[s, m] : masses) {
       Vector3 dx = Vector3Subtract(mass.position, m.position);
+
+      // This can be accelerated with a spatial data structure
+      if (Vector3Length(dx) >= 3 * DEFAULT_REST_LENGTH) {
+        continue;
+      }
+
       mass.force =
           Vector3Add(mass.force, Vector3Scale(Vector3Normalize(dx),
                                               DEFAULT_REPULSION_FORCE));

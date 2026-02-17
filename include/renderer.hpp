@@ -4,26 +4,52 @@
 #include <immintrin.h>
 #include <raylib.h>
 #include <raymath.h>
-#include <vector>
 
+#include "config.hpp"
 #include "klotski.hpp"
 #include "mass_springs.hpp"
 
-using Edge3Set = std::vector<std::pair<Vector3, Vector3>>;
-using Edge2Set = std::vector<std::pair<Vector2, Vector2>>;
-using Vertex2Set =
-    std::vector<Vector3>; // Vertex2Set uses Vector3 to retain the z-coordinate
-                          // for circle size adaptation
+class OrbitCamera3D {
+  friend class Renderer;
+
+private:
+  Camera camera;
+  Vector3 target;
+  float distance;
+  float angle_x;
+  float angle_y;
+  Vector2 last_mouse;
+  bool dragging;
+
+public:
+  OrbitCamera3D(Vector3 target, float distance)
+      : camera({0}), target(target), distance(distance), angle_x(0.0),
+        angle_y(0.3), last_mouse(Vector2Zero()), dragging(false) {
+    camera.position = Vector3(0, 0, -1.0 * distance);
+    camera.target = target;
+    camera.up = Vector3(0, 1.0, 0);
+    camera.fovy = 90.0;
+    camera.projection = CAMERA_PERSPECTIVE;
+  }
+
+  ~OrbitCamera3D() {}
+
+public:
+  auto Update() -> void;
+};
 
 class Renderer {
 private:
   int width;
   int height;
-  RenderTexture2D render_target;
-  RenderTexture2D klotski_target;
+  OrbitCamera3D camera;
+  RenderTexture render_target;
+  RenderTexture klotski_target;
 
 public:
-  Renderer(int width, int height) : width(width), height(height) {
+  Renderer(int width, int height)
+      : width(width), height(height),
+        camera(OrbitCamera3D(Vector3(0, 0, 0), CAMERA_DISTANCE)) {
     render_target = LoadRenderTexture(width, height);
     klotski_target = LoadRenderTexture(width, height);
   }
@@ -38,25 +64,10 @@ public:
     UnloadRenderTexture(klotski_target);
   }
 
-private:
-  auto Rotate(const Vector3 &a, const float cos_angle, const float sin_angle)
-      -> Vector3;
-
-  auto Translate(const Vector3 &a, const float distance, const float horizontal,
-                 const float vertical) -> Vector3;
-
-  auto Project(const Vector3 &a) -> Vector2;
-
-  auto Map(const Vector2 &a) -> Vector2;
-
 public:
-  auto Transform(Edge2Set &edges, Vertex2Set &vertices,
-                 const MassSpringSystem &mass_springs, const float angle,
-                 const float distance, const float horizontal,
-                 const float vertical) -> void;
+  auto UpdateCamera() -> void;
 
-  auto DrawMassSprings(const Edge2Set &edges, const Vertex2Set &vertices)
-      -> void;
+  auto DrawMassSprings(const MassSpringSystem &masssprings) -> void;
 
   auto DrawKlotski(State &state, int hov_x, int hov_y, int sel_x, int sel_y)
       -> void;

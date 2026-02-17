@@ -3,118 +3,70 @@
 #include <raylib.h>
 
 #include "config.hpp"
+#include "mass_springs.hpp"
 
-auto Renderer::Rotate(const Vector3 &a, const float cos_angle,
-                      const float sin_angle) -> Vector3 {
-  return Vector3(a.x * cos_angle - a.z * sin_angle, a.y,
-                 a.x * sin_angle + a.z * cos_angle);
-};
+auto OrbitCamera3D::Update() -> void {
+  Vector2 mouse = GetMousePosition();
 
-auto Renderer::Translate(const Vector3 &a, const float distance,
-                         const float horizontal, const float vertical)
-    -> Vector3 {
-  return Vector3(a.x + horizontal, a.y + vertical, a.z + distance);
-};
-
-auto Renderer::Project(const Vector3 &a) -> Vector2 {
-  return Vector2(a.x / a.z, a.y / a.z);
-}
-
-auto Renderer::Map(const Vector2 &a) -> Vector2 {
-  return Vector2((1.0 + a.x) / 2.0 * width, (1.0 - a.y) * height / 2.0);
-}
-
-auto Renderer::Transform(Edge2Set &edges, Vertex2Set &vertices,
-                         const MassSpringSystem &mass_springs,
-                         const float angle, const float distance,
-                         const float horizontal, const float vertical) -> void {
-  const float cos_angle = cos(angle);
-  const float sin_angle = sin(angle);
-
-  edges.clear();
-  for (const auto &spring : mass_springs.springs) {
-    const Mass &massA = spring.massA;
-    const Mass &massB = spring.massB;
-
-    // Stuff behind the camera
-    if (massA.position.z + distance <= 0.1) {
-      continue;
-    }
-    if (massB.position.z + distance <= 0.1) {
-      continue;
-    }
-
-    Vector2 a =
-        Map(Project(Translate(Rotate(massA.position, cos_angle, sin_angle),
-                              distance, horizontal, vertical)));
-    Vector2 b =
-        Map(Project(Translate(Rotate(massB.position, cos_angle, sin_angle),
-                              distance, horizontal, vertical)));
-
-    // Stuff outside the viewport
-    if (!CheckCollisionPointRec(
-            a, Rectangle(-1.0 * width * CULLING_TOLERANCE,
-                         -1.0 * height * CULLING_TOLERANCE,
-                         width + width * CULLING_TOLERANCE * 2.0,
-                         height + height * CULLING_TOLERANCE * 2.0))) {
-      continue;
-    }
-    if (!CheckCollisionPointRec(
-            b, Rectangle(-1.0 * width * CULLING_TOLERANCE,
-                         -1.0 * height * CULLING_TOLERANCE,
-                         width + width * CULLING_TOLERANCE * 2.0,
-                         height + height * CULLING_TOLERANCE * 2.0))) {
-      continue;
-    }
-
-    edges.emplace_back(a, b);
+  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+    dragging = true;
+    last_mouse = mouse;
   }
 
-  // This is duplicated work, but easy to read
-  vertices.clear();
-  for (const auto &[state, mass] : mass_springs.masses) {
-
-    // Stuff behind the camera
-    if (mass.position.z + distance <= 0.1) {
-      continue;
-    }
-
-    Vector3 a = Translate(Rotate(mass.position, cos_angle, sin_angle), distance,
-                          horizontal, vertical);
-    Vector2 b = Map(Project(a));
-
-    // Stuff outside the viewport
-    if (!CheckCollisionPointRec(
-            b, Rectangle(-1.0 * width * CULLING_TOLERANCE,
-                         -1.0 * height * CULLING_TOLERANCE,
-                         width + width * CULLING_TOLERANCE * 2.0,
-                         height + height * CULLING_TOLERANCE * 2.0))) {
-      continue;
-    }
-
-    vertices.emplace_back(b.x, b.y, a.z);
+  if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+    dragging = false;
   }
+
+  if (dragging) {
+    Vector2 dx = Vector2Subtract(mouse, last_mouse);
+    last_mouse = mouse;
+
+    angle_x -= dx.x * 0.005;
+    angle_y += dx.y * 0.005;
+
+    angle_y = Clamp(angle_y, -1.5, 1.5); // Prevent flipping
+  }
+
+  float wheel = GetMouseWheelMove();
+  distance -= wheel * 2.0;
+  distance = Clamp(distance, 2.0, 50.0);
+
+  float x = cos(angle_y) * sin(angle_x) * distance;
+  float y = sin(angle_y) * distance;
+  float z = cos(angle_y) * cos(angle_x) * distance;
+
+  camera.position = Vector3Add(target, Vector3(x, y, z));
+  camera.target = target;
 }
 
-auto Renderer::DrawMassSprings(const Edge2Set &edges,
-                               const Vertex2Set &vertices) -> void {
+auto Renderer::UpdateCamera() -> void { camera.Update(); }
+
+auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings) -> void {
   BeginTextureMode(render_target);
   ClearBackground(RAYWHITE);
 
+  BeginMode3D(camera.camera);
+
   // Draw springs
-  for (const auto &[a, b] : edges) {
-    DrawLine(a.x, a.y, b.x, b.y, EDGE_COLOR);
+  for (const auto &spring : masssprings.springs) {
+    const Mass a = spring.massA;
+    const Mass b = spring.massB;
+
+    DrawLine3D(a.position, b.position, EDGE_COLOR);
   }
 
   // Draw masses
-  for (const auto &a : vertices) {
-    // Increase the perspective perception by squaring the z-coordinate
-    const float size = Clamp(VERTEX_SIZE / (a.z * a.z), 0.1, 100.0);
-
-    DrawRectangle(a.x - size / 2.0, a.y - size / 2.0, size, size, VERTEX_COLOR);
+  for (const auto &[state, mass] : masssprings.masses) {
+    DrawCube(mass.position, VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE,
+             VERTEX_COLOR);
   }
 
+  DrawGrid(10, 1.0);
+
+  EndMode3D();
+
   DrawLine(0, 0, 0, height, BLACK);
+
   EndTextureMode();
 }
 
