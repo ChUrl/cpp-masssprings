@@ -6,6 +6,7 @@
 #include <raymath.h>
 #include <vector>
 
+#include "klotski.hpp"
 #include "mass_springs.hpp"
 
 using Edge3Set = std::vector<std::pair<Vector3, Vector3>>;
@@ -19,10 +20,12 @@ private:
   int width;
   int height;
   RenderTexture2D render_target;
+  RenderTexture2D klotski_target;
 
 public:
   Renderer(int width, int height) : width(width), height(height) {
     render_target = LoadRenderTexture(width, height);
+    klotski_target = LoadRenderTexture(width, height);
   }
 
   Renderer(const Renderer &copy) = delete;
@@ -30,7 +33,10 @@ public:
   Renderer(Renderer &&move) = delete;
   Renderer &operator=(Renderer &&move) = delete;
 
-  ~Renderer() { UnloadRenderTexture(render_target); }
+  ~Renderer() {
+    UnloadRenderTexture(render_target);
+    UnloadRenderTexture(klotski_target);
+  }
 
 private:
   auto Rotate(const Vector3 &a, const float cos_angle, const float sin_angle)
@@ -49,6 +55,10 @@ public:
 
   auto DrawMassSprings(const Edge2Set &edges, const Vertex2Set &vertices)
       -> void;
+
+  auto DrawKlotski(State &state) -> void;
+
+  auto DrawTextures() -> void;
 };
 
 #endif

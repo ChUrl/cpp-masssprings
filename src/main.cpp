@@ -1,5 +1,3 @@
-#include "mass_springs.hpp"
-
 #define VERLET_UPDATE
 
 #include <iostream>
@@ -7,6 +5,8 @@
 #include <raymath.h>
 
 #include "config.hpp"
+#include "klotski.hpp"
+#include "mass_springs.hpp"
 #include "renderer.hpp"
 
 auto main(int argc, char *argv[]) -> int {
@@ -21,8 +21,7 @@ auto main(int argc, char *argv[]) -> int {
   SetConfigFlags(FLAG_VSYNC_HINT);
   SetConfigFlags(FLAG_MSAA_4X_HINT);
 
-  InitWindow(WIDTH, HEIGHT, "MassSprings");
-
+  InitWindow(WIDTH * 2, HEIGHT, "MassSprings");
 
   MassSpringSystem mass_springs;
   mass_springs.AddMass(1.0, Vector3(-0.5, 0.5, 0.0), true);
@@ -32,6 +31,18 @@ auto main(int argc, char *argv[]) -> int {
                          DEFAULT_DAMPENING_CONSTANT, DEFAULT_REST_LENGTH);
   mass_springs.AddSpring(1, 2, DEFAULT_SPRING_CONSTANT,
                          DEFAULT_DAMPENING_CONSTANT, DEFAULT_REST_LENGTH);
+
+  State s = State(4, 5);
+  Block a = Block(0, 0, 2, 1, false);
+  Block b = Block(0, 1, 1, 3, true);
+  Block c = Block(0, 2, "45");
+  Block d = Block(0, 3, "de");
+
+  s.AddBlock(a);
+  s.AddBlock(b);
+  for (Block block : s) {
+    std::cout << "Block (" << block.x << ", " << block.y << ")" << std::endl;
+  }
 
   Renderer renderer(WIDTH, HEIGHT);
   Edge2Set edges;
@@ -55,8 +66,9 @@ auto main(int argc, char *argv[]) -> int {
     renderer.Transform(edges, vertices, mass_springs, abstime * ROTATION_SPEED,
                        CAMERA_DISTANCE);
     renderer.DrawMassSprings(edges, vertices);
+    renderer.DrawKlotski(s); // TODO: Don't need to render each frame
+    renderer.DrawTextures();
 
-    renderer.Draw(viewport);
     abstime += frametime;
   }
 

@@ -1,7 +1,8 @@
 #include "renderer.hpp"
 
+#include <raylib.h>
+
 #include "config.hpp"
-#include "mass_springs.hpp"
 
 auto Renderer::Rotate(const Vector3 &a, const float cos_angle,
                       const float sin_angle) -> Vector3 {
@@ -63,11 +64,75 @@ auto Renderer::DrawMassSprings(const Edge2Set &edges,
   }
   DrawLine(0, 0, 0, height, BLACK);
   EndTextureMode();
+}
 
+auto Renderer::DrawKlotski(State &state) -> void {
+  BeginTextureMode(klotski_target);
+  ClearBackground(RAYWHITE);
+
+  // Draw Board
+  const int board_width = width - 2 * BOARD_PADDING;
+  const int board_height = height - 2 * BOARD_PADDING;
+  float block_size;
+  float x_offset = 0.0;
+  float y_offset = 0.0;
+  if (state.width > state.height) {
+    block_size =
+        static_cast<float>(board_width) / state.width - 2 * BLOCK_PADDING;
+    y_offset = (board_height - block_size * state.height -
+                BLOCK_PADDING * 2 * state.height) /
+               2.0;
+  } else {
+    block_size =
+        static_cast<float>(board_height) / state.height - 2 * BLOCK_PADDING;
+    x_offset = (board_width - block_size * state.width -
+                BLOCK_PADDING * 2 * state.width) /
+               2.0;
+  }
+
+  DrawRectangle(0, 0, width, height, RAYWHITE);
+  DrawRectangle(x_offset, y_offset,
+                board_width - 2 * x_offset + 2 * BOARD_PADDING,
+                board_height - 2 * y_offset + 2 * BOARD_PADDING, LIGHTGRAY);
+  for (int x = 0; x < state.width; ++x) {
+    for (int y = 0; y < state.height; ++y) {
+      DrawRectangle(x_offset + BOARD_PADDING + x * BLOCK_PADDING * 2 +
+                        BLOCK_PADDING + x * block_size,
+                    y_offset + BOARD_PADDING + y * BLOCK_PADDING * 2 +
+                        BLOCK_PADDING + y * block_size,
+                    block_size, block_size, WHITE);
+    }
+  }
+
+  // Draw Blocks
+  for (Block block : state) {
+    Color c = EDGE_COLOR;
+    if (block.target) {
+      c = RED;
+    }
+    DrawRectangle(x_offset + BOARD_PADDING + block.x * BLOCK_PADDING * 2 +
+                      BLOCK_PADDING + block.x * block_size,
+                  y_offset + BOARD_PADDING + block.y * BLOCK_PADDING * 2 +
+                      BLOCK_PADDING + block.y * block_size,
+                  block.width * block_size + block.width * 2 * BLOCK_PADDING -
+                      2 * BLOCK_PADDING,
+                  block.height * block_size + block.height * 2 * BLOCK_PADDING -
+                      2 * BLOCK_PADDING,
+                  c);
+  }
+
+  DrawLine(width - 1, 0, width - 1, height, BLACK);
+  EndTextureMode();
+}
+
+auto Renderer::DrawTextures() -> void {
   BeginDrawing();
-  DrawTextureRec(render_target.texture,
+  DrawTextureRec(klotski_target.texture,
                  Rectangle(0, 0, (float)width, -(float)height), Vector2(0, 0),
                  WHITE);
-  DrawFPS(10, 10);
+  DrawTextureRec(render_target.texture,
+                 Rectangle(0, 0, (float)width, -(float)height),
+                 Vector2(width, 0), WHITE);
+  DrawFPS(width + 10, 10);
   EndDrawing();
 }
