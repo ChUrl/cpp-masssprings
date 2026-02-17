@@ -1,4 +1,5 @@
 #include "mass_springs.hpp"
+#include "config.hpp"
 
 #include <cstddef>
 #include <raymath.h>
@@ -72,28 +73,33 @@ auto Spring::CalculateSpringForce() -> void {
   massB.force = Vector3Add(massB.force, force_b);
 }
 
-auto MassSpringSystem::AddMass(float mass, Vector3 position, bool fixed)
-    -> void {
-  masses.emplace_back(mass, position, fixed);
+auto MassSpringSystem::AddMass(float mass, Vector3 position, bool fixed,
+                               std::string state) -> void {
+  if (!masses.contains(state)) {
+    masses.insert(std::make_pair(state, Mass(mass, position, fixed)));
+  }
 }
 
-auto MassSpringSystem::GetMass(const size_t index) -> Mass & {
-  return masses[index];
+auto MassSpringSystem::GetMass(const std::string &state) -> Mass & {
+  return masses.at(state);
 }
 
-auto MassSpringSystem::AddSpring(int massA, int massB, float spring_constant,
+auto MassSpringSystem::AddSpring(const std::string &massA,
+                                 const std::string &massB,
+                                 float spring_constant,
                                  float dampening_constant, float rest_length)
     -> void {
-  springs.emplace_back(masses[massA], masses[massB], spring_constant,
+  springs.emplace_back(GetMass(massA), GetMass(massB), spring_constant,
                        dampening_constant, rest_length);
 }
 
-auto MassSpringSystem::GetSpring(const size_t index) -> Spring & {
-  return springs[index];
+auto MassSpringSystem::Clear() -> void {
+  masses.clear();
+  springs.clear();
 }
 
 auto MassSpringSystem::ClearForces() -> void {
-  for (auto &mass : masses) {
+  for (auto &[state, mass] : masses) {
     mass.ClearForce();
   }
 }
@@ -104,15 +110,26 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
   }
 }
 
+auto MassSpringSystem::CalculateRepulsionForces() -> void {
+  for (auto &[state, mass] : masses) {
+    for (auto &[s, m] : masses) {
+      Vector3 dx = Vector3Subtract(mass.position, m.position);
+      mass.force =
+          Vector3Add(mass.force, Vector3Scale(Vector3Normalize(dx),
+                                              DEFAULT_REPULSION_FORCE));
+    }
+  }
+}
+
 auto MassSpringSystem::EulerUpdate(const float delta_time) -> void {
-  for (auto &mass : masses) {
+  for (auto &[state, mass] : masses) {
     mass.CalculateVelocity(delta_time);
     mass.CalculatePosition(delta_time);
   }
 }
 
 auto MassSpringSystem::VerletUpdate(const float delta_time) -> void {
-  for (auto &mass : masses) {
+  for (auto &[state, mass] : masses) {
     mass.VerletUpdate(delta_time);
   }
 }

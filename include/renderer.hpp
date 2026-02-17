@@ -42,7 +42,8 @@ private:
   auto Rotate(const Vector3 &a, const float cos_angle, const float sin_angle)
       -> Vector3;
 
-  auto Translate(const Vector3 &a, const float distance) -> Vector3;
+  auto Translate(const Vector3 &a, const float distance, const float horizontal,
+                 const float vertical) -> Vector3;
 
   auto Project(const Vector3 &a) -> Vector2;
 
@@ -51,12 +52,14 @@ private:
 public:
   auto Transform(Edge2Set &edges, Vertex2Set &vertices,
                  const MassSpringSystem &mass_springs, const float angle,
-                 const float distance) -> void;
+                 const float distance, const float horizontal,
+                 const float vertical) -> void;
 
   auto DrawMassSprings(const Edge2Set &edges, const Vertex2Set &vertices)
       -> void;
 
-  auto DrawKlotski(State &state) -> void;
+  auto DrawKlotski(State &state, int hov_x, int hov_y, int sel_x, int sel_y)
+      -> void;
 
   auto DrawTextures() -> void;
 };

@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <raylib.h>
 #include <raymath.h>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 class Mass {
@@ -88,7 +90,7 @@ using SpringList = std::vector<Spring>;
 
 class MassSpringSystem {
 public:
-  MassList masses;
+  std::unordered_map<std::string, Mass> masses;
   SpringList springs;
 
 public:
@@ -102,18 +104,22 @@ public:
   ~MassSpringSystem() {};
 
 public:
-  auto AddMass(float mass, Vector3 position, bool fixed) -> void;
+  auto AddMass(float mass, Vector3 position, bool fixed, std::string state)
+      -> void;
 
-  auto GetMass(const size_t index) -> Mass &;
+  auto GetMass(const std::string &state) -> Mass &;
 
-  auto AddSpring(int massA, int massB, float spring_constant,
-                 float dampening_constant, float rest_length) -> void;
+  auto AddSpring(const std::string &massA, const std::string &massB,
+                 float spring_constant, float dampening_constant,
+                 float rest_length) -> void;
 
-  auto GetSpring(const size_t index) -> Spring &;
+  auto Clear() -> void;
 
   auto ClearForces() -> void;
 
   auto CalculateSpringForces() -> void;
+
+  auto CalculateRepulsionForces() -> void;
 
   auto EulerUpdate(const float delta_time) -> void;
 
