@@ -5,6 +5,7 @@
 #include <raymath.h>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 class Mass {
 public:
@@ -83,12 +84,20 @@ public:
 };
 
 class MassSpringSystem {
+private:
+  std::vector<Mass *> mass_vec;
+  std::vector<int> indices;
+  std::vector<int64_t> cell_ids;
+  int last_build;
+  int last_masses_count;
+  int last_springs_count;
+
 public:
   std::unordered_map<std::string, Mass> masses;
   std::unordered_map<std::string, Spring> springs;
 
 public:
-  MassSpringSystem() {};
+  MassSpringSystem() : last_build(1000) {};
 
   MassSpringSystem(const MassSpringSystem &copy) = delete;
   MassSpringSystem &operator=(const MassSpringSystem &copy) = delete;
@@ -96,6 +105,9 @@ public:
   MassSpringSystem &operator=(MassSpringSystem &&move) = delete;
 
   ~MassSpringSystem() {};
+
+private:
+  auto BuildGrid() -> void;
 
 public:
   auto AddMass(float mass, Vector3 position, bool fixed,

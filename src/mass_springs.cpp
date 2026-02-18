@@ -123,15 +123,15 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
   }
 }
 
-auto MassSpringSystem::CalculateRepulsionForces() -> void {
+auto MassSpringSystem::BuildGrid() -> void {
   const float INV_CELL = 1.0f / REPULSION_RANGE;
   const int n = masses.size();
 
   // Collect pointers
-  std::vector<Mass *> massVec;
-  massVec.reserve(n);
+  mass_vec.clear();
+  mass_vec.reserve(n);
   for (auto &[state, mass] : masses) {
-    massVec.push_back(&mass);
+    mass_vec.push_back(&mass);
   }
 
   // Assign each particle a cell index
@@ -145,21 +145,38 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
   };
 
   // Sort particles by cell
-  std::vector<int> indices(n);
+  indices.clear();
+  indices.resize(n);
   std::iota(indices.begin(), indices.end(), 0);
   std::sort(indices.begin(), indices.end(), [&](int a, int b) {
-    return cellID(massVec[a]->position) < cellID(massVec[b]->position);
+    return cellID(mass_vec[a]->position) < cellID(mass_vec[b]->position);
   });
 
   // Build cell start/end table
-  std::vector<int64_t> cellIDs(n);
+  cell_ids.clear();
+  cell_ids.resize(n);
   for (int i = 0; i < n; ++i) {
-    cellIDs[i] = cellID(massVec[indices[i]]->position);
+    cell_ids[i] = cellID(mass_vec[indices[i]]->position);
   }
+}
+
+auto MassSpringSystem::CalculateRepulsionForces() -> void {
+  const float INV_CELL = 1.0f / REPULSION_RANGE;
+  const int n = masses.size();
+
+  if (last_build >= REPULSION_GRID_REFRESH ||
+      masses.size() != last_masses_count ||
+      springs.size() != last_springs_count) {
+    BuildGrid();
+    last_build = 0;
+    last_masses_count = masses.size();
+    last_springs_count = springs.size();
+  }
+  last_build++;
 
 #pragma omp parallel for
   for (int i = 0; i < n; ++i) {
-    Mass *mass = massVec[indices[i]];
+    Mass *mass = mass_vec[indices[i]];
     int cx = (int)std::floor(mass->position.x * INV_CELL);
     int cy = (int)std::floor(mass->position.y * INV_CELL);
     int cz = (int)std::floor(mass->position.z * INV_CELL);
@@ -174,11 +191,11 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
                         (int64_t)((cz + dz) & 0xFFFFF);
 
           // Binary search for this neighbor cell in sorted array
-          auto lo = std::lower_bound(cellIDs.begin(), cellIDs.end(), nid);
-          auto hi = std::upper_bound(cellIDs.begin(), cellIDs.end(), nid);
+          auto lo = std::lower_bound(cell_ids.begin(), cell_ids.end(), nid);
+          auto hi = std::upper_bound(cell_ids.begin(), cell_ids.end(), nid);
 
           for (auto it = lo; it != hi; ++it) {
-            Mass *m = massVec[indices[it - cellIDs.begin()]];
+            Mass *m = mass_vec[indices[it - cell_ids.begin()]];
             if (m == mass) {
               continue;
             }
