@@ -1,3 +1,4 @@
+#include <functional>
 #define VERLET_UPDATE
 
 #include <chrono>
@@ -12,8 +13,111 @@
 #include "mass_springs.hpp"
 #include "renderer.hpp"
 
-auto klotski_a() -> State {
-  State s = State(4, 5);
+using StateGenerator = std::function<State(void)>;
+
+auto state_simple_1r() -> State {
+  State s = State(4, 5, true);
+  s.AddBlock(Block(0, 0, 1, 2, true));
+
+  return s;
+}
+
+auto state_simple_1f() -> State {
+  State s = State(4, 5, false);
+  s.AddBlock(Block(0, 0, 1, 2, true));
+
+  return s;
+}
+
+auto state_simple_2r() -> State {
+  State s = State(4, 5, true);
+  s.AddBlock(Block(0, 0, 1, 2, true));
+  s.AddBlock(Block(1, 0, 1, 2, false));
+
+  return s;
+}
+
+auto state_simple_2f() -> State {
+  State s = State(4, 5, false);
+  s.AddBlock(Block(0, 0, 1, 2, true));
+  s.AddBlock(Block(1, 0, 1, 2, false));
+
+  return s;
+}
+
+auto state_simple_3r() -> State {
+  State s = State(4, 5, true);
+  s.AddBlock(Block(0, 0, 1, 2, true));
+  s.AddBlock(Block(1, 0, 1, 2, false));
+  s.AddBlock(Block(2, 0, 1, 2, false));
+
+  return s;
+}
+
+auto state_simple_3f() -> State {
+  State s = State(4, 5, false);
+  s.AddBlock(Block(0, 0, 1, 2, true));
+  s.AddBlock(Block(1, 0, 1, 2, false));
+  s.AddBlock(Block(2, 0, 1, 2, false));
+
+  return s;
+}
+auto state_complex_1r() -> State {
+  State s = State(6, 6, true);
+  s.AddBlock(Block(1, 0, 1, 3, false));
+  s.AddBlock(Block(3, 0, 2, 1, false));
+  s.AddBlock(Block(5, 0, 1, 3, false));
+  s.AddBlock(Block(3, 2, 2, 1, true));
+  s.AddBlock(Block(3, 3, 1, 2, false));
+  s.AddBlock(Block(4, 4, 2, 1, false));
+
+  return s;
+}
+
+auto state_complex_2r() -> State {
+  State s = State(6, 6, true);
+  s.AddBlock(Block(2, 0, 1, 3, false));
+  s.AddBlock(Block(0, 2, 2, 1, true));
+  s.AddBlock(Block(1, 3, 2, 1, false));
+  s.AddBlock(Block(1, 4, 2, 1, false));
+  s.AddBlock(Block(5, 4, 1, 2, false));
+  s.AddBlock(Block(0, 5, 3, 1, false));
+
+  return s;
+}
+
+auto state_complex_3r() -> State {
+  State s = State(6, 6, true);
+  s.AddBlock(Block(0, 0, 3, 1, false));
+  s.AddBlock(Block(5, 0, 1, 3, false));
+  s.AddBlock(Block(2, 2, 1, 2, false));
+  s.AddBlock(Block(3, 2, 2, 1, true));
+  s.AddBlock(Block(3, 3, 1, 2, false));
+  s.AddBlock(Block(4, 3, 2, 1, false));
+  s.AddBlock(Block(0, 4, 1, 2, false));
+  s.AddBlock(Block(2, 4, 1, 2, false));
+  s.AddBlock(Block(4, 4, 2, 1, false));
+  s.AddBlock(Block(3, 5, 3, 1, false));
+
+  return s;
+}
+
+auto state_complex_4f() -> State {
+  State s = State(4, 4, false);
+  s.AddBlock(Block(0, 0, 2, 1, false));
+  s.AddBlock(Block(3, 0, 1, 1, false));
+  s.AddBlock(Block(0, 1, 1, 2, false));
+  s.AddBlock(Block(1, 1, 2, 2, true));
+  s.AddBlock(Block(3, 1, 1, 1, false));
+  s.AddBlock(Block(3, 2, 1, 1, false));
+  s.AddBlock(Block(0, 3, 1, 1, false));
+  s.AddBlock(Block(1, 3, 1, 1, false));
+
+  return s;
+}
+
+auto state_klotski() -> State {
+  State s = State(4, 5, false);
   s.AddBlock(Block(0, 0, 1, 2, false));
   s.AddBlock(Block(1, 0, 2, 2, true));
   s.AddBlock(Block(3, 0, 1, 2, false));
@@ -28,34 +132,23 @@ auto klotski_a() -> State {
   return s;
 }
 
-auto main(int argc, char *argv[]) -> int {
-  // if (argc < 2) {
-  //   std::cout << "Missing .klotski file." << std::endl;
-  //   return 1;
-  // }
+std::array<StateGenerator, 11> generators{
+    state_simple_1r,  state_simple_1f,  state_simple_2r,  state_simple_2f,
+    state_simple_3r,  state_simple_3f,  state_complex_1r, state_complex_2r,
+    state_complex_3r, state_complex_4f, state_klotski};
 
-  std::cout << "OpenMP: " << omp_get_max_threads() << " threads." << std::endl;
+auto apply_state(MassSpringSystem &mass_springs, StateGenerator generator)
+    -> State {
+  mass_springs.springs.clear();
+  mass_springs.masses.clear();
 
-  SetTraceLogLevel(LOG_ERROR);
-
-  // SetTargetFPS(165);
-  SetConfigFlags(FLAG_VSYNC_HINT);
-  SetConfigFlags(FLAG_MSAA_4X_HINT);
-  // SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
-
-  InitWindow(WIDTH * 2, HEIGHT, "MassSprings");
-
-  // Mass springs configuration
-  MassSpringSystem mass_springs;
-
-  // Klotski configuration
-  State board = klotski_a();
-  mass_springs.AddMass(1.0, Vector3Zero(), true, board.state);
+  State s = generator();
+  mass_springs.AddMass(1.0, Vector3Zero(), false, s.state);
 
   // Closure solving
   std::pair<std::unordered_set<std::string>,
             std::vector<std::pair<std::string, std::string>>>
-      closure = board.Closure();
+      closure = s.Closure();
   for (const auto &state : closure.first) {
     Vector3 pos =
         Vector3(static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0,
@@ -79,8 +172,33 @@ auto main(int argc, char *argv[]) -> int {
                    mass_springs.springs.size()
             << " Bytes for springs." << std::endl;
 
+  return s;
+};
+
+auto main(int argc, char *argv[]) -> int {
+  // if (argc < 2) {
+  //   std::cout << "Missing .klotski file." << std::endl;
+  //   return 1;
+  // }
+
+  std::cout << "OpenMP: " << omp_get_max_threads() << " threads." << std::endl;
+
+  SetTraceLogLevel(LOG_ERROR);
+
+  // SetTargetFPS(60);
+  SetConfigFlags(FLAG_VSYNC_HINT);
+  SetConfigFlags(FLAG_MSAA_4X_HINT);
+  // SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
+
+  InitWindow(WIDTH * 2, HEIGHT, "MassSprings");
+
   // Rendering configuration
   Renderer renderer(WIDTH, HEIGHT);
+
+  // Klotski configuration
+  int current_generator = 0;
+  MassSpringSystem mass_springs;
+  State board = apply_state(mass_springs, generators[current_generator]);
 
   // Game loop
   float frametime;
@@ -144,17 +262,28 @@ auto main(int argc, char *argv[]) -> int {
       }
     } else if (IsKeyPressed(KEY_P)) {
       std::cout << board.state << std::endl;
+    } else if (IsKeyPressed(KEY_N)) {
+      current_generator =
+          (generators.size() + current_generator - 1) % generators.size();
+      board = apply_state(mass_springs, generators[current_generator]);
+    } else if (IsKeyPressed(KEY_M)) {
+      current_generator = (current_generator + 1) % generators.size();
+      board = apply_state(mass_springs, generators[current_generator]);
+    } else if (IsKeyPressed(KEY_R)) {
+      board = generators[current_generator]();
     }
-    if (previous_state != board.state) {
-      mass_springs.AddMass(
-          1.0,
-          Vector3(static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
-                  static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
-                  static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0),
-          false, board.state);
-      mass_springs.AddSpring(board.state, previous_state, SPRING_CONSTANT,
-                             DAMPENING_CONSTANT, REST_LENGTH);
-    }
+
+    // Don't need this as long as we're generating the closure beforehand
+    // if (previous_state != board.state) {
+    //   mass_springs.AddMass(
+    //       1.0,
+    //       Vector3(static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
+    //               static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
+    //               static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0),
+    //       false, board.state);
+    //   mass_springs.AddSpring(board.state, previous_state, SPRING_CONSTANT,
+    //                          DAMPENING_CONSTANT, REST_LENGTH);
+    // }
 
     // Physics update
     std::chrono::high_resolution_clock::time_point ps =
@@ -184,7 +313,7 @@ auto main(int argc, char *argv[]) -> int {
 
     time_measure_count++;
     if (GetTime() - last_print_time > 10.0) {
-      std::cout << "\n - Physics time avg: "
+      std::cout << " - Physics time avg: "
                 << physics_time_accumulator / time_measure_count << "."
                 << std::endl;
       std::cout << " - Render time avg:  "

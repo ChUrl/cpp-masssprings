@@ -123,7 +123,8 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
   DrawRectangle(0, 0, width, height, RAYWHITE);
   DrawRectangle(x_offset, y_offset,
                 board_width - 2 * x_offset + 2 * BOARD_PADDING,
-                board_height - 2 * y_offset + 2 * BOARD_PADDING, LIGHTGRAY);
+                board_height - 2 * y_offset + 2 * BOARD_PADDING,
+                state.restricted ? DARKGRAY : LIGHTGRAY);
   for (int x = 0; x < state.width; ++x) {
     for (int y = 0; y < state.height; ++y) {
       DrawRectangle(x_offset + BOARD_PADDING + x * BLOCK_PADDING * 2 +

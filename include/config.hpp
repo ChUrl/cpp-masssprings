@@ -9,11 +9,11 @@ constexpr int HEIGHT = 1300;
 
 // Camera Controls
 constexpr float SIM_SPEED = 4.0;
-constexpr float CAMERA_DISTANCE = 4.0;
+constexpr float CAMERA_DISTANCE = 250.0;
 constexpr float MIN_CAMERA_DISTANCE = 2.0;
-constexpr float MAX_CAMERA_DISTANCE = 150.0;
-constexpr float ZOOM_SPEED = 1.5;
-constexpr float PAN_SPEED = 1.0;
+constexpr float MAX_CAMERA_DISTANCE = 2000.0;
+constexpr float ZOOM_SPEED = 10.0;
+constexpr float PAN_SPEED = 2.0;
 constexpr float ROT_SPEED = 1.0;
 
 // Physics Engine
@@ -21,7 +21,7 @@ constexpr float SPRING_CONSTANT = 1.5;
 constexpr float DAMPENING_CONSTANT = 0.8;
 constexpr float REST_LENGTH = 1.0;
 constexpr float REPULSION_FORCE = 0.1;
-constexpr float REPULSION_RANGE = 3.0 * REST_LENGTH;
+constexpr float REPULSION_RANGE = 5.0 * REST_LENGTH;
 constexpr float VERLET_DAMPENING = 0.01; // [0, 1]
 
 // Graph Drawing

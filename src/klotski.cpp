@@ -24,6 +24,16 @@ auto Block::ToString() const -> std::string {
   }
 }
 
+auto Block::GetPrincipalDirs() const -> int {
+  if (width > height) {
+    return Direction::EAS | Direction::WES;
+  } else if (height > width) {
+    return Direction::NOR | Direction::SOU;
+  } else {
+    return Direction::NOR | Direction::EAS | Direction::SOU | Direction::WES;
+  }
+}
+
 auto Block::Covers(int xx, int yy) const -> bool {
   return xx >= x && xx < x + width && yy >= y && yy < y + height;
 }
@@ -46,7 +56,7 @@ auto State::AddBlock(Block block) -> bool {
     }
   }
 
-  int index = 4 + (width * block.y + block.x) * 2;
+  int index = 5 + (width * block.y + block.x) * 2;
   state.replace(index, 2, block.ToString());
 
   return true;
@@ -72,7 +82,7 @@ auto State::RemoveBlock(int x, int y) -> bool {
     return false;
   }
 
-  int index = 4 + (width * b.y + b.x) * 2;
+  int index = 5 + (width * b.y + b.x) * 2;
   state.replace(index, 2, "..");
 
   return true;
@@ -84,30 +94,34 @@ auto State::MoveBlockAt(int x, int y, Direction dir) -> bool {
     return false;
   }
 
+  int dirs = restricted ? block.GetPrincipalDirs()
+                        : Direction::NOR | Direction::EAS | Direction::SOU |
+                              Direction::WES;
+
   // Get target block
   int target_x = block.x;
   int target_y = block.y;
   switch (dir) {
   case Direction::NOR:
-    if (target_y < 1) {
+    if (!(dirs & Direction::NOR) || target_y < 1) {
       return false;
     }
     target_y--;
     break;
   case Direction::EAS:
-    if (target_x + block.width >= width) {
+    if (!(dirs & Direction::EAS) || target_x + block.width >= width) {
       return false;
     }
     target_x++;
     break;
   case Direction::SOU:
-    if (target_y + block.height >= height) {
+    if (!(dirs & Direction::SOU) || target_y + block.height >= height) {
       return false;
     }
     target_y++;
     break;
   case Direction::WES:
-    if (target_x < 1) {
+    if (!(dirs & Direction::WES) || target_x < 1) {
       return false;
     }
     target_x--;
@@ -133,24 +147,36 @@ auto State::GetNextStates() const -> std::vector<State> {
   std::vector<State> new_states;
 
   for (const Block &b : *this) {
-    State north = *this;
-    if (north.MoveBlockAt(b.x, b.y, Direction::NOR)) {
-      new_states.push_back(north);
+    int dirs = restricted ? b.GetPrincipalDirs()
+                          : Direction::NOR | Direction::EAS | Direction::SOU |
+                                Direction::WES;
+
+    if (dirs & Direction::NOR) {
+      State north = *this;
+      if (north.MoveBlockAt(b.x, b.y, Direction::NOR)) {
+        new_states.push_back(north);
+      }
     }
 
-    State east = *this;
-    if (east.MoveBlockAt(b.x, b.y, Direction::EAS)) {
-      new_states.push_back(east);
+    if (dirs & Direction::EAS) {
+      State east = *this;
+      if (east.MoveBlockAt(b.x, b.y, Direction::EAS)) {
+        new_states.push_back(east);
+      }
     }
 
-    State south = *this;
-    if (south.MoveBlockAt(b.x, b.y, Direction::SOU)) {
-      new_states.push_back(south);
+    if (dirs & Direction::SOU) {
+      State south = *this;
+      if (south.MoveBlockAt(b.x, b.y, Direction::SOU)) {
+        new_states.push_back(south);
+      }
     }
 
-    State west = *this;
-    if (west.MoveBlockAt(b.x, b.y, Direction::WES)) {
-      new_states.push_back(west);
+    if (dirs & Direction::WES) {
+      State west = *this;
+      if (west.MoveBlockAt(b.x, b.y, Direction::WES)) {
+        new_states.push_back(west);
+      }
     }
   }
 

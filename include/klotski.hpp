@@ -118,6 +118,8 @@ public:
 
   auto ToString() const -> std::string;
 
+  auto GetPrincipalDirs() const -> int;
+
   auto Covers(int xx, int yy) const -> bool;
 
   auto Collides(const Block &other) const -> bool;
@@ -131,8 +133,9 @@ public:
 // block's pivot being its top-left corner.
 class State {
 public:
-  const int width;
-  const int height;
+  int width;
+  int height;
+  bool restricted; // Only allow blocks to move in their principal direction
   std::string state;
 
   // https://en.cppreference.com/w/cpp/iterator/input_iterator.html
@@ -153,13 +156,13 @@ public:
 
     Block operator*() const {
       return Block(current_pos % state.width, current_pos / state.width,
-                   state.state.substr(current_pos * 2 + 4, 2));
+                   state.state.substr(current_pos * 2 + 5, 2));
     }
 
     BlockIterator &operator++() {
       do {
         current_pos++;
-      } while (state.state.substr(current_pos * 2 + 4, 2) == "..");
+      } while (state.state.substr(current_pos * 2 + 5, 2) == "..");
       return *this;
     }
 
@@ -171,9 +174,9 @@ public:
   };
 
 public:
-  State(int width, int height)
-      : width(width), height(height),
-        state(std::format("{}x{}:{}", width, height,
+  State(int width, int height, bool restricted)
+      : width(width), height(height), restricted(restricted),
+        state(std::format("{}{}x{}:{}", restricted ? "R" : "F", width, height,
                           std::string(width * height * 2, '.'))) {
     if (width <= 0 || width >= 10 || height <= 0 || height >= 10) {
       std::cerr << "State width/height must be in [1, 9]!" << std::endl;
@@ -187,8 +190,9 @@ public:
   }
 
   State(std::string state)
-      : width(std::stoi(state.substr(0, 1))),
-        height(std::stoi(state.substr(2, 1))), state(state) {
+      : width(std::stoi(state.substr(1, 1))),
+        height(std::stoi(state.substr(3, 1))),
+        restricted(state.substr(0, 1) == "R"), state(state) {
     if (width <= 0 || width >= 10 || height <= 0 || height >= 10) {
       std::cerr << "State width/height must be in [1, 9]!" << std::endl;
       exit(1);
@@ -202,14 +206,31 @@ public:
   }
 
   State(const State &copy)
-      : width(copy.width), height(copy.height), state(copy.state) {}
+      : width(copy.width), height(copy.height), restricted(copy.restricted),
+        state(copy.state) {}
 
-  State &operator=(const State &copy) = delete;
+  State &operator=(const State &copy) {
+    if (*this != copy) {
+      width = copy.width;
+      height = copy.height;
+      restricted = copy.restricted;
+      state = copy.state;
+    }
+    return *this;
+  }
 
   State(State &&move)
-      : width(move.width), height(move.height), state(std::move(move.state)) {}
+      : width(move.width), height(move.height), restricted(move.restricted),
+        state(std::move(move.state)) {}
 
-  State &operator=(State &&move) = delete;
+  State &operator=(State &&move) {
+    if (*this != move) {
+      width = move.width;
+      height = move.height;
+      restricted = move.restricted, state = std::move(move.state);
+    }
+    return *this;
+  };
 
   bool operator==(const State &other) const { return state == other.state; }
 
