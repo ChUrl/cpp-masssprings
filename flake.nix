@@ -143,6 +143,7 @@ rec {
         # boost
         # sfml
         raylib
+        llvmPackages.openmp
         # raylib-cpp
         # tinyobjloader
         # gperftools
@@ -194,7 +195,7 @@ rec {
         # ];
 
         # Dynamic libraries from buildinputs:
-        # LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath buildInputs;
+        LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath buildInputs;
 
         # =========================================================================================
         # Define shell environment
@@ -207,6 +208,9 @@ rec {
           in
             pkgs.writers.writeFish "cmake-${typeLower}.fish" ''
               cd $FLAKE_PROJECT_ROOT
+
+              # set -g -x CC ${clang}/bin/clang
+              # set -g -x CXX ${clang}/bin/clang++
 
               echo "Removing build directory ./cmake-build-${typeLower}/"
               rm -rf ./cmake-build-${typeLower}

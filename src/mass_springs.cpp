@@ -2,6 +2,7 @@
 #include "config.hpp"
 
 #include <format>
+#include <numeric>
 #include <raymath.h>
 #include <unordered_map>
 #include <vector>
@@ -123,68 +124,79 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
 }
 
 auto MassSpringSystem::CalculateRepulsionForces() -> void {
-  const float INV_CELL = 1.0 / REPULSION_RANGE;
+  const float INV_CELL = 1.0f / REPULSION_RANGE;
+  const int n = masses.size();
 
-  struct CellKey {
-    int x, y, z;
-    bool operator==(const CellKey &other) const {
-      return x == other.x && y == other.y && z == other.z;
-    }
-  };
-  struct CellHash {
-    size_t operator()(const CellKey &key) const {
-      return ((size_t)key.x * 73856093) ^ ((size_t)key.y * 19349663) ^
-             ((size_t)key.z * 83492791);
-    }
-  };
-
-  // Accelerate with uniform grid
-  std::unordered_map<CellKey, std::vector<Mass *>, CellHash> grid;
-  grid.reserve(masses.size());
-
+  // Collect pointers
+  std::vector<Mass *> massVec;
+  massVec.reserve(n);
   for (auto &[state, mass] : masses) {
-    CellKey key{
-        (int)std::floor(mass.position.x * INV_CELL),
-        (int)std::floor(mass.position.y * INV_CELL),
-        (int)std::floor(mass.position.z * INV_CELL),
-    };
-    grid[key].push_back(&mass);
+    massVec.push_back(&mass);
   }
 
-  for (auto &[state, mass] : masses) {
-    int cx = (int)std::floor(mass.position.x * INV_CELL);
-    int cy = (int)std::floor(mass.position.y * INV_CELL);
-    int cz = (int)std::floor(mass.position.z * INV_CELL);
+  // Assign each particle a cell index
+  auto cellID = [&](const Vector3 &p) -> int64_t {
+    int x = (int)std::floor(p.x * INV_CELL);
+    int y = (int)std::floor(p.y * INV_CELL);
+    int z = (int)std::floor(p.z * INV_CELL);
+    // Pack into a single int64 (assumes coords fit in 20 bits each)
+    return ((int64_t)(x & 0xFFFFF) << 40) | ((int64_t)(y & 0xFFFFF) << 20) |
+           (int64_t)(z & 0xFFFFF);
+  };
 
-    // Check all 27 neighboring cells (including own)
+  // Sort particles by cell
+  std::vector<int> indices(n);
+  std::iota(indices.begin(), indices.end(), 0);
+  std::sort(indices.begin(), indices.end(), [&](int a, int b) {
+    return cellID(massVec[a]->position) < cellID(massVec[b]->position);
+  });
+
+  // Build cell start/end table
+  std::vector<int64_t> cellIDs(n);
+  for (int i = 0; i < n; ++i) {
+    cellIDs[i] = cellID(massVec[indices[i]]->position);
+  }
+
+#pragma omp parallel for
+  for (int i = 0; i < n; ++i) {
+    Mass *mass = massVec[indices[i]];
+    int cx = (int)std::floor(mass->position.x * INV_CELL);
+    int cy = (int)std::floor(mass->position.y * INV_CELL);
+    int cz = (int)std::floor(mass->position.z * INV_CELL);
+
+    Vector3 force = {0, 0, 0};
+
     for (int dx = -1; dx <= 1; ++dx) {
       for (int dy = -1; dy <= 1; ++dy) {
         for (int dz = -1; dz <= 1; ++dz) {
-          CellKey neighbor{cx + dx, cy + dy, cz + dz};
-          auto it = grid.find(neighbor);
-          if (it == grid.end()) {
-            continue;
-          }
+          int64_t nid = ((int64_t)((cx + dx) & 0xFFFFF) << 40) |
+                        ((int64_t)((cy + dy) & 0xFFFFF) << 20) |
+                        (int64_t)((cz + dz) & 0xFFFFF);
 
-          for (Mass *m : it->second) {
-            if (m == &mass) {
-              continue; // skip self
+          // Binary search for this neighbor cell in sorted array
+          auto lo = std::lower_bound(cellIDs.begin(), cellIDs.end(), nid);
+          auto hi = std::upper_bound(cellIDs.begin(), cellIDs.end(), nid);
+
+          for (auto it = lo; it != hi; ++it) {
+            Mass *m = massVec[indices[it - cellIDs.begin()]];
+            if (m == mass) {
+              continue;
             }
 
-            Vector3 diff = Vector3Subtract(mass.position, m->position);
+            Vector3 diff = Vector3Subtract(mass->position, m->position);
             float len = Vector3Length(diff);
-
             if (len == 0.0f || len >= REPULSION_RANGE) {
               continue;
             }
 
-            mass.force =
-                Vector3Add(mass.force, Vector3Scale(Vector3Normalize(diff),
-                                                    REPULSION_FORCE));
+            force = Vector3Add(
+                force, Vector3Scale(Vector3Normalize(diff), REPULSION_FORCE));
           }
         }
       }
     }
+
+    mass->force = Vector3Add(mass->force, force);
   }
 
   // Old method

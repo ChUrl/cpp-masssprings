@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <omp.h>
 #include <ratio>
 #include <raylib.h>
 #include <raymath.h>
@@ -17,12 +18,12 @@ auto klotski_a() -> State {
   s.AddBlock(Block(1, 0, 2, 2, true));
   s.AddBlock(Block(3, 0, 1, 2, false));
   s.AddBlock(Block(0, 2, 1, 2, false));
-  // s.AddBlock(Block(1, 2, 2, 1, false));
-  // s.AddBlock(Block(3, 2, 1, 2, false));
-  // s.AddBlock(Block(1, 3, 1, 1, false));
-  // s.AddBlock(Block(2, 3, 1, 1, false));
-  // s.AddBlock(Block(0, 4, 1, 1, false));
-  // s.AddBlock(Block(3, 4, 1, 1, false));
+  s.AddBlock(Block(1, 2, 2, 1, false));
+  s.AddBlock(Block(3, 2, 1, 2, false));
+  s.AddBlock(Block(1, 3, 1, 1, false));
+  s.AddBlock(Block(2, 3, 1, 1, false));
+  s.AddBlock(Block(0, 4, 1, 1, false));
+  s.AddBlock(Block(3, 4, 1, 1, false));
 
   return s;
 }
@@ -32,6 +33,8 @@ auto main(int argc, char *argv[]) -> int {
   //   std::cout << "Missing .klotski file." << std::endl;
   //   return 1;
   // }
+
+  std::cout << "OpenMP: " << omp_get_max_threads() << " threads." << std::endl;
 
   SetTraceLogLevel(LOG_ERROR);
 
@@ -180,7 +183,7 @@ auto main(int argc, char *argv[]) -> int {
     render_time_accumulator += re - rs;
 
     time_measure_count++;
-    if (GetTime() - last_print_time > 3.0) {
+    if (GetTime() - last_print_time > 10.0) {
       std::cout << "\n - Physics time avg: "
                 << physics_time_accumulator / time_measure_count << "."
                 << std::endl;

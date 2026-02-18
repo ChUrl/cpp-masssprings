@@ -78,10 +78,12 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings) -> void {
     DrawLine3D(a.position, b.position, EDGE_COLOR);
   }
 
-  // Draw masses
-  for (const auto &[state, mass] : masssprings.masses) {
-    DrawCube(mass.position, VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE,
-             VERTEX_COLOR);
+  // Draw masses (high performance impact)
+  if (masssprings.masses.size() <= 5000) {
+    for (const auto &[state, mass] : masssprings.masses) {
+      DrawCube(mass.position, VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE,
+               VERTEX_COLOR);
+    }
   }
 
   // DrawGrid(10, 1.0);
