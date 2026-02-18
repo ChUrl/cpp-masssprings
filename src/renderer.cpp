@@ -262,8 +262,9 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset)
   };
 
   draw_btn(0, 0,
-           std::format("States: {}, Transitions: {}", masssprings.masses.size(),
-                       masssprings.springs.size()),
+           std::format("States: {}, Transitions: {}, Winning: {}",
+                       masssprings.masses.size(), masssprings.springs.size(),
+                       winning_states.size()),
            DARKGREEN);
   draw_btn(
       0, 1,
