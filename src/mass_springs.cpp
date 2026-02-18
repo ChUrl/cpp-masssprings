@@ -3,6 +3,8 @@
 
 #include <format>
 #include <raymath.h>
+#include <unordered_map>
+#include <vector>
 
 auto Mass::ClearForce() -> void { force = Vector3Zero(); }
 
@@ -121,19 +123,84 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
 }
 
 auto MassSpringSystem::CalculateRepulsionForces() -> void {
+  const float INV_CELL = 1.0 / REPULSION_RANGE;
+
+  struct CellKey {
+    int x, y, z;
+    bool operator==(const CellKey &other) const {
+      return x == other.x && y == other.y && z == other.z;
+    }
+  };
+  struct CellHash {
+    size_t operator()(const CellKey &key) const {
+      return ((size_t)key.x * 73856093) ^ ((size_t)key.y * 19349663) ^
+             ((size_t)key.z * 83492791);
+    }
+  };
+
+  // Accelerate with uniform grid
+  std::unordered_map<CellKey, std::vector<Mass *>, CellHash> grid;
+  grid.reserve(masses.size());
+
   for (auto &[state, mass] : masses) {
-    for (auto &[s, m] : masses) {
-      Vector3 dx = Vector3Subtract(mass.position, m.position);
+    CellKey key{
+        (int)std::floor(mass.position.x * INV_CELL),
+        (int)std::floor(mass.position.y * INV_CELL),
+        (int)std::floor(mass.position.z * INV_CELL),
+    };
+    grid[key].push_back(&mass);
+  }
 
-      // This can be accelerated with a spatial data structure
-      if (Vector3Length(dx) >= 3 * REST_LENGTH) {
-        continue;
+  for (auto &[state, mass] : masses) {
+    int cx = (int)std::floor(mass.position.x * INV_CELL);
+    int cy = (int)std::floor(mass.position.y * INV_CELL);
+    int cz = (int)std::floor(mass.position.z * INV_CELL);
+
+    // Check all 27 neighboring cells (including own)
+    for (int dx = -1; dx <= 1; ++dx) {
+      for (int dy = -1; dy <= 1; ++dy) {
+        for (int dz = -1; dz <= 1; ++dz) {
+          CellKey neighbor{cx + dx, cy + dy, cz + dz};
+          auto it = grid.find(neighbor);
+          if (it == grid.end()) {
+            continue;
+          }
+
+          for (Mass *m : it->second) {
+            if (m == &mass) {
+              continue; // skip self
+            }
+
+            Vector3 diff = Vector3Subtract(mass.position, m->position);
+            float len = Vector3Length(diff);
+
+            if (len == 0.0f || len >= REPULSION_RANGE) {
+              continue;
+            }
+
+            mass.force =
+                Vector3Add(mass.force, Vector3Scale(Vector3Normalize(diff),
+                                                    REPULSION_FORCE));
+          }
+        }
       }
-
-      mass.force = Vector3Add(
-          mass.force, Vector3Scale(Vector3Normalize(dx), REPULSION_FORCE));
     }
   }
+
+  // Old method
+  // for (auto &[state, mass] : masses) {
+  //   for (auto &[s, m] : masses) {
+  //     Vector3 dx = Vector3Subtract(mass.position, m.position);
+  //
+  //     // This can be accelerated with a spatial data structure
+  //     if (Vector3Length(dx) >= 3 * REST_LENGTH) {
+  //       continue;
+  //     }
+  //
+  //     mass.force = Vector3Add(
+  //         mass.force, Vector3Scale(Vector3Normalize(dx), REPULSION_FORCE));
+  //   }
+  // }
 }
 
 auto MassSpringSystem::EulerUpdate(float delta_time) -> void {

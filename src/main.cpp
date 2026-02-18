@@ -1,6 +1,8 @@
 #define VERLET_UPDATE
 
+#include <chrono>
 #include <iostream>
+#include <ratio>
 #include <raylib.h>
 #include <raymath.h>
 
@@ -11,27 +13,16 @@
 
 auto klotski_a() -> State {
   State s = State(4, 5);
-  Block a = Block(0, 0, 1, 2, false);
-  Block b = Block(1, 0, 2, 2, true);
-  Block c = Block(3, 0, 1, 2, false);
-  Block d = Block(0, 2, 1, 2, false);
-  // Block e = Block(1, 2, 2, 1, false);
-  // Block f = Block(3, 2, 1, 2, false);
-  // Block g = Block(1, 3, 1, 1, false);
-  // Block h = Block(2, 3, 1, 1, false);
-  // Block i = Block(0, 4, 1, 1, false);
-  // Block j = Block(3, 4, 1, 1, false);
-
-  s.AddBlock(a);
-  s.AddBlock(b);
-  s.AddBlock(c);
-  s.AddBlock(d);
-  // s.AddBlock(e);
-  // s.AddBlock(f);
-  // s.AddBlock(g);
-  // s.AddBlock(h);
-  // s.AddBlock(i);
-  // s.AddBlock(j);
+  s.AddBlock(Block(0, 0, 1, 2, false));
+  s.AddBlock(Block(1, 0, 2, 2, true));
+  s.AddBlock(Block(3, 0, 1, 2, false));
+  s.AddBlock(Block(0, 2, 1, 2, false));
+  // s.AddBlock(Block(1, 2, 2, 1, false));
+  // s.AddBlock(Block(3, 2, 1, 2, false));
+  // s.AddBlock(Block(1, 3, 1, 1, false));
+  // s.AddBlock(Block(2, 3, 1, 1, false));
+  // s.AddBlock(Block(0, 4, 1, 1, false));
+  // s.AddBlock(Block(3, 4, 1, 1, false));
 
   return s;
 }
@@ -94,6 +85,12 @@ auto main(int argc, char *argv[]) -> int {
   int hov_y = 0;
   int sel_x = 0;
   int sel_y = 0;
+  double last_print_time = GetTime();
+  std::chrono::duration<double, std::milli> physics_time_accumulator =
+      std::chrono::duration<double, std::milli>(0);
+  std::chrono::duration<double, std::milli> render_time_accumulator =
+      std::chrono::duration<double, std::milli>(0);
+  int time_measure_count = 0;
   while (!WindowShouldClose()) {
     frametime = GetFrameTime();
 
@@ -157,6 +154,8 @@ auto main(int argc, char *argv[]) -> int {
     }
 
     // Physics update
+    std::chrono::high_resolution_clock::time_point ps =
+        std::chrono::high_resolution_clock::now();
     mass_springs.ClearForces();
     mass_springs.CalculateSpringForces();
     mass_springs.CalculateRepulsionForces();
@@ -165,12 +164,34 @@ auto main(int argc, char *argv[]) -> int {
 #else
     mass_springs.EulerUpdate(frametime * SIM_SPEED);
 #endif
+    std::chrono::high_resolution_clock::time_point pe =
+        std::chrono::high_resolution_clock::now();
+    physics_time_accumulator += pe - ps;
 
     // Rendering
+    std::chrono::high_resolution_clock::time_point rs =
+        std::chrono::high_resolution_clock::now();
+    renderer.UpdateCamera();
     renderer.DrawMassSprings(mass_springs);
     renderer.DrawKlotski(board, hov_x, hov_y, sel_x, sel_y);
     renderer.DrawTextures();
-    renderer.UpdateCamera();
+    std::chrono::high_resolution_clock::time_point re =
+        std::chrono::high_resolution_clock::now();
+    render_time_accumulator += re - rs;
+
+    time_measure_count++;
+    if (GetTime() - last_print_time > 3.0) {
+      std::cout << "\n - Physics time avg: "
+                << physics_time_accumulator / time_measure_count << "."
+                << std::endl;
+      std::cout << " - Render time avg:  "
+                << render_time_accumulator / time_measure_count << "."
+                << std::endl;
+      last_print_time = GetTime();
+      physics_time_accumulator = std::chrono::duration<double, std::milli>(0);
+      render_time_accumulator = std::chrono::duration<double, std::milli>(0);
+      time_measure_count = 0;
+    }
   }
 
   CloseWindow();

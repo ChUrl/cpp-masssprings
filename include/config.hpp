@@ -21,6 +21,7 @@ constexpr float SPRING_CONSTANT = 1.5;
 constexpr float DAMPENING_CONSTANT = 0.8;
 constexpr float REST_LENGTH = 1.0;
 constexpr float REPULSION_FORCE = 0.05;
+constexpr float REPULSION_RANGE = 3.0 * REST_LENGTH;
 constexpr float VERLET_DAMPENING = 0.01; // [0, 1]
 
 // Graph Drawing
