@@ -1,20 +1,23 @@
 #include "renderer.hpp"
 
+#include <format>
 #include <raylib.h>
 #include <raymath.h>
 
 #include "config.hpp"
 #include "mass_springs.hpp"
 
-auto OrbitCamera3D::Update() -> void {
+auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
   Vector2 mouse = GetMousePosition();
-
-  if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-    dragging = true;
-    last_mouse = mouse;
-  } else if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-    panning = true;
-    last_mouse = mouse;
+  if (mouse.x >= WIDTH && mouse.y >= MENU_HEIGHT) {
+    if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+      dragging = true;
+      last_mouse = mouse;
+    } else if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+      panning = true;
+      target_lock = false;
+      last_mouse = mouse;
+    }
   }
 
   if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
@@ -22,6 +25,10 @@ auto OrbitCamera3D::Update() -> void {
   }
   if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
     panning = false;
+  }
+
+  if (IsKeyPressed(KEY_L)) {
+    target_lock = !target_lock;
   }
 
   if (dragging) {
@@ -50,10 +57,21 @@ auto OrbitCamera3D::Update() -> void {
     target = Vector3Add(target, offset);
   }
 
-  float wheel = GetMouseWheelMove();
-  distance -= wheel * ZOOM_SPEED;
+  if (target_lock) {
+    target = current_mass.position;
+  }
+
+  if (mouse.x >= WIDTH && mouse.y >= MENU_HEIGHT) {
+    float wheel = GetMouseWheelMove();
+    if (IsKeyDown(KEY_LEFT_SHIFT)) {
+      distance -= wheel * ZOOM_SPEED * ZOOM_MULTIPLIER;
+    } else {
+      distance -= wheel * ZOOM_SPEED;
+    }
+  }
   distance = Clamp(distance, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);
 
+  // Spherical coordinates
   float x = cos(angle_y) * sin(angle_x) * distance;
   float y = sin(angle_y) * distance;
   float z = cos(angle_y) * cos(angle_x) * distance;
@@ -62,9 +80,14 @@ auto OrbitCamera3D::Update() -> void {
   camera.target = target;
 }
 
-auto Renderer::UpdateCamera() -> void { camera.Update(); }
+auto Renderer::UpdateCamera(const MassSpringSystem &masssprings,
+                            const State &current) -> void {
+  const Mass &c = masssprings.masses.at(current.state);
+  camera.Update(c);
+}
 
-auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings) -> void {
+auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
+                               const State &current) -> void {
   BeginTextureMode(render_target);
   ClearBackground(RAYWHITE);
 
@@ -86,12 +109,15 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings) -> void {
     }
   }
 
-  // DrawGrid(10, 1.0);
+  const Mass &c = masssprings.masses.at(current.state);
+  DrawCube(c.position, 2 * VERTEX_SIZE, 2 * VERTEX_SIZE, 2 * VERTEX_SIZE, RED);
 
+  // DrawGrid(10, 1.0);
+  // DrawSphere(camera.target, VERTEX_SIZE, ORANGE);
   EndMode3D();
 
-  DrawLine(0, 0, 0, height, BLACK);
-
+  DrawLine(0, 0, WIDTH, 0, BLACK);
+  DrawLine(0, 0, 0, HEIGHT, BLACK);
   EndTextureMode();
 }
 
@@ -101,8 +127,8 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
   ClearBackground(RAYWHITE);
 
   // Draw Board
-  const int board_width = width - 2 * BOARD_PADDING;
-  const int board_height = height - 2 * BOARD_PADDING;
+  const int board_width = WIDTH - 2 * BOARD_PADDING;
+  const int board_height = HEIGHT - 2 * BOARD_PADDING;
   float block_size;
   float x_offset = 0.0;
   float y_offset = 0.0;
@@ -120,7 +146,7 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
                2.0;
   }
 
-  DrawRectangle(0, 0, width, height, RAYWHITE);
+  DrawRectangle(0, 0, WIDTH, HEIGHT, RAYWHITE);
   DrawRectangle(x_offset, y_offset,
                 board_width - 2 * x_offset + 2 * BOARD_PADDING,
                 board_height - 2 * y_offset + 2 * BOARD_PADDING,
@@ -172,18 +198,67 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
     }
   }
 
-  DrawLine(width - 1, 0, width - 1, height, BLACK);
+  DrawLine(0, 0, WIDTH, 0, BLACK);
+  DrawLine(WIDTH - 1, 0, WIDTH - 1, HEIGHT, BLACK);
+  EndTextureMode();
+}
+
+auto Renderer::DrawMenu(const MassSpringSystem &masssprings) -> void {
+  BeginTextureMode(menu_target);
+  ClearBackground(RAYWHITE);
+
+  float btn_width =
+      static_cast<float>(WIDTH * 2 - (MENU_COLS * MENU_PAD + MENU_PAD)) /
+      MENU_COLS;
+  float btn_height =
+      static_cast<float>(MENU_HEIGHT - (MENU_ROWS * MENU_PAD + MENU_PAD)) /
+      MENU_ROWS;
+
+  auto draw_btn = [&](int x, int y, std::string text, Color color) {
+    int posx = MENU_PAD + x * (MENU_PAD + btn_width);
+    int posy = MENU_PAD + y * (MENU_PAD + btn_height);
+    DrawRectangle(posx, posy, btn_width, btn_height, Fade(color, 0.5));
+    DrawRectangleLines(posx, posy, btn_width, btn_height, color);
+    DrawText(text.data(), posx + MENU_PAD, posy + MENU_PAD,
+             btn_height - 2 * MENU_PAD, WHITE);
+  };
+
+  draw_btn(0, 0,
+           std::format("States: {}, Transitions: {}", masssprings.masses.size(),
+                       masssprings.springs.size()),
+           DARKGREEN);
+  draw_btn(
+      0, 1,
+      std::format("Camera Distance (SHIFT for Fast Zoom): {}", camera.distance),
+      DARKGREEN);
+  draw_btn(
+      0, 2,
+      std::format("Lock Camera to Current State (L): {}", camera.target_lock),
+      DARKGREEN);
+
+  draw_btn(1, 0, std::format("Reset Board State (R)"), DARKBLUE);
+  draw_btn(1, 1, std::format("Switch to Next Preset (M)"), DARKBLUE);
+  draw_btn(1, 2, std::format("Switch to Previous Preset (N)"), DARKBLUE);
+
+  draw_btn(2, 0, std::format("Print Board State to Console (P)"), DARKPURPLE);
+  draw_btn(2, 1, std::format("Solve Board Closure (C)"), DARKPURPLE);
+  draw_btn(2, 2, std::format("Clear Graph (G)"), DARKPURPLE);
+
+  // DrawLine(0, menu_height - 1, width * 2, menu_height - 1, BLACK);
   EndTextureMode();
 }
 
 auto Renderer::DrawTextures() -> void {
   BeginDrawing();
+  DrawTextureRec(menu_target.texture,
+                 Rectangle(0, 0, (float)(WIDTH * 2), -(float)MENU_HEIGHT),
+                 Vector2(0, 0), WHITE);
   DrawTextureRec(klotski_target.texture,
-                 Rectangle(0, 0, (float)width, -(float)height), Vector2(0, 0),
-                 WHITE);
+                 Rectangle(0, 0, (float)WIDTH, -(float)HEIGHT),
+                 Vector2(0, MENU_HEIGHT), WHITE);
   DrawTextureRec(render_target.texture,
-                 Rectangle(0, 0, (float)width, -(float)height),
-                 Vector2(width, 0), WHITE);
-  DrawFPS(width + 10, 10);
+                 Rectangle(0, 0, (float)WIDTH, -(float)HEIGHT),
+                 Vector2(WIDTH, MENU_HEIGHT), WHITE);
+  DrawFPS(WIDTH + 10, MENU_HEIGHT + 10);
   EndDrawing();
 }

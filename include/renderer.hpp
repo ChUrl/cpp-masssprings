@@ -21,12 +21,13 @@ private:
   Vector2 last_mouse;
   bool dragging;
   bool panning;
+  bool target_lock;
 
 public:
   OrbitCamera3D(Vector3 target, float distance)
       : camera({0}), target(target), distance(distance), angle_x(0.0),
         angle_y(0.3), last_mouse(Vector2Zero()), dragging(false),
-        panning(false) {
+        panning(false), target_lock(true) {
     camera.position = Vector3(0, 0, -1.0 * distance);
     camera.target = target;
     camera.up = Vector3(0, 1.0, 0);
@@ -37,23 +38,21 @@ public:
   ~OrbitCamera3D() {}
 
 public:
-  auto Update() -> void;
+  auto Update(const Mass &current_mass) -> void;
 };
 
 class Renderer {
 private:
-  const int width;
-  const int height;
   OrbitCamera3D camera;
   RenderTexture render_target;
   RenderTexture klotski_target;
+  RenderTexture menu_target;
 
 public:
-  Renderer(int width, int height)
-      : width(width), height(height),
-        camera(OrbitCamera3D(Vector3(0, 0, 0), CAMERA_DISTANCE)) {
-    render_target = LoadRenderTexture(width, height);
-    klotski_target = LoadRenderTexture(width, height);
+  Renderer() : camera(OrbitCamera3D(Vector3(0, 0, 0), CAMERA_DISTANCE)) {
+    render_target = LoadRenderTexture(WIDTH, HEIGHT);
+    klotski_target = LoadRenderTexture(WIDTH, HEIGHT);
+    menu_target = LoadRenderTexture(WIDTH * 2, MENU_HEIGHT);
   }
 
   Renderer(const Renderer &copy) = delete;
@@ -64,15 +63,20 @@ public:
   ~Renderer() {
     UnloadRenderTexture(render_target);
     UnloadRenderTexture(klotski_target);
+    UnloadRenderTexture(menu_target);
   }
 
 public:
-  auto UpdateCamera() -> void;
+  auto UpdateCamera(const MassSpringSystem &masssprings, const State &current)
+      -> void;
 
-  auto DrawMassSprings(const MassSpringSystem &masssprings) -> void;
+  auto DrawMassSprings(const MassSpringSystem &masssprings,
+                       const State &current) -> void;
 
   auto DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
                    int sel_y) -> void;
+
+  auto DrawMenu(const MassSpringSystem &masssprings) -> void;
 
   auto DrawTextures() -> void;
 };

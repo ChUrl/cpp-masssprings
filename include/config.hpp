@@ -5,14 +5,21 @@
 
 // Window
 constexpr int WIDTH = 1300;
-constexpr int HEIGHT = 1300;
+constexpr int HEIGHT = 1100;
+constexpr int MENU_HEIGHT = 200;
+
+// Menu
+constexpr int MENU_PAD = 10;
+constexpr int MENU_ROWS = 3;
+constexpr int MENU_COLS = 3;
 
 // Camera Controls
 constexpr float SIM_SPEED = 4.0;
-constexpr float CAMERA_DISTANCE = 250.0;
+constexpr float CAMERA_DISTANCE = 100.0;
 constexpr float MIN_CAMERA_DISTANCE = 2.0;
 constexpr float MAX_CAMERA_DISTANCE = 2000.0;
-constexpr float ZOOM_SPEED = 10.0;
+constexpr float ZOOM_SPEED = 2.5;
+constexpr float ZOOM_MULTIPLIER = 4.0;
 constexpr float PAN_SPEED = 2.0;
 constexpr float ROT_SPEED = 1.0;
 
@@ -25,7 +32,7 @@ constexpr float REPULSION_RANGE = 5.0 * REST_LENGTH;
 constexpr float VERLET_DAMPENING = 0.01; // [0, 1]
 
 // Graph Drawing
-constexpr float VERTEX_SIZE = 0.05;
+constexpr float VERTEX_SIZE = 0.1;
 constexpr Color VERTEX_COLOR = GREEN;
 constexpr Color EDGE_COLOR = DARKGREEN;
 

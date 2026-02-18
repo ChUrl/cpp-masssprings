@@ -1,7 +1,7 @@
-#include <functional>
 #define VERLET_UPDATE
 
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <omp.h>
 #include <ratio>
@@ -132,10 +132,9 @@ auto state_klotski() -> State {
   return s;
 }
 
-std::array<StateGenerator, 11> generators{
-    state_simple_1r,  state_simple_1f,  state_simple_2r,  state_simple_2f,
-    state_simple_3r,  state_simple_3f,  state_complex_1r, state_complex_2r,
-    state_complex_3r, state_complex_4f, state_klotski};
+std::array<StateGenerator, 8> generators{
+    state_simple_1r,  state_simple_2r,  state_simple_3r,  state_complex_1r,
+    state_complex_2r, state_complex_3r, state_complex_4f, state_klotski};
 
 auto apply_state(MassSpringSystem &mass_springs, StateGenerator generator)
     -> State {
@@ -145,10 +144,13 @@ auto apply_state(MassSpringSystem &mass_springs, StateGenerator generator)
   State s = generator();
   mass_springs.AddMass(1.0, Vector3Zero(), false, s.state);
 
-  // Closure solving
+  return s;
+};
+
+auto solve_closure(MassSpringSystem &mass_springs, const State board) -> void {
   std::pair<std::unordered_set<std::string>,
             std::vector<std::pair<std::string, std::string>>>
-      closure = s.Closure();
+      closure = board.Closure();
   for (const auto &state : closure.first) {
     Vector3 pos =
         Vector3(static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0,
@@ -171,9 +173,7 @@ auto apply_state(MassSpringSystem &mass_springs, StateGenerator generator)
             << sizeof(decltype(*mass_springs.springs.begin())) *
                    mass_springs.springs.size()
             << " Bytes for springs." << std::endl;
-
-  return s;
-};
+}
 
 auto main(int argc, char *argv[]) -> int {
   // if (argc < 2) {
@@ -190,15 +190,15 @@ auto main(int argc, char *argv[]) -> int {
   SetConfigFlags(FLAG_MSAA_4X_HINT);
   // SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
 
-  InitWindow(WIDTH * 2, HEIGHT, "MassSprings");
+  InitWindow(WIDTH * 2, HEIGHT + MENU_HEIGHT, "MassSprings");
 
   // Rendering configuration
-  Renderer renderer(WIDTH, HEIGHT);
+  Renderer renderer;
 
   // Klotski configuration
   int current_generator = 0;
-  MassSpringSystem mass_springs;
-  State board = apply_state(mass_springs, generators[current_generator]);
+  MassSpringSystem masssprings;
+  State board = apply_state(masssprings, generators[current_generator]);
 
   // Game loop
   float frametime;
@@ -232,10 +232,10 @@ auto main(int argc, char *argv[]) -> int {
     } else {
       hov_x = (m.x - x_offset) / block_size;
     }
-    if (m.y < y_offset) {
+    if (m.y - MENU_HEIGHT < y_offset) {
       hov_y = 100;
     } else {
-      hov_y = (m.y - y_offset) / block_size;
+      hov_y = (m.y - MENU_HEIGHT - y_offset) / block_size;
     }
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
       sel_x = hov_x;
@@ -265,34 +265,42 @@ auto main(int argc, char *argv[]) -> int {
     } else if (IsKeyPressed(KEY_N)) {
       current_generator =
           (generators.size() + current_generator - 1) % generators.size();
-      board = apply_state(mass_springs, generators[current_generator]);
+      board = apply_state(masssprings, generators[current_generator]);
+      previous_state = board.state;
     } else if (IsKeyPressed(KEY_M)) {
       current_generator = (current_generator + 1) % generators.size();
-      board = apply_state(mass_springs, generators[current_generator]);
+      board = apply_state(masssprings, generators[current_generator]);
+      previous_state = board.state;
     } else if (IsKeyPressed(KEY_R)) {
       board = generators[current_generator]();
+    } else if (IsKeyPressed(KEY_C)) {
+      solve_closure(masssprings, board);
+    } else if (IsKeyPressed(KEY_G)) {
+      masssprings.masses.clear();
+      masssprings.springs.clear();
+      masssprings.AddMass(1.0, Vector3Zero(), false, board.state);
+      previous_state = board.state;
     }
 
-    // Don't need this as long as we're generating the closure beforehand
-    // if (previous_state != board.state) {
-    //   mass_springs.AddMass(
-    //       1.0,
-    //       Vector3(static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
-    //               static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
-    //               static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0),
-    //       false, board.state);
-    //   mass_springs.AddSpring(board.state, previous_state, SPRING_CONSTANT,
-    //                          DAMPENING_CONSTANT, REST_LENGTH);
-    // }
+    if (previous_state != board.state) {
+      masssprings.AddMass(
+          1.0,
+          Vector3(static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
+                  static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
+                  static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0),
+          false, board.state);
+      masssprings.AddSpring(board.state, previous_state, SPRING_CONSTANT,
+                            DAMPENING_CONSTANT, REST_LENGTH);
+    }
 
     // Physics update
     std::chrono::high_resolution_clock::time_point ps =
         std::chrono::high_resolution_clock::now();
-    mass_springs.ClearForces();
-    mass_springs.CalculateSpringForces();
-    mass_springs.CalculateRepulsionForces();
+    masssprings.ClearForces();
+    masssprings.CalculateSpringForces();
+    masssprings.CalculateRepulsionForces();
 #ifdef VERLET_UPDATE
-    mass_springs.VerletUpdate(frametime * SIM_SPEED);
+    masssprings.VerletUpdate(frametime * SIM_SPEED);
 #else
     mass_springs.EulerUpdate(frametime * SIM_SPEED);
 #endif
@@ -303,9 +311,10 @@ auto main(int argc, char *argv[]) -> int {
     // Rendering
     std::chrono::high_resolution_clock::time_point rs =
         std::chrono::high_resolution_clock::now();
-    renderer.UpdateCamera();
-    renderer.DrawMassSprings(mass_springs);
+    renderer.UpdateCamera(masssprings, board);
+    renderer.DrawMassSprings(masssprings, board);
     renderer.DrawKlotski(board, hov_x, hov_y, sel_x, sel_y);
+    renderer.DrawMenu(masssprings);
     renderer.DrawTextures();
     std::chrono::high_resolution_clock::time_point re =
         std::chrono::high_resolution_clock::now();
