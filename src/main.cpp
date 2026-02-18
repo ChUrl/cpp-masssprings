@@ -22,46 +22,59 @@ auto state_simple_1r() -> State {
   return s;
 }
 
+auto state_simple_1r_wc(const State &state) -> bool { return false; }
+
 auto state_simple_1f() -> State {
   State s = State(4, 5, false);
-  s.AddBlock(Block(0, 0, 1, 2, true));
+  s.AddBlock(Block(0, 0, 1, 2, false));
 
   return s;
 }
+
+auto state_simple_1f_wc(const State &state) -> bool { return false; }
 
 auto state_simple_2r() -> State {
   State s = State(4, 5, true);
-  s.AddBlock(Block(0, 0, 1, 2, true));
+  s.AddBlock(Block(0, 0, 1, 2, false));
   s.AddBlock(Block(1, 0, 1, 2, false));
 
   return s;
 }
+
+auto state_simple_2r_wc(const State &state) -> bool { return false; }
 
 auto state_simple_2f() -> State {
   State s = State(4, 5, false);
-  s.AddBlock(Block(0, 0, 1, 2, true));
+  s.AddBlock(Block(0, 0, 1, 2, false));
   s.AddBlock(Block(1, 0, 1, 2, false));
 
   return s;
 }
+
+auto state_simple_2f_wc(const State &state) -> bool { return false; }
 
 auto state_simple_3r() -> State {
   State s = State(4, 5, true);
-  s.AddBlock(Block(0, 0, 1, 2, true));
+  s.AddBlock(Block(0, 0, 1, 2, false));
   s.AddBlock(Block(1, 0, 1, 2, false));
   s.AddBlock(Block(2, 0, 1, 2, false));
 
   return s;
 }
+
+auto state_simple_3r_wc(const State &state) -> bool { return false; }
 
 auto state_simple_3f() -> State {
   State s = State(4, 5, false);
-  s.AddBlock(Block(0, 0, 1, 2, true));
+  s.AddBlock(Block(0, 0, 1, 2, false));
   s.AddBlock(Block(1, 0, 1, 2, false));
   s.AddBlock(Block(2, 0, 1, 2, false));
 
   return s;
 }
+
+auto state_simple_3f_wc(const State &state) -> bool { return false; }
+
 auto state_complex_1r() -> State {
   State s = State(6, 6, true);
   s.AddBlock(Block(1, 0, 1, 3, false));
@@ -74,6 +87,10 @@ auto state_complex_1r() -> State {
   return s;
 }
 
+auto state_complex_1r_wc(const State &state) -> bool {
+  return state.GetBlockAt(4, 2) == "ba";
+}
+
 auto state_complex_2r() -> State {
   State s = State(6, 6, true);
   s.AddBlock(Block(2, 0, 1, 3, false));
@@ -84,6 +101,10 @@ auto state_complex_2r() -> State {
   s.AddBlock(Block(0, 5, 3, 1, false));
 
   return s;
+}
+
+auto state_complex_2r_wc(const State &state) -> bool {
+  return state.GetBlockAt(4, 2) == "ba";
 }
 
 auto state_complex_3r() -> State {
@@ -102,12 +123,16 @@ auto state_complex_3r() -> State {
   return s;
 }
 
+auto state_complex_3r_wc(const State &state) -> bool {
+  return state.GetBlockAt(4, 2) == "ba";
+}
+
 auto state_complex_4f() -> State {
   State s = State(4, 4, false);
   s.AddBlock(Block(0, 0, 2, 1, false));
   s.AddBlock(Block(3, 0, 1, 1, false));
   s.AddBlock(Block(0, 1, 1, 2, false));
-  s.AddBlock(Block(1, 1, 2, 2, true));
+  s.AddBlock(Block(1, 1, 2, 2, false));
   s.AddBlock(Block(3, 1, 1, 1, false));
   s.AddBlock(Block(3, 2, 1, 1, false));
   s.AddBlock(Block(0, 3, 1, 1, false));
@@ -115,6 +140,8 @@ auto state_complex_4f() -> State {
 
   return s;
 }
+
+auto state_complex_4f_wc(const State &state) -> bool { return false; }
 
 auto state_klotski() -> State {
   State s = State(4, 5, false);
@@ -132,9 +159,18 @@ auto state_klotski() -> State {
   return s;
 }
 
+auto state_klotski_wc(const State &state) -> bool {
+  return state.GetBlockAt(1, 3) == "bb";
+}
+
 std::array<StateGenerator, 8> generators{
     state_simple_1r,  state_simple_2r,  state_simple_3r,  state_complex_1r,
     state_complex_2r, state_complex_3r, state_complex_4f, state_klotski};
+
+std::array<WinCondition, 8> win_conditions{
+    state_simple_1r_wc,  state_simple_2r_wc,  state_simple_3r_wc,
+    state_complex_1r_wc, state_complex_2r_wc, state_complex_3r_wc,
+    state_complex_4f_wc, state_klotski_wc};
 
 auto apply_state(MassSpringSystem &mass_springs, StateGenerator generator)
     -> State {
@@ -142,7 +178,7 @@ auto apply_state(MassSpringSystem &mass_springs, StateGenerator generator)
   mass_springs.masses.clear();
 
   State s = generator();
-  mass_springs.AddMass(1.0, Vector3Zero(), false, s.state);
+  mass_springs.AddMass(MASS, Vector3Zero(), false, s.state);
 
   return s;
 };
@@ -157,7 +193,7 @@ auto solve_closure(MassSpringSystem &mass_springs, const State board) -> void {
                 static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0,
                 static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0);
 
-    mass_springs.AddMass(1.0, pos, false, state);
+    mass_springs.AddMass(MASS, pos, false, state);
   }
   for (const auto &[from, to] : closure.second) {
     mass_springs.AddSpring(from, to, SPRING_CONSTANT, DAMPENING_CONSTANT,
@@ -196,9 +232,9 @@ auto main(int argc, char *argv[]) -> int {
   Renderer renderer;
 
   // Klotski configuration
-  int current_generator = 0;
+  int current_preset = 0;
   MassSpringSystem masssprings;
-  State board = apply_state(masssprings, generators[current_generator]);
+  State board = apply_state(masssprings, generators[current_preset]);
 
   // Game loop
   float frametime;
@@ -263,34 +299,40 @@ auto main(int argc, char *argv[]) -> int {
     } else if (IsKeyPressed(KEY_P)) {
       std::cout << board.state << std::endl;
     } else if (IsKeyPressed(KEY_N)) {
-      current_generator =
-          (generators.size() + current_generator - 1) % generators.size();
-      board = apply_state(masssprings, generators[current_generator]);
+      current_preset =
+          (generators.size() + current_preset - 1) % generators.size();
+      board = apply_state(masssprings, generators[current_preset]);
       previous_state = board.state;
     } else if (IsKeyPressed(KEY_M)) {
-      current_generator = (current_generator + 1) % generators.size();
-      board = apply_state(masssprings, generators[current_generator]);
+      current_preset = (current_preset + 1) % generators.size();
+      board = apply_state(masssprings, generators[current_preset]);
       previous_state = board.state;
     } else if (IsKeyPressed(KEY_R)) {
-      board = generators[current_generator]();
+      board = generators[current_preset]();
     } else if (IsKeyPressed(KEY_C)) {
       solve_closure(masssprings, board);
+      renderer.UpdateWinningStates(masssprings, win_conditions[current_preset]);
     } else if (IsKeyPressed(KEY_G)) {
       masssprings.masses.clear();
       masssprings.springs.clear();
-      masssprings.AddMass(1.0, Vector3Zero(), false, board.state);
+      masssprings.AddMass(MASS, Vector3Zero(), false, board.state);
       previous_state = board.state;
+    } else if (IsKeyPressed(KEY_I)) {
+      renderer.mark_solutions = !renderer.mark_solutions;
+    } else if (IsKeyPressed(KEY_O)) {
+      renderer.connect_solutions = !renderer.connect_solutions;
     }
 
     if (previous_state != board.state) {
       masssprings.AddMass(
-          1.0,
+          MASS,
           Vector3(static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
                   static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
                   static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0),
           false, board.state);
       masssprings.AddSpring(board.state, previous_state, SPRING_CONSTANT,
                             DAMPENING_CONSTANT, REST_LENGTH);
+      renderer.AddWinningState(board, win_conditions[current_preset]);
     }
 
     // Physics update
@@ -314,7 +356,7 @@ auto main(int argc, char *argv[]) -> int {
     renderer.UpdateCamera(masssprings, board);
     renderer.DrawMassSprings(masssprings, board);
     renderer.DrawKlotski(board, hov_x, hov_y, sel_x, sel_y);
-    renderer.DrawMenu(masssprings);
+    renderer.DrawMenu(masssprings, current_preset);
     renderer.DrawTextures();
     std::chrono::high_resolution_clock::time_point re =
         std::chrono::high_resolution_clock::now();

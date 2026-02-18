@@ -5,6 +5,7 @@
 #include <raymath.h>
 
 #include "config.hpp"
+#include "klotski.hpp"
 #include "mass_springs.hpp"
 
 auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
@@ -45,7 +46,13 @@ auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
     Vector2 dx = Vector2Subtract(mouse, last_mouse);
     last_mouse = mouse;
 
-    float speed = distance * PAN_SPEED / 1000.0;
+    // float speed = PAN_SPEED;
+    float speed;
+    if (IsKeyDown(KEY_LEFT_SHIFT)) {
+      speed = distance * PAN_SPEED / 1000.0 * PAN_MULTIPLIER;
+    } else {
+      speed = distance * PAN_SPEED / 1000.0;
+    }
     Vector3 forward =
         Vector3Normalize(Vector3Subtract(camera.target, camera.position));
     Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
@@ -80,6 +87,27 @@ auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
   camera.target = target;
 }
 
+auto Renderer::UpdateWinningStates(const MassSpringSystem &masssprings,
+                                   const WinCondition win_condition) -> void {
+  winning_states.clear();
+  winning_states.reserve(masssprings.masses.size());
+  for (const auto &[state, mass] : masssprings.masses) {
+    if (win_condition(state)) {
+      winning_states.insert(state);
+    }
+  }
+
+  std::cout << "Found " << winning_states.size() << " winning states."
+            << std::endl;
+}
+
+auto Renderer::AddWinningState(const State &state,
+                               const WinCondition win_condition) -> void {
+  if (win_condition(state)) {
+    winning_states.insert(state);
+  }
+}
+
 auto Renderer::UpdateCamera(const MassSpringSystem &masssprings,
                             const State &current) -> void {
   const Mass &c = masssprings.masses.at(current.state);
@@ -102,15 +130,24 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
   }
 
   // Draw masses (high performance impact)
-  if (masssprings.masses.size() <= 5000) {
-    for (const auto &[state, mass] : masssprings.masses) {
+  for (const auto &[state, mass] : masssprings.masses) {
+    if (state == current.state) {
+      DrawCube(mass.position, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE,
+               RED);
+    } else if (winning_states.contains(state)) {
+      if (mark_solutions) {
+        DrawCube(mass.position, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE,
+                 4 * VERTEX_SIZE, BLUE);
+      }
+      if (connect_solutions) {
+        DrawLine3D(mass.position, masssprings.masses.at(current.state).position,
+                   PURPLE);
+      }
+    } else if (masssprings.masses.size() <= DRAW_VERTICES_LIMIT) {
       DrawCube(mass.position, VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE,
                VERTEX_COLOR);
     }
   }
-
-  const Mass &c = masssprings.masses.at(current.state);
-  DrawCube(c.position, 2 * VERTEX_SIZE, 2 * VERTEX_SIZE, 2 * VERTEX_SIZE, RED);
 
   // DrawGrid(10, 1.0);
   // DrawSphere(camera.target, VERTEX_SIZE, ORANGE);
@@ -203,7 +240,8 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
   EndTextureMode();
 }
 
-auto Renderer::DrawMenu(const MassSpringSystem &masssprings) -> void {
+auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset)
+    -> void {
   BeginTextureMode(menu_target);
   ClearBackground(RAYWHITE);
 
@@ -237,10 +275,13 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings) -> void {
       DARKGREEN);
 
   draw_btn(1, 0, std::format("Reset Board State (R)"), DARKBLUE);
-  draw_btn(1, 1, std::format("Switch to Next Preset (M)"), DARKBLUE);
-  draw_btn(1, 2, std::format("Switch to Previous Preset (N)"), DARKBLUE);
+  draw_btn(1, 1, std::format("Preset (M/N): {}", current_preset), DARKBLUE);
+  draw_btn(1, 2, std::format("Print Board State to Console (P)"), DARKBLUE);
 
-  draw_btn(2, 0, std::format("Print Board State to Console (P)"), DARKPURPLE);
+  draw_btn(2, 0,
+           std::format("Mark (I): {} / Connect (O): {}", mark_solutions,
+                       connect_solutions),
+           DARKPURPLE);
   draw_btn(2, 1, std::format("Solve Board Closure (C)"), DARKPURPLE);
   draw_btn(2, 2, std::format("Clear Graph (G)"), DARKPURPLE);
 

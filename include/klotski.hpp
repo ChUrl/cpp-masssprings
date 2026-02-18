@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <format>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <unordered_set>
@@ -197,9 +198,9 @@ public:
       std::cerr << "State width/height must be in [1, 9]!" << std::endl;
       exit(1);
     }
-    if (state.length() != width * height * 2 + 4) {
+    if (state.length() != width * height * 2 + 5) {
       std::cerr
-          << "State representation must have length [width * height * 2 + 4]!"
+          << "State representation must have length [width * height * 2 + 5]!"
           << std::endl;
       exit(1);
     }
@@ -249,6 +250,10 @@ public:
 
   auto GetBlock(int x, int y) const -> Block;
 
+  auto GetBlockAt(int x, int y) const -> std::string;
+
+  auto GetIndex(int x, int y) const -> int;
+
   auto RemoveBlock(int x, int y) -> bool;
 
   auto MoveBlockAt(int x, int y, Direction dir) -> bool;
@@ -263,5 +268,7 @@ public:
 template <> struct std::hash<State> {
   std::size_t operator()(const State &s) const noexcept { return s.Hash(); }
 };
+
+using WinCondition = std::function<bool(const State &)>;
 
 #endif

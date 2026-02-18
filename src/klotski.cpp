@@ -56,7 +56,7 @@ auto State::AddBlock(Block block) -> bool {
     }
   }
 
-  int index = 5 + (width * block.y + block.x) * 2;
+  int index = GetIndex(block.x, block.y);
   state.replace(index, 2, block.ToString());
 
   return true;
@@ -76,13 +76,21 @@ auto State::GetBlock(int x, int y) const -> Block {
   return Block::Invalid();
 }
 
+auto State::GetBlockAt(int x, int y) const -> std::string {
+  return state.substr(GetIndex(x, y), 2);
+}
+
+auto State::GetIndex(int x, int y) const -> int {
+  return 5 + (y * width + x) * 2;
+}
+
 auto State::RemoveBlock(int x, int y) -> bool {
-  Block b = GetBlock(x, y);
-  if (!b.IsValid()) {
+  Block block = GetBlock(x, y);
+  if (!block.IsValid()) {
     return false;
   }
 
-  int index = 5 + (width * b.y + b.x) * 2;
+  int index = GetIndex(block.x, block.y);
   state.replace(index, 2, "..");
 
   return true;
