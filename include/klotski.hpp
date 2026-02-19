@@ -252,7 +252,15 @@ public:
 public:
   auto Hash() const -> int;
 
-  auto AddBlock(Block block) -> bool;
+  auto AddColumn() const -> State;
+
+  auto RemoveColumn() const -> State;
+
+  auto AddRow() const -> State;
+
+  auto RemoveRow() const -> State;
+
+  auto AddBlock(const Block &block) -> bool;
 
   auto GetBlock(int x, int y) const -> Block;
 

@@ -176,7 +176,8 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
 }
 
 auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
-                           int sel_y) -> void {
+                           int sel_y, int block_add_x, int block_add_y)
+    -> void {
   BeginTextureMode(klotski_target);
   ClearBackground(RAYWHITE);
 
@@ -244,13 +245,22 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
     }
   }
 
+  // Draw editing starting position
+  if (block_add_x >= 0 && block_add_y >= 0) {
+    DrawCircle(x_offset + BOARD_PADDING + block_add_x * BLOCK_PADDING * 2 +
+                   BLOCK_PADDING + block_add_x * block_size + block_size / 2,
+               y_offset + BOARD_PADDING + block_add_y * BLOCK_PADDING * 2 +
+                   BLOCK_PADDING + block_add_y * block_size + block_size / 2,
+               block_size / 10.0, Fade(BLACK, 0.5));
+  }
+
   DrawLine(GetScreenWidth() / 2 - 1, 0, GetScreenWidth() / 2 - 1,
            GetScreenHeight() - MENU_HEIGHT, BLACK);
   EndTextureMode();
 }
 
-auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset)
-    -> void {
+auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset,
+                        const State &current_state) -> void {
   BeginTextureMode(menu_target);
   ClearBackground(RAYWHITE);
 
@@ -264,7 +274,7 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset)
   auto draw_btn = [&](int x, int y, std::string text, Color color) {
     int posx = MENU_PAD + x * (MENU_PAD + btn_width);
     int posy = MENU_PAD + y * (MENU_PAD + btn_height);
-    DrawRectangle(posx, posy, btn_width, btn_height, Fade(color, 0.5));
+    DrawRectangle(posx, posy, btn_width, btn_height, Fade(color, 0.6));
     DrawRectangleLines(posx, posy, btn_width, btn_height, color);
     DrawText(text.data(), posx + BUTTON_PAD, posy + BUTTON_PAD,
              btn_height - 2 * BUTTON_PAD, WHITE);
@@ -284,16 +294,20 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset)
       std::format("Lock Camera to Current State (L): {}", camera.target_lock),
       DARKGREEN);
 
-  draw_btn(1, 0, std::format("Reset Board State (R)"), DARKBLUE);
-  draw_btn(1, 1, std::format("Preset (M/N): {}", current_preset), DARKBLUE);
+  draw_btn(1, 0, std::format("Reset State + Graph (R)"), DARKBLUE);
+  draw_btn(1, 1, std::format("Add/Remove Col/Row (Arrow Keys)"), DARKBLUE);
   draw_btn(1, 2, std::format("Print Board State to Console (P)"), DARKBLUE);
 
   draw_btn(2, 0,
+           std::format("Preset (M/N): {}, {} (T)", current_preset,
+                       current_state.restricted ? "Restricted" : "Free"),
+           DARKPURPLE);
+  draw_btn(2, 1, std::format("Populate Graph (G), Clear Graph (C)"),
+           DARKPURPLE);
+  draw_btn(2, 2,
            std::format("Mark (I): {} / Connect (O): {}", mark_solutions,
                        connect_solutions),
            DARKPURPLE);
-  draw_btn(2, 1, std::format("Solve Board Closure (C)"), DARKPURPLE);
-  draw_btn(2, 2, std::format("Clear Graph (G)"), DARKPURPLE);
 
   DrawLine(0, MENU_HEIGHT - 1, GetScreenWidth(), MENU_HEIGHT - 1, BLACK);
   EndTextureMode();

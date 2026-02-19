@@ -25,10 +25,11 @@ auto apply_state(MassSpringSystem &mass_springs, StateGenerator generator)
   return s;
 };
 
-auto solve_closure(MassSpringSystem &mass_springs, const State board) -> void {
+auto populate_masssprings(MassSpringSystem &mass_springs,
+                          const State &current_state) -> void {
   std::pair<std::unordered_set<std::string>,
             std::vector<std::pair<std::string, std::string>>>
-      closure = board.Closure();
+      closure = current_state.Closure();
   for (const auto &state : closure.first) {
     Vector3 pos =
         Vector3(static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0,
@@ -51,6 +52,14 @@ auto solve_closure(MassSpringSystem &mass_springs, const State board) -> void {
             << sizeof(decltype(*mass_springs.springs.begin())) *
                    mass_springs.springs.size()
             << " Bytes for springs." << std::endl;
+}
+
+auto clear_masssprings(MassSpringSystem &masssprings,
+                       const State &current_state) -> std::string {
+  masssprings.masses.clear();
+  masssprings.springs.clear();
+  masssprings.AddMass(MASS, Vector3Zero(), false, current_state.state);
+  return current_state.state;
 }
 
 auto main(int argc, char *argv[]) -> int {
@@ -83,6 +92,9 @@ auto main(int argc, char *argv[]) -> int {
 
   // Game loop
   float frametime;
+  bool has_block_add_xy = false;
+  int block_add_x = -1;
+  int block_add_y = -1;
   int hov_x = 0;
   int hov_y = 0;
   int sel_x = 0;
@@ -95,6 +107,7 @@ auto main(int argc, char *argv[]) -> int {
   int time_measure_count = 0;
   while (!WindowShouldClose()) {
     frametime = GetFrameTime();
+    std::string previous_state = current_state.state;
 
     // Mouse handling
     const int board_width = GetScreenWidth() / 2.0 - 2 * BOARD_PADDING;
@@ -121,12 +134,58 @@ auto main(int argc, char *argv[]) -> int {
       hov_y = (m.y - MENU_HEIGHT - y_offset) / (block_size + 2 * BLOCK_PADDING);
     }
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-      sel_x = hov_x;
-      sel_y = hov_y;
+      // If we clicked a block...
+      if (current_state.GetBlock(hov_x, hov_y).IsValid()) {
+        sel_x = hov_x;
+        sel_y = hov_y;
+      }
+      // If we clicked empty space...
+      else {
+        // Select a position
+        if (!has_block_add_xy) {
+          if (hov_x >= 0 && hov_x < current_state.width && hov_y >= 0 &&
+              hov_y < current_state.height) {
+            block_add_x = hov_x;
+            block_add_y = hov_y;
+            has_block_add_xy = true;
+          }
+        }
+        // If we have already selected a position
+        else {
+          int block_add_width = hov_x - block_add_x + 1;
+          int block_add_height = hov_y - block_add_y + 1;
+          if (block_add_width <= 0 || block_add_height <= 0) {
+            block_add_x = -1;
+            block_add_y = -1;
+            has_block_add_xy = false;
+          } else if (block_add_x >= 0 &&
+                     block_add_x + block_add_width <= current_state.width &&
+                     block_add_y >= 0 &&
+                     block_add_y + block_add_height <= current_state.height) {
+            bool success = current_state.AddBlock(
+                Block(block_add_x, block_add_y, block_add_width,
+                      block_add_height, false));
+
+            if (success) {
+              block_add_x = -1;
+              block_add_y = -1;
+              has_block_add_xy = false;
+              previous_state = clear_masssprings(masssprings, current_state);
+            }
+          }
+        }
+      }
+    } else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+      if (current_state.RemoveBlock(hov_x, hov_y)) {
+        previous_state = clear_masssprings(masssprings, current_state);
+      } else if (has_block_add_xy) {
+        block_add_x = -1;
+        block_add_y = -1;
+        has_block_add_xy = false;
+      }
     }
 
     // Key handling
-    std::string previous_state = current_state.state;
     if (IsKeyPressed(KEY_W)) {
       if (current_state.MoveBlockAt(sel_x, sel_y, Direction::NOR)) {
         sel_y--;
@@ -156,19 +215,34 @@ auto main(int argc, char *argv[]) -> int {
       previous_state = current_state.state;
     } else if (IsKeyPressed(KEY_R)) {
       current_state = generators[current_preset]();
-      previous_state = current_state.state;
-    } else if (IsKeyPressed(KEY_C)) {
-      solve_closure(masssprings, current_state);
-      renderer.UpdateWinningStates(masssprings, win_conditions[current_preset]);
+      previous_state = clear_masssprings(masssprings, current_state);
     } else if (IsKeyPressed(KEY_G)) {
-      masssprings.masses.clear();
-      masssprings.springs.clear();
-      masssprings.AddMass(MASS, Vector3Zero(), false, current_state.state);
-      previous_state = current_state.state;
+      previous_state = clear_masssprings(masssprings, current_state);
+      populate_masssprings(masssprings, current_state);
+      renderer.UpdateWinningStates(masssprings, win_conditions[current_preset]);
+    } else if (IsKeyPressed(KEY_C)) {
+      // We also need to clear the graph, in case the state has been edited.
+      // Then the graph would contain states that are impossible.
+      previous_state = clear_masssprings(masssprings, current_state);
     } else if (IsKeyPressed(KEY_I)) {
       renderer.mark_solutions = !renderer.mark_solutions;
     } else if (IsKeyPressed(KEY_O)) {
       renderer.connect_solutions = !renderer.connect_solutions;
+    } else if (IsKeyPressed(KEY_T)) {
+      current_state.restricted = !current_state.restricted;
+    } else if (IsKeyPressed(KEY_LEFT) && current_state.width > 1) {
+      current_state = current_state.RemoveColumn();
+      previous_state = clear_masssprings(masssprings, current_state);
+    } else if (IsKeyPressed(KEY_RIGHT) && current_state.width < 9) {
+      current_state = current_state.AddColumn();
+      previous_state = clear_masssprings(masssprings, current_state);
+
+    } else if (IsKeyPressed(KEY_UP) && current_state.height > 1) {
+      current_state = current_state.RemoveRow();
+      previous_state = clear_masssprings(masssprings, current_state);
+    } else if (IsKeyPressed(KEY_DOWN) && current_state.height < 9) {
+      current_state = current_state.AddRow();
+      previous_state = clear_masssprings(masssprings, current_state);
     }
 
     if (previous_state != current_state.state) {
@@ -206,8 +280,9 @@ auto main(int argc, char *argv[]) -> int {
     renderer.UpdateCamera(masssprings, current_state);
     renderer.UpdateTextureSizes();
     renderer.DrawMassSprings(masssprings, current_state);
-    renderer.DrawKlotski(current_state, hov_x, hov_y, sel_x, sel_y);
-    renderer.DrawMenu(masssprings, current_preset);
+    renderer.DrawKlotski(current_state, hov_x, hov_y, sel_x, sel_y, block_add_x,
+                         block_add_y);
+    renderer.DrawMenu(masssprings, current_preset, current_state);
     renderer.DrawTextures();
     std::chrono::high_resolution_clock::time_point re =
         std::chrono::high_resolution_clock::now();

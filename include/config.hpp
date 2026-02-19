@@ -20,7 +20,7 @@ constexpr int MENU_COLS = 3;
 // Camera Controls
 constexpr float SIM_SPEED = 4.0;
 constexpr float CAMERA_FOV = 120.0;
-constexpr float CAMERA_DISTANCE = 100.0;
+constexpr float CAMERA_DISTANCE = 20.0;
 constexpr float MIN_CAMERA_DISTANCE = 2.0;
 constexpr float MAX_CAMERA_DISTANCE = 2000.0;
 constexpr float ZOOM_SPEED = 2.5;

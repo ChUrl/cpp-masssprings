@@ -45,7 +45,47 @@ auto Block::Collides(const Block &other) const -> bool {
 
 auto State::Hash() const -> int { return std::hash<std::string>{}(state); }
 
-auto State::AddBlock(Block block) -> bool {
+auto State::AddColumn() const -> State {
+  State newstate = State(width + 1, height, restricted);
+
+  for (const auto &block : *this) {
+    newstate.AddBlock(block);
+  }
+
+  return newstate;
+}
+
+auto State::RemoveColumn() const -> State {
+  State newstate = State(width - 1, height, restricted);
+
+  for (const auto &block : *this) {
+    newstate.AddBlock(block);
+  }
+
+  return newstate;
+}
+
+auto State::AddRow() const -> State {
+  State newstate = State(width, height + 1, restricted);
+
+  for (const auto &block : *this) {
+    newstate.AddBlock(block);
+  }
+
+  return newstate;
+}
+
+auto State::RemoveRow() const -> State {
+  State newstate = State(width, height - 1, restricted);
+
+  for (const auto &block : *this) {
+    newstate.AddBlock(block);
+  }
+
+  return newstate;
+}
+
+auto State::AddBlock(const Block &block) -> bool {
   if (block.x + block.width > width || block.y + block.height > height) {
     return false;
   }
