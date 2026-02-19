@@ -247,7 +247,7 @@ rec {
               cd $FLAKE_PROJECT_ROOT/cmake-build-${typeLower}
 
               echo "Running cmake"
-              cmake --build .
+              cmake --build . -j$(nproc)
             '';
 
           buildDebug = mkBuildScript "Debug";
