@@ -26,14 +26,15 @@ constexpr float PAN_MULTIPLIER = 10.0;
 constexpr float ROT_SPEED = 1.0;
 
 // Physics Engine
+constexpr int UPDATES_PER_FRAME = 1;
 constexpr float MASS = 1.0;
-constexpr float SPRING_CONSTANT = 1.5;
-constexpr float DAMPENING_CONSTANT = 0.8;
-constexpr float REST_LENGTH = 1.0;
+constexpr float SPRING_CONSTANT = 5.0;
+constexpr float DAMPENING_CONSTANT = 1.0;
+constexpr float REST_LENGTH = 2.0;
 constexpr float REPULSION_FORCE = 0.1;
-constexpr float REPULSION_RANGE = 3.0 * REST_LENGTH;
+constexpr float REPULSION_RANGE = 5.0 * REST_LENGTH;
 constexpr int REPULSION_GRID_REFRESH = 5; // Frames between grid rebuilds
-constexpr float VERLET_DAMPENING = 0.01;  // [0, 1]
+constexpr float VERLET_DAMPENING = 0.05;  // [0, 1]
 
 // Graph Drawing
 constexpr float VERTEX_SIZE = 0.1;

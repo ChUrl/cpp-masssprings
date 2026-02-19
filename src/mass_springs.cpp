@@ -183,6 +183,7 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
 
     Vector3 force = {0, 0, 0};
 
+    // Search all 3*3*3 neighbor cells for particles
     for (int dx = -1; dx <= 1; ++dx) {
       for (int dy = -1; dy <= 1; ++dy) {
         for (int dz = -1; dz <= 1; ++dz) {
