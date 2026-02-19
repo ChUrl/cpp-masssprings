@@ -1,8 +1,5 @@
-#define VERLET_UPDATE
-
 #include <chrono>
 #include <iostream>
-#include <omp.h>
 #include <ratio>
 #include <raylib.h>
 #include <raymath.h>
@@ -13,6 +10,9 @@
 #include "renderer.hpp"
 #include "states.hpp"
 
+#ifndef WEB
+#include <omp.h>
+#endif
 
 auto apply_state(MassSpringSystem &mass_springs, StateGenerator generator)
     -> State {
@@ -59,16 +59,19 @@ auto main(int argc, char *argv[]) -> int {
   //   return 1;
   // }
 
+#ifndef WEB
   std::cout << "OpenMP: " << omp_get_max_threads() << " threads." << std::endl;
+#endif
 
   SetTraceLogLevel(LOG_ERROR);
 
   // SetTargetFPS(60);
   SetConfigFlags(FLAG_VSYNC_HINT);
   SetConfigFlags(FLAG_MSAA_4X_HINT);
-  // SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
 
-  InitWindow(WIDTH * 2, HEIGHT + MENU_HEIGHT, "MassSprings");
+  InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + MENU_HEIGHT, "MassSprings");
 
   // Rendering configuration
   Renderer renderer;
@@ -76,7 +79,7 @@ auto main(int argc, char *argv[]) -> int {
   // Klotski configuration
   int current_preset = 0;
   MassSpringSystem masssprings;
-  State board = apply_state(masssprings, generators[current_preset]);
+  State current_state = apply_state(masssprings, generators[current_preset]);
 
   // Game loop
   float frametime;
@@ -94,26 +97,28 @@ auto main(int argc, char *argv[]) -> int {
     frametime = GetFrameTime();
 
     // Mouse handling
-    float block_size;
-    float x_offset = 0.0;
-    float y_offset = 0.0;
-    if (board.width > board.height) {
-      block_size = static_cast<float>(WIDTH) / board.width;
-      y_offset = (HEIGHT - block_size * board.height) / 2.0;
-    } else {
-      block_size = static_cast<float>(HEIGHT) / board.height;
-      x_offset = (WIDTH - block_size * board.width) / 2.0;
-    }
+    const int board_width = GetScreenWidth() / 2.0 - 2 * BOARD_PADDING;
+    const int board_height =
+        GetScreenHeight() - MENU_HEIGHT - 2 * BOARD_PADDING;
+    int block_size = std::min(board_width / current_state.width,
+                              board_height / current_state.height) -
+                     2 * BLOCK_PADDING;
+    int x_offset =
+        (board_width - (block_size + 2 * BLOCK_PADDING) * current_state.width) /
+        2.0;
+    int y_offset = (board_height -
+                    (block_size + 2 * BLOCK_PADDING) * current_state.height) /
+                   2.0;
     Vector2 m = GetMousePosition();
     if (m.x < x_offset) {
       hov_x = 100;
     } else {
-      hov_x = (m.x - x_offset) / block_size;
+      hov_x = (m.x - x_offset) / (block_size + 2 * BLOCK_PADDING);
     }
     if (m.y - MENU_HEIGHT < y_offset) {
       hov_y = 100;
     } else {
-      hov_y = (m.y - MENU_HEIGHT - y_offset) / block_size;
+      hov_y = (m.y - MENU_HEIGHT - y_offset) / (block_size + 2 * BLOCK_PADDING);
     }
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
       sel_x = hov_x;
@@ -121,74 +126,76 @@ auto main(int argc, char *argv[]) -> int {
     }
 
     // Key handling
-    std::string previous_state = board.state;
+    std::string previous_state = current_state.state;
     if (IsKeyPressed(KEY_W)) {
-      if (board.MoveBlockAt(sel_x, sel_y, Direction::NOR)) {
+      if (current_state.MoveBlockAt(sel_x, sel_y, Direction::NOR)) {
         sel_y--;
       }
     } else if (IsKeyPressed(KEY_A)) {
-      if (board.MoveBlockAt(sel_x, sel_y, Direction::WES)) {
+      if (current_state.MoveBlockAt(sel_x, sel_y, Direction::WES)) {
         sel_x--;
       }
     } else if (IsKeyPressed(KEY_S)) {
-      if (board.MoveBlockAt(sel_x, sel_y, Direction::SOU)) {
+      if (current_state.MoveBlockAt(sel_x, sel_y, Direction::SOU)) {
         sel_y++;
       }
     } else if (IsKeyPressed(KEY_D)) {
-      if (board.MoveBlockAt(sel_x, sel_y, Direction::EAS)) {
+      if (current_state.MoveBlockAt(sel_x, sel_y, Direction::EAS)) {
         sel_x++;
       }
     } else if (IsKeyPressed(KEY_P)) {
-      std::cout << board.state << std::endl;
+      std::cout << current_state.state << std::endl;
     } else if (IsKeyPressed(KEY_N)) {
       current_preset =
           (generators.size() + current_preset - 1) % generators.size();
-      board = apply_state(masssprings, generators[current_preset]);
-      previous_state = board.state;
+      current_state = apply_state(masssprings, generators[current_preset]);
+      previous_state = current_state.state;
     } else if (IsKeyPressed(KEY_M)) {
       current_preset = (current_preset + 1) % generators.size();
-      board = apply_state(masssprings, generators[current_preset]);
-      previous_state = board.state;
+      current_state = apply_state(masssprings, generators[current_preset]);
+      previous_state = current_state.state;
     } else if (IsKeyPressed(KEY_R)) {
-      board = generators[current_preset]();
-      previous_state = board.state;
+      current_state = generators[current_preset]();
+      previous_state = current_state.state;
     } else if (IsKeyPressed(KEY_C)) {
-      solve_closure(masssprings, board);
+      solve_closure(masssprings, current_state);
       renderer.UpdateWinningStates(masssprings, win_conditions[current_preset]);
     } else if (IsKeyPressed(KEY_G)) {
       masssprings.masses.clear();
       masssprings.springs.clear();
-      masssprings.AddMass(MASS, Vector3Zero(), false, board.state);
-      previous_state = board.state;
+      masssprings.AddMass(MASS, Vector3Zero(), false, current_state.state);
+      previous_state = current_state.state;
     } else if (IsKeyPressed(KEY_I)) {
       renderer.mark_solutions = !renderer.mark_solutions;
     } else if (IsKeyPressed(KEY_O)) {
       renderer.connect_solutions = !renderer.connect_solutions;
     }
 
-    if (previous_state != board.state) {
+    if (previous_state != current_state.state) {
       masssprings.AddMass(
           MASS,
           Vector3(static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
                   static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
                   static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0),
-          false, board.state);
-      masssprings.AddSpring(board.state, previous_state, SPRING_CONSTANT,
-                            DAMPENING_CONSTANT, REST_LENGTH);
-      renderer.AddWinningState(board, win_conditions[current_preset]);
+          false, current_state.state);
+      masssprings.AddSpring(current_state.state, previous_state,
+                            SPRING_CONSTANT, DAMPENING_CONSTANT, REST_LENGTH);
+      renderer.AddWinningState(current_state, win_conditions[current_preset]);
     }
 
     // Physics update
     std::chrono::high_resolution_clock::time_point ps =
         std::chrono::high_resolution_clock::now();
-    masssprings.ClearForces();
-    masssprings.CalculateSpringForces();
-    masssprings.CalculateRepulsionForces();
+    for (int i = 0; i < UPDATES_PER_FRAME; ++i) {
+      masssprings.ClearForces();
+      masssprings.CalculateSpringForces();
+      masssprings.CalculateRepulsionForces();
 #ifdef VERLET_UPDATE
-    masssprings.VerletUpdate(frametime * SIM_SPEED);
+      masssprings.VerletUpdate(frametime / UPDATES_PER_FRAME * SIM_SPEED);
 #else
-    mass_springs.EulerUpdate(frametime * SIM_SPEED);
+      mass_springs.EulerUpdate(frametime * SIM_SPEED);
 #endif
+    }
     std::chrono::high_resolution_clock::time_point pe =
         std::chrono::high_resolution_clock::now();
     physics_time_accumulator += pe - ps;
@@ -196,9 +203,10 @@ auto main(int argc, char *argv[]) -> int {
     // Rendering
     std::chrono::high_resolution_clock::time_point rs =
         std::chrono::high_resolution_clock::now();
-    renderer.UpdateCamera(masssprings, board);
-    renderer.DrawMassSprings(masssprings, board);
-    renderer.DrawKlotski(board, hov_x, hov_y, sel_x, sel_y);
+    renderer.UpdateCamera(masssprings, current_state);
+    renderer.UpdateTextureSizes();
+    renderer.DrawMassSprings(masssprings, current_state);
+    renderer.DrawKlotski(current_state, hov_x, hov_y, sel_x, sel_y);
     renderer.DrawMenu(masssprings, current_preset);
     renderer.DrawTextures();
     std::chrono::high_resolution_clock::time_point re =

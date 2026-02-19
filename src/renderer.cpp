@@ -10,7 +10,7 @@
 
 auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
   Vector2 mouse = GetMousePosition();
-  if (mouse.x >= WIDTH && mouse.y >= MENU_HEIGHT) {
+  if (mouse.x >= GetScreenWidth() / 2.0 && mouse.y >= MENU_HEIGHT) {
     if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
       dragging = true;
       last_mouse = mouse;
@@ -68,7 +68,7 @@ auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
     target = current_mass.position;
   }
 
-  if (mouse.x >= WIDTH && mouse.y >= MENU_HEIGHT) {
+  if (mouse.x >= GetScreenWidth() / 2.0 && mouse.y >= MENU_HEIGHT) {
     float wheel = GetMouseWheelMove();
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
       distance -= wheel * ZOOM_SPEED * ZOOM_MULTIPLIER;
@@ -114,6 +114,23 @@ auto Renderer::UpdateCamera(const MassSpringSystem &masssprings,
   camera.Update(c);
 }
 
+auto Renderer::UpdateTextureSizes() -> void {
+  if (!IsWindowResized()) {
+    return;
+  }
+
+  UnloadRenderTexture(render_target);
+  UnloadRenderTexture(klotski_target);
+  UnloadRenderTexture(menu_target);
+
+  int width = GetScreenWidth() / 2.0;
+  int height = GetScreenHeight() - MENU_HEIGHT;
+
+  render_target = LoadRenderTexture(width, height);
+  klotski_target = LoadRenderTexture(width, height);
+  menu_target = LoadRenderTexture(width * 2, MENU_HEIGHT);
+}
+
 auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
                                const State &current) -> void {
   BeginTextureMode(render_target);
@@ -135,6 +152,7 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
       DrawCube(mass.position, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE,
                RED);
     } else if (winning_states.contains(state)) {
+      // TODO: Would be better to store the winning flag in the state itself
       if (mark_solutions) {
         DrawCube(mass.position, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE,
                  4 * VERTEX_SIZE, BLUE);
@@ -153,8 +171,7 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
   // DrawSphere(camera.target, VERTEX_SIZE, ORANGE);
   EndMode3D();
 
-  DrawLine(0, 0, WIDTH, 0, BLACK);
-  DrawLine(0, 0, 0, HEIGHT, BLACK);
+  DrawLine(0, 0, 0, GetScreenHeight() - MENU_HEIGHT, BLACK);
   EndTextureMode();
 }
 
@@ -164,26 +181,18 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
   ClearBackground(RAYWHITE);
 
   // Draw Board
-  const int board_width = WIDTH - 2 * BOARD_PADDING;
-  const int board_height = HEIGHT - 2 * BOARD_PADDING;
-  float block_size;
-  float x_offset = 0.0;
-  float y_offset = 0.0;
-  if (state.width > state.height) {
-    block_size =
-        static_cast<float>(board_width) / state.width - 2 * BLOCK_PADDING;
-    y_offset = (board_height - block_size * state.height -
-                BLOCK_PADDING * 2 * state.height) /
-               2.0;
-  } else {
-    block_size =
-        static_cast<float>(board_height) / state.height - 2 * BLOCK_PADDING;
-    x_offset = (board_width - block_size * state.width -
-                BLOCK_PADDING * 2 * state.width) /
-               2.0;
-  }
+  const int board_width = GetScreenWidth() / 2 - 2 * BOARD_PADDING;
+  const int board_height = GetScreenHeight() - MENU_HEIGHT - 2 * BOARD_PADDING;
+  int block_size =
+      std::min(board_width / state.width, board_height / state.height) -
+      2 * BLOCK_PADDING;
+  int x_offset =
+      (board_width - (block_size + 2 * BLOCK_PADDING) * state.width) / 2.0;
+  int y_offset =
+      (board_height - (block_size + 2 * BLOCK_PADDING) * state.height) / 2.0;
 
-  DrawRectangle(0, 0, WIDTH, HEIGHT, RAYWHITE);
+  DrawRectangle(0, 0, GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT,
+                RAYWHITE);
   DrawRectangle(x_offset, y_offset,
                 board_width - 2 * x_offset + 2 * BOARD_PADDING,
                 board_height - 2 * y_offset + 2 * BOARD_PADDING,
@@ -235,8 +244,8 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
     }
   }
 
-  DrawLine(0, 0, WIDTH, 0, BLACK);
-  DrawLine(WIDTH - 1, 0, WIDTH - 1, HEIGHT, BLACK);
+  DrawLine(GetScreenWidth() / 2 - 1, 0, GetScreenWidth() / 2 - 1,
+           GetScreenHeight() - MENU_HEIGHT, BLACK);
   EndTextureMode();
 }
 
@@ -246,7 +255,7 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset)
   ClearBackground(RAYWHITE);
 
   float btn_width =
-      static_cast<float>(WIDTH * 2 - (MENU_COLS * MENU_PAD + MENU_PAD)) /
+      static_cast<float>(GetScreenWidth() - (MENU_COLS * MENU_PAD + MENU_PAD)) /
       MENU_COLS;
   float btn_height =
       static_cast<float>(MENU_HEIGHT - (MENU_ROWS * MENU_PAD + MENU_PAD)) /
@@ -257,8 +266,8 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset)
     int posy = MENU_PAD + y * (MENU_PAD + btn_height);
     DrawRectangle(posx, posy, btn_width, btn_height, Fade(color, 0.5));
     DrawRectangleLines(posx, posy, btn_width, btn_height, color);
-    DrawText(text.data(), posx + MENU_PAD, posy + MENU_PAD,
-             btn_height - 2 * MENU_PAD, WHITE);
+    DrawText(text.data(), posx + BUTTON_PAD, posy + BUTTON_PAD,
+             btn_height - 2 * BUTTON_PAD, WHITE);
   };
 
   draw_btn(0, 0,
@@ -286,21 +295,24 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset)
   draw_btn(2, 1, std::format("Solve Board Closure (C)"), DARKPURPLE);
   draw_btn(2, 2, std::format("Clear Graph (G)"), DARKPURPLE);
 
-  // DrawLine(0, menu_height - 1, width * 2, menu_height - 1, BLACK);
+  DrawLine(0, MENU_HEIGHT - 1, GetScreenWidth(), MENU_HEIGHT - 1, BLACK);
   EndTextureMode();
 }
 
 auto Renderer::DrawTextures() -> void {
   BeginDrawing();
   DrawTextureRec(menu_target.texture,
-                 Rectangle(0, 0, (float)(WIDTH * 2), -(float)MENU_HEIGHT),
+                 Rectangle(0, 0, menu_target.texture.width,
+                           -1 * menu_target.texture.height),
                  Vector2(0, 0), WHITE);
   DrawTextureRec(klotski_target.texture,
-                 Rectangle(0, 0, (float)WIDTH, -(float)HEIGHT),
+                 Rectangle(0, 0, klotski_target.texture.width,
+                           -1 * klotski_target.texture.height),
                  Vector2(0, MENU_HEIGHT), WHITE);
   DrawTextureRec(render_target.texture,
-                 Rectangle(0, 0, (float)WIDTH, -(float)HEIGHT),
-                 Vector2(WIDTH, MENU_HEIGHT), WHITE);
-  DrawFPS(WIDTH + 10, MENU_HEIGHT + 10);
+                 Rectangle(0, 0, render_target.texture.width,
+                           -1 * render_target.texture.height),
+                 Vector2(GetScreenWidth() / 2.0, MENU_HEIGHT), WHITE);
+  DrawFPS(GetScreenWidth() / 2 + 10, MENU_HEIGHT + 10);
   EndDrawing();
 }

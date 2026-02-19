@@ -58,9 +58,11 @@ public:
   Renderer()
       : camera(OrbitCamera3D(Vector3(0, 0, 0), CAMERA_DISTANCE)),
         mark_solutions(false), connect_solutions(false) {
-    render_target = LoadRenderTexture(WIDTH, HEIGHT);
-    klotski_target = LoadRenderTexture(WIDTH, HEIGHT);
-    menu_target = LoadRenderTexture(WIDTH * 2, MENU_HEIGHT);
+    render_target = LoadRenderTexture(GetScreenWidth() / 2.0,
+                                      GetScreenHeight() - MENU_HEIGHT);
+    klotski_target = LoadRenderTexture(GetScreenWidth() / 2.0,
+                                       GetScreenHeight() - MENU_HEIGHT);
+    menu_target = LoadRenderTexture(GetScreenWidth(), MENU_HEIGHT);
   }
 
   Renderer(const Renderer &copy) = delete;
@@ -83,6 +85,8 @@ public:
 
   auto UpdateCamera(const MassSpringSystem &masssprings, const State &current)
       -> void;
+
+  auto UpdateTextureSizes() -> void;
 
   auto DrawMassSprings(const MassSpringSystem &masssprings,
                        const State &current) -> void;

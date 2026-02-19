@@ -3,13 +3,17 @@
 
 #include <raylib.h>
 
+#define VERLET_UPDATE
+// #define WEB
+
 // Window
-constexpr int WIDTH = 1300;
-constexpr int HEIGHT = 1100;
+constexpr int INITIAL_WIDTH = 800;
+constexpr int INITIAL_HEIGHT = 800;
 constexpr int MENU_HEIGHT = 200;
 
 // Menu
-constexpr int MENU_PAD = 10;
+constexpr int MENU_PAD = 5;
+constexpr int BUTTON_PAD = 20;
 constexpr int MENU_ROWS = 3;
 constexpr int MENU_COLS = 3;
 
