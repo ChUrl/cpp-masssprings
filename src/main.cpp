@@ -309,6 +309,7 @@ auto main(int argc, char *argv[]) -> int {
       previous_state = board.state;
     } else if (IsKeyPressed(KEY_R)) {
       board = generators[current_preset]();
+      previous_state = board.state;
     } else if (IsKeyPressed(KEY_C)) {
       solve_closure(masssprings, board);
       renderer.UpdateWinningStates(masssprings, win_conditions[current_preset]);
