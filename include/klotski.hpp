@@ -237,7 +237,13 @@ public:
 
   bool operator!=(const State &other) const { return !(*this == other); }
 
-  BlockIterator begin() const { return BlockIterator(*this); }
+  BlockIterator begin() const {
+    BlockIterator it = BlockIterator(*this);
+    if (!(*it).IsValid()) {
+      ++it;
+    }
+    return it;
+  }
 
   BlockIterator end() const { return BlockIterator(*this, width * height); }
 
