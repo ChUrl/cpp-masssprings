@@ -3,7 +3,7 @@
 
 #include <raylib.h>
 
-// #define PRINT_TIMINGS
+#define PRINT_TIMINGS
 #define VERLET_UPDATE
 // #define WEB
 

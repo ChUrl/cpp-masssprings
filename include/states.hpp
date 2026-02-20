@@ -175,15 +175,42 @@ inline auto state_klotski_wc(const State &state) -> bool {
   return state.GetBlockAt(1, 3) == "bb";
 }
 
+inline auto state_century() -> State {
+  return State("F4x5:11bb..1112....12..12....11....1121..21..");
+}
+
+inline auto state_century_wc(const State &state) -> bool {
+  return state.GetBlockAt(1, 3) == "bb";
+}
+
+inline auto state_super_century() -> State {
+  return State("F4x5:12111111..12bb..12........21..11....21..");
+}
+
+inline auto state_super_century_wc(const State &state) -> bool {
+  return state.GetBlockAt(1, 3) == "bb";
+}
+
+inline auto state_new_century() -> State {
+  return State("F4x5:12111111..12bb..12........21..11....21..");
+}
+
+inline auto state_new_century_wc(const State &state) -> bool {
+  // What kind of brain do you need for this???
+  return state.state == "F4x5:21......1121..12bb..12........12111111..";
+}
+
 std::vector<StateGenerator> generators{
     state_simple_1r,  state_simple_2r,  state_simple_3r,  state_complex_1r,
     state_complex_2r, state_complex_3r, state_complex_4f, state_complex_5r,
-    state_complex_6r, state_klotski};
+    state_complex_6r, state_klotski,    state_century,    state_super_century,
+    state_new_century};
 
 std::vector<WinCondition> win_conditions{
     state_simple_1r_wc,  state_simple_2r_wc,  state_simple_3r_wc,
     state_complex_1r_wc, state_complex_2r_wc, state_complex_3r_wc,
     state_complex_4f_wc, state_complex_5r_wc, state_complex_6r_wc,
-    state_klotski_wc};
+    state_klotski_wc,    state_century_wc,    state_super_century_wc,
+    state_new_century_wc};
 
 #endif
