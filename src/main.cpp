@@ -1,6 +1,4 @@
-#include <chrono>
 #include <iostream>
-#include <ratio>
 #include <raylib.h>
 #include <raymath.h>
 
@@ -12,6 +10,10 @@
 
 #ifndef WEB
 #include <omp.h>
+#endif
+#ifdef PRINT_TIMINGS
+#include <chrono>
+#include <ratio>
 #endif
 
 // TODO: Klotski state file loading
@@ -110,12 +112,14 @@ auto main(int argc, char *argv[]) -> int {
   int hov_y = 0;
   int sel_x = 0;
   int sel_y = 0;
+#ifdef PRINT_TIMINGS
   double last_print_time = GetTime();
   std::chrono::duration<double, std::milli> physics_time_accumulator =
       std::chrono::duration<double, std::milli>(0);
   std::chrono::duration<double, std::milli> render_time_accumulator =
       std::chrono::duration<double, std::milli>(0);
   int time_measure_count = 0;
+#endif
   while (!WindowShouldClose()) {
     frametime = GetFrameTime();
     std::string previous_state = current_state.state;
@@ -286,8 +290,10 @@ auto main(int argc, char *argv[]) -> int {
     }
 
     // Physics update
+#ifdef PRINT_TIMINGS
     std::chrono::high_resolution_clock::time_point ps =
         std::chrono::high_resolution_clock::now();
+#endif
     for (int i = 0; i < UPDATES_PER_FRAME; ++i) {
       masssprings.ClearForces();
       masssprings.CalculateSpringForces();
@@ -298,20 +304,25 @@ auto main(int argc, char *argv[]) -> int {
       mass_springs.EulerUpdate(frametime * SIM_SPEED);
 #endif
     }
+#ifdef PRINT_TIMINGS
     std::chrono::high_resolution_clock::time_point pe =
         std::chrono::high_resolution_clock::now();
     physics_time_accumulator += pe - ps;
+#endif
 
     // Rendering
+#ifdef PRINT_TIMINGS
     std::chrono::high_resolution_clock::time_point rs =
         std::chrono::high_resolution_clock::now();
+#endif
     renderer.UpdateCamera(masssprings, current_state);
     renderer.UpdateTextureSizes();
     renderer.DrawMassSprings(masssprings, current_state);
     renderer.DrawKlotski(current_state, hov_x, hov_y, sel_x, sel_y, block_add_x,
-                         block_add_y);
+                         block_add_y, win_conditions[current_preset]);
     renderer.DrawMenu(masssprings, current_preset, current_state);
     renderer.DrawTextures();
+#ifdef PRINT_TIMINGS
     std::chrono::high_resolution_clock::time_point re =
         std::chrono::high_resolution_clock::now();
     render_time_accumulator += re - rs;
@@ -329,6 +340,7 @@ auto main(int argc, char *argv[]) -> int {
       render_time_accumulator = std::chrono::duration<double, std::milli>(0);
       time_measure_count = 0;
     }
+#endif
   }
 
   CloseWindow();

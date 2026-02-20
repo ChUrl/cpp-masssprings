@@ -92,7 +92,8 @@ public:
                        const State &current) -> void;
 
   auto DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
-                   int sel_y, int block_add_x, int block_add_y) -> void;
+                   int sel_y, int block_add_x, int block_add_y,
+                   const WinCondition win_condition) -> void;
 
   auto DrawMenu(const MassSpringSystem &masssprings, int current_preset,
                 const State &current_state) -> void;
