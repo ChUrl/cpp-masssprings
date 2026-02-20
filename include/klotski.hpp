@@ -272,6 +272,8 @@ public:
 
   auto ToggleTarget(int x, int y) -> bool;
 
+  auto ToggleRestricted() -> void;
+
   auto MoveBlockAt(int x, int y, Direction dir) -> bool;
 
   auto GetNextStates() const -> std::vector<State>;

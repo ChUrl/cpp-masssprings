@@ -266,7 +266,7 @@ auto main(int argc, char *argv[]) -> int {
     } else if (IsKeyPressed(KEY_O)) {
       renderer.connect_solutions = !renderer.connect_solutions;
     } else if (IsKeyPressed(KEY_F)) {
-      current_state.restricted = !current_state.restricted;
+      current_state.ToggleRestricted();
       previous_state = clear_masssprings(masssprings, current_state);
       edited = true;
     } else if (IsKeyPressed(KEY_T)) {

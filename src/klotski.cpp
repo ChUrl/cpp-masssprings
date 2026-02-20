@@ -162,6 +162,11 @@ auto State::ToggleTarget(int x, int y) -> bool {
   return true;
 }
 
+auto State::ToggleRestricted() -> void {
+  restricted = !restricted;
+  state.replace(0, 1, restricted ? "R" : "F");
+}
+
 auto State::MoveBlockAt(int x, int y, Direction dir) -> bool {
   Block block = GetBlock(x, y);
   if (!block.IsValid()) {
