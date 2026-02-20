@@ -105,6 +105,7 @@ auto main(int argc, char *argv[]) -> int {
 
   // Game loop
   float frametime;
+  bool edited = false;
   bool has_block_add_xy = false;
   int block_add_x = -1;
   int block_add_y = -1;
@@ -186,6 +187,7 @@ auto main(int argc, char *argv[]) -> int {
               block_add_y = -1;
               has_block_add_xy = false;
               previous_state = clear_masssprings(masssprings, current_state);
+              edited = true;
             }
           }
         }
@@ -193,6 +195,7 @@ auto main(int argc, char *argv[]) -> int {
     } else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
       if (current_state.RemoveBlock(hov_x, hov_y)) {
         previous_state = clear_masssprings(masssprings, current_state);
+        edited = true;
       } else if (has_block_add_xy) {
         block_add_x = -1;
         block_add_y = -1;
@@ -235,6 +238,7 @@ auto main(int argc, char *argv[]) -> int {
           (generators.size() + current_preset - 1) % generators.size();
       current_state = apply_state(masssprings, generators[current_preset]);
       previous_state = current_state.state;
+      edited = false;
     } else if (IsKeyPressed(KEY_M)) {
       block_add_x = -1;
       block_add_y = -1;
@@ -242,16 +246,20 @@ auto main(int argc, char *argv[]) -> int {
       current_preset = (current_preset + 1) % generators.size();
       current_state = apply_state(masssprings, generators[current_preset]);
       previous_state = current_state.state;
+      edited = false;
     } else if (IsKeyPressed(KEY_R)) {
       current_state = generators[current_preset]();
-      previous_state = clear_masssprings(masssprings, current_state);
+      if (edited) {
+        // We also need to clear the graph, in case the state has been edited.
+        // Then the graph would contain states that are impossible.
+        previous_state = clear_masssprings(masssprings, current_state);
+        edited = false;
+      }
     } else if (IsKeyPressed(KEY_G)) {
       previous_state = clear_masssprings(masssprings, current_state);
       populate_masssprings(masssprings, current_state);
       renderer.UpdateWinningStates(masssprings, win_conditions[current_preset]);
     } else if (IsKeyPressed(KEY_C)) {
-      // We also need to clear the graph, in case the state has been edited.
-      // Then the graph would contain states that are impossible.
       previous_state = clear_masssprings(masssprings, current_state);
     } else if (IsKeyPressed(KEY_I)) {
       renderer.mark_solutions = !renderer.mark_solutions;
@@ -259,22 +267,28 @@ auto main(int argc, char *argv[]) -> int {
       renderer.connect_solutions = !renderer.connect_solutions;
     } else if (IsKeyPressed(KEY_F)) {
       current_state.restricted = !current_state.restricted;
+      previous_state = clear_masssprings(masssprings, current_state);
+      edited = true;
     } else if (IsKeyPressed(KEY_T)) {
       current_state.ToggleTarget(sel_x, sel_y);
       previous_state = clear_masssprings(masssprings, current_state);
+      edited = true;
     } else if (IsKeyPressed(KEY_LEFT) && current_state.width > 1) {
       current_state = current_state.RemoveColumn();
       previous_state = clear_masssprings(masssprings, current_state);
+      edited = true;
     } else if (IsKeyPressed(KEY_RIGHT) && current_state.width < 9) {
       current_state = current_state.AddColumn();
       previous_state = clear_masssprings(masssprings, current_state);
-
+      edited = true;
     } else if (IsKeyPressed(KEY_UP) && current_state.height > 1) {
       current_state = current_state.RemoveRow();
       previous_state = clear_masssprings(masssprings, current_state);
+      edited = true;
     } else if (IsKeyPressed(KEY_DOWN) && current_state.height < 9) {
       current_state = current_state.AddRow();
       previous_state = clear_masssprings(masssprings, current_state);
+      edited = true;
     }
 
     if (previous_state != current_state.state) {

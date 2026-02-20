@@ -294,7 +294,7 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset,
       std::format("Lock Camera to Current State (L): {}", camera.target_lock),
       DARKGREEN);
 
-  draw_btn(1, 0, std::format("Reset State + Graph (R)"), DARKBLUE);
+  draw_btn(1, 0, std::format("Reset State (R)"), DARKBLUE);
   draw_btn(1, 1, std::format("Add/Remove Col/Row (Arrow Keys)"), DARKBLUE);
   draw_btn(1, 2, std::format("Print Board State to Console (P)"), DARKBLUE);
 
