@@ -136,6 +136,16 @@ inline auto state_complex_4f() -> State {
 
 inline auto state_complex_4f_wc(const State &state) -> bool { return false; }
 
+inline auto state_complex_5r() -> State {
+  return State("R6x6:31....12....1221......12..ba..1212..21..12....12......21.."
+               "....21..21....");
+}
+
+inline auto state_complex_5r_wc(const State &state) -> bool {
+  // R6x6:................................ba......................................
+  return state.GetBlockAt(4, 2) == "ba";
+}
+
 inline auto state_klotski() -> State {
   State s = State(4, 5, false);
   s.AddBlock(Block(0, 0, 1, 2, false));
@@ -157,12 +167,13 @@ inline auto state_klotski_wc(const State &state) -> bool {
 }
 
 std::vector<StateGenerator> generators{
-    state_simple_1r,  state_simple_2r,  state_simple_3r,  state_complex_1r,
-    state_complex_2r, state_complex_3r, state_complex_4f, state_klotski};
+    state_simple_1r,  state_simple_2r,  state_simple_3r,
+    state_complex_1r, state_complex_2r, state_complex_3r,
+    state_complex_4f, state_complex_5r, state_klotski};
 
 std::vector<WinCondition> win_conditions{
     state_simple_1r_wc,  state_simple_2r_wc,  state_simple_3r_wc,
     state_complex_1r_wc, state_complex_2r_wc, state_complex_3r_wc,
-    state_complex_4f_wc, state_klotski_wc};
+    state_complex_4f_wc, state_complex_5r_wc, state_klotski_wc};
 
 #endif
