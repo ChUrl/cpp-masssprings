@@ -14,6 +14,17 @@
 #include <omp.h>
 #endif
 
+// TODO: Klotski state file loading
+//       - File should contain a single state per line, multiple lines possible
+//       - If a file is loaded, the presets should be replaced with the states
+//         from the file
+//       - Automatically determine the winning condition based on a configured
+//         board exit
+// TODO: Graph interaction
+//       - Click states to display them in the board
+//       - Find shortest path to any winning state and mark it in the graph
+//         - Also mark the next move along the path on the board
+
 auto apply_state(MassSpringSystem &mass_springs, StateGenerator generator)
     -> State {
   mass_springs.springs.clear();
@@ -203,13 +214,27 @@ auto main(int argc, char *argv[]) -> int {
         sel_x++;
       }
     } else if (IsKeyPressed(KEY_P)) {
-      std::cout << current_state.state << std::endl;
+      std::cout << "State: " << current_state.state << std::endl;
+      Block sel = current_state.GetBlock(sel_x, sel_y);
+      int idx = current_state.GetIndex(sel.x, sel.y) - 5;
+      if (sel.IsValid()) {
+        std::cout << "Sel:   " << current_state.state.substr(0, 5)
+                  << std::string(idx, '.') << sel.ToString()
+                  << std::string(current_state.state.length() - idx - 7, '.')
+                  << std::endl;
+      }
     } else if (IsKeyPressed(KEY_N)) {
+      block_add_x = -1;
+      block_add_y = -1;
+      has_block_add_xy = false;
       current_preset =
           (generators.size() + current_preset - 1) % generators.size();
       current_state = apply_state(masssprings, generators[current_preset]);
       previous_state = current_state.state;
     } else if (IsKeyPressed(KEY_M)) {
+      block_add_x = -1;
+      block_add_y = -1;
+      has_block_add_xy = false;
       current_preset = (current_preset + 1) % generators.size();
       current_state = apply_state(masssprings, generators[current_preset]);
       previous_state = current_state.state;
@@ -228,8 +253,11 @@ auto main(int argc, char *argv[]) -> int {
       renderer.mark_solutions = !renderer.mark_solutions;
     } else if (IsKeyPressed(KEY_O)) {
       renderer.connect_solutions = !renderer.connect_solutions;
-    } else if (IsKeyPressed(KEY_T)) {
+    } else if (IsKeyPressed(KEY_F)) {
       current_state.restricted = !current_state.restricted;
+    } else if (IsKeyPressed(KEY_T)) {
+      current_state.ToggleTarget(sel_x, sel_y);
+      previous_state = clear_masssprings(masssprings, current_state);
     } else if (IsKeyPressed(KEY_LEFT) && current_state.width > 1) {
       current_state = current_state.RemoveColumn();
       previous_state = clear_masssprings(masssprings, current_state);

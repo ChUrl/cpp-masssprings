@@ -136,6 +136,32 @@ auto State::RemoveBlock(int x, int y) -> bool {
   return true;
 }
 
+auto State::ToggleTarget(int x, int y) -> bool {
+  Block block = GetBlock(x, y);
+  if (!block.IsValid()) {
+    return false;
+  }
+
+  // Remove the current target
+  int index;
+  for (const auto &block : *this) {
+    if (block.target) {
+      index = GetIndex(block.x, block.y);
+      state.replace(
+          index, 2,
+          Block(block.x, block.y, block.width, block.height, false).ToString());
+      break;
+    }
+  }
+
+  // Add the new target
+  block.target = !block.target;
+  index = GetIndex(block.x, block.y);
+  state.replace(index, 2, block.ToString());
+
+  return true;
+}
+
 auto State::MoveBlockAt(int x, int y, Direction dir) -> bool {
   Block block = GetBlock(x, y);
   if (!block.IsValid()) {

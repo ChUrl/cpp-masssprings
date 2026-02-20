@@ -270,6 +270,8 @@ public:
 
   auto RemoveBlock(int x, int y) -> bool;
 
+  auto ToggleTarget(int x, int y) -> bool;
+
   auto MoveBlockAt(int x, int y, Direction dir) -> bool;
 
   auto GetNextStates() const -> std::vector<State>;

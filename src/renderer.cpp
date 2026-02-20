@@ -299,7 +299,7 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset,
   draw_btn(1, 2, std::format("Print Board State to Console (P)"), DARKBLUE);
 
   draw_btn(2, 0,
-           std::format("Preset (M/N): {}, {} (T)", current_preset,
+           std::format("Preset (M/N): {}, {} (F)", current_preset,
                        current_state.restricted ? "Restricted" : "Free"),
            DARKPURPLE);
   draw_btn(2, 1, std::format("Populate Graph (G), Clear Graph (C)"),
