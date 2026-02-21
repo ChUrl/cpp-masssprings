@@ -1,4 +1,5 @@
 #include "state.hpp"
+#include "config.hpp"
 #include "presets.hpp"
 
 #include <raymath.h>
@@ -33,18 +34,10 @@ auto StateManager::NextPreset() -> void {
 auto StateManager::FillGraph() -> void {
   ClearGraph();
 
-  std::pair<std::unordered_set<std::string>,
-            std::vector<std::pair<std::string, std::string>>>
+  std::pair<std::unordered_set<State>, std::vector<std::pair<State, State>>>
       closure = current_state.Closure();
   for (const auto &state : closure.first) {
-    // TODO: Insert masses in the spring loop and choose the position based on
-    //       the existing mass
-    Vector3 pos =
-        Vector3(static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0,
-                static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0,
-                static_cast<float>(GetRandomValue(-10000, 10000)) / 1000.0);
-
-    mass_springs.AddMass(MASS, pos, false, state);
+    mass_springs.AddMass(MASS, false, state);
   }
   for (const auto &[from, to] : closure.second) {
     mass_springs.AddSpring(from, to, SPRING_CONSTANT, DAMPENING_CONSTANT,
@@ -64,15 +57,9 @@ auto StateManager::FillGraph() -> void {
 }
 
 auto StateManager::UpdateGraph() -> void {
-  if (previous_state != current_state.state) {
-    mass_springs.AddMass(
-        MASS,
-        // TODO: Add beside previous_state
-        Vector3(static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
-                static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0,
-                static_cast<float>(GetRandomValue(-1000, 1000)) / 1000.0),
-        false, current_state.state);
-    mass_springs.AddSpring(current_state.state, previous_state, SPRING_CONSTANT,
+  if (previous_state != current_state) {
+    mass_springs.AddMass(MASS, false, current_state);
+    mass_springs.AddSpring(current_state, previous_state, SPRING_CONSTANT,
                            DAMPENING_CONSTANT, REST_LENGTH);
     if (win_conditions[current_preset](current_state)) {
       winning_states.insert(current_state);
@@ -83,7 +70,7 @@ auto StateManager::UpdateGraph() -> void {
 auto StateManager::ClearGraph() -> void {
   winning_states.clear();
   mass_springs.Clear();
-  mass_springs.AddMass(MASS, Vector3Zero(), false, current_state);
+  mass_springs.AddMass(MASS, false, current_state);
 
   // The previous_state is no longer in the graph
   previous_state = current_state;

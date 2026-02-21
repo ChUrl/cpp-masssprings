@@ -190,7 +190,7 @@ public:
 #endif
   }
 
-  State(std::string state)
+  explicit State(std::string state)
       : width(std::stoi(state.substr(1, 1))),
         height(std::stoi(state.substr(3, 1))),
         restricted(state.substr(0, 1) == "R"), state(state) {
@@ -278,13 +278,28 @@ public:
 
   auto GetNextStates() const -> std::vector<State>;
 
-  auto Closure() const
-      -> std::pair<std::unordered_set<std::string>,
-                   std::vector<std::pair<std::string, std::string>>>;
+  auto Closure() const -> std::pair<std::unordered_set<State>,
+                                    std::vector<std::pair<State, State>>>;
 };
 
 template <> struct std::hash<State> {
   std::size_t operator()(const State &s) const noexcept { return s.Hash(); }
+};
+
+template <> struct std::hash<std::pair<State, State>> {
+  std::size_t operator()(const std::pair<State, State> &s) const noexcept {
+    auto h1 = std::hash<State>{}(s.first);
+    auto h2 = std::hash<State>{}(s.second);
+    return h1 + h2 + (h1 * h2);
+  }
+};
+
+template <> struct std::equal_to<std::pair<State, State>> {
+  bool operator()(const std::pair<State, State> &a,
+                  const std::pair<State, State> &b) const noexcept {
+    return (a.first == b.first && a.second == b.second) ||
+           (a.first == b.second && a.second == b.first);
+  }
 };
 
 using WinCondition = std::function<bool(const State &)>;

@@ -262,11 +262,10 @@ auto State::GetNextStates() const -> std::vector<State> {
   return new_states;
 }
 
-auto State::Closure() const
-    -> std::pair<std::unordered_set<std::string>,
-                 std::vector<std::pair<std::string, std::string>>> {
-  std::unordered_set<std::string> states;
-  std::vector<std::pair<std::string, std::string>> links;
+auto State::Closure() const -> std::pair<std::unordered_set<State>,
+                                         std::vector<std::pair<State, State>>> {
+  std::unordered_set<State> states;
+  std::vector<std::pair<State, State>> links;
 
   std::unordered_set<State> remaining_states;
   remaining_states.insert(*this);
@@ -276,10 +275,10 @@ auto State::Closure() const
     remaining_states.erase(current);
 
     std::vector<State> new_states = current.GetNextStates();
-    for (State &s : new_states) {
-      if (!states.contains(s.state)) {
+    for (const State &s : new_states) {
+      if (!states.contains(s)) {
         remaining_states.insert(s);
-        states.insert(s.state);
+        states.insert(s);
       }
       links.emplace_back(current.state, s.state);
     }

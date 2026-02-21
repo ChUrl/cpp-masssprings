@@ -90,7 +90,7 @@ auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
 
 auto Renderer::UpdateCamera(const MassSpringSystem &masssprings,
                             const State &current) -> void {
-  const Mass &c = masssprings.masses.at(current.state);
+  const Mass &c = masssprings.masses.at(current);
   camera.Update(c);
 }
 
@@ -130,7 +130,7 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
 
   // Draw masses (high performance impact)
   for (const auto &[state, mass] : masssprings.masses) {
-    if (state == current.state) {
+    if (state == current) {
       DrawCube(mass.position, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE,
                RED);
     } else if (winning_states.contains(state)) {
@@ -140,7 +140,7 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
                  4 * VERTEX_SIZE, BLUE);
       }
       if (connect_solutions) {
-        DrawLine3D(mass.position, masssprings.masses.at(current.state).position,
+        DrawLine3D(mass.position, masssprings.masses.at(current).position,
                    PURPLE);
       }
     } else if (masssprings.masses.size() <= DRAW_VERTICES_LIMIT) {

@@ -1,10 +1,11 @@
 #include "mass_springs.hpp"
 #include "config.hpp"
 
-#include <format>
 #include <numeric>
+#include <raylib.h>
 #include <raymath.h>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 auto Mass::ClearForce() -> void { force = Vector3Zero(); }
@@ -76,33 +77,39 @@ auto Spring::CalculateSpringForce() const -> void {
   massB.force = Vector3Add(massB.force, force_b);
 }
 
-auto MassSpringSystem::AddMass(float mass, Vector3 position, bool fixed,
-                               const State &state) -> void {
-  if (!masses.contains(state.state)) {
-    masses.insert(std::make_pair(state.state, Mass(mass, position, fixed)));
+auto MassSpringSystem::AddMass(float mass, bool fixed, const State &state)
+    -> void {
+  if (!masses.contains(state)) {
+    masses.insert(
+        std::make_pair(state.state, Mass(mass, Vector3Zero(), fixed)));
   }
 }
 
 auto MassSpringSystem::GetMass(const State &state) -> Mass & {
-  return masses.at(state.state);
+  return masses.at(state);
 }
 
 auto MassSpringSystem::AddSpring(const State &massA, const State &massB,
                                  float spring_constant,
                                  float dampening_constant, float rest_length)
     -> void {
-  std::string states;
-  if (std::hash<std::string>{}(massA.state) <
-      std::hash<std::string>{}(massB.state)) {
-    states = std::format("{}{}", massA.state, massB.state);
-  } else {
-    states = std::format("{}{}", massB.state, massA.state);
-  }
+  std::pair<State, State> key = std::make_pair(massA, massB);
+  if (!springs.contains(key)) {
+    Mass &a = GetMass(massA);
+    Mass &b = GetMass(massB);
 
-  if (!springs.contains(states)) {
+    Vector3 position = a.position;
+    Vector3 offset = Vector3(static_cast<float>(GetRandomValue(-100, 100)),
+                             static_cast<float>(GetRandomValue(-100, 100)),
+                             static_cast<float>(GetRandomValue(-100, 100)));
+    offset = Vector3Scale(Vector3Normalize(offset), REST_LENGTH);
+
+    if (b.position == Vector3Zero()) {
+      b.position = Vector3Add(position, offset);
+    }
+
     springs.insert(std::make_pair(
-        states, Spring(GetMass(massA), GetMass(massB), spring_constant,
-                       dampening_constant, rest_length)));
+        key, Spring(a, b, spring_constant, dampening_constant, rest_length)));
   }
 }
 

@@ -5,7 +5,6 @@
 #include "klotski.hpp"
 #include <raylib.h>
 #include <raymath.h>
-#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -87,6 +86,7 @@ public:
 
 class MassSpringSystem {
 private:
+  // TODO: Use references
   std::vector<Mass *> mass_vec;
   std::vector<int> indices;
   std::vector<int64_t> cell_ids;
@@ -95,8 +95,10 @@ private:
   int last_springs_count;
 
 public:
-  std::unordered_map<std::string, Mass> masses;
-  std::unordered_map<std::string, Spring> springs;
+  // This is the main ownership of all the states/masses/springs.
+  // Everything is stored multiple times but idc.
+  std::unordered_map<State, Mass> masses;
+  std::unordered_map<std::pair<State, State>, Spring> springs;
 
 public:
   MassSpringSystem() : last_build(REPULSION_GRID_REFRESH) {};
@@ -112,8 +114,7 @@ private:
   auto BuildGrid() -> void;
 
 public:
-  auto AddMass(float mass, Vector3 position, bool fixed, const State &state)
-      -> void;
+  auto AddMass(float mass, bool fixed, const State &state) -> void;
 
   auto GetMass(const State &state) -> Mass &;
 

@@ -25,7 +25,7 @@ public:
       : mass_springs(mass_springs), current_preset(0),
         current_state(generators[current_preset]()),
         previous_state(current_state), edited(false) {
-    mass_springs.AddMass(MASS, Vector3Zero(), false, current_state);
+    mass_springs.AddMass(MASS, false, current_state);
   }
 
   StateManager(const StateManager &copy) = delete;
