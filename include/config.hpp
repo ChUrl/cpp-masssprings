@@ -4,7 +4,6 @@
 #include <raylib.h>
 
 #define PRINT_TIMINGS
-#define VERLET_UPDATE
 // #define WEB
 
 // Window
@@ -19,7 +18,6 @@ constexpr int MENU_ROWS = 3;
 constexpr int MENU_COLS = 3;
 
 // Camera Controls
-constexpr float SIM_SPEED = 4.0;
 constexpr float CAMERA_FOV = 120.0;
 constexpr float CAMERA_DISTANCE = 20.0;
 constexpr float MIN_CAMERA_DISTANCE = 2.0;
@@ -31,7 +29,8 @@ constexpr float PAN_MULTIPLIER = 10.0;
 constexpr float ROT_SPEED = 1.0;
 
 // Physics Engine
-constexpr int UPDATES_PER_FRAME = 1;
+constexpr float SIM_SPEED = 4.0;
+constexpr float TIMESTEP = 1.0 / 60; // Do 60 physics updates per second
 constexpr float MASS = 1.0;
 constexpr float SPRING_CONSTANT = 5.0;
 constexpr float DAMPENING_CONSTANT = 1.0;

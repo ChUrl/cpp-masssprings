@@ -129,8 +129,6 @@ public:
 
   auto CalculateRepulsionForces() -> void;
 
-  auto EulerUpdate(float delta_time) -> void;
-
   auto VerletUpdate(float delta_time) -> void;
 
   auto InvalidateGrid() -> void;

@@ -226,13 +226,6 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
   }
 }
 
-auto MassSpringSystem::EulerUpdate(float delta_time) -> void {
-  for (auto &[state, mass] : masses) {
-    mass.CalculateVelocity(delta_time);
-    mass.CalculatePosition(delta_time);
-  }
-}
-
 auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
   for (auto &[state, mass] : masses) {
     mass.VerletUpdate(delta_time);

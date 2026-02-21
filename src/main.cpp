@@ -63,9 +63,13 @@ auto main(int argc, char *argv[]) -> int {
       std::chrono::duration<double, std::milli>(0);
   std::chrono::duration<double, std::milli> render_time_accumulator =
       std::chrono::duration<double, std::milli>(0);
-  int time_measure_count = 0;
+  int loop_count = 0;
 #endif
+  float timestep_accumulator = 0.0;
+  int update_accumulator = 0;
   while (!WindowShouldClose()) {
+    timestep_accumulator += GetFrameTime();
+
     // Input update
     state.previous_state = state.current_state;
     input.HandleInput();
@@ -76,16 +80,17 @@ auto main(int argc, char *argv[]) -> int {
     std::chrono::high_resolution_clock::time_point ps =
         std::chrono::high_resolution_clock::now();
 #endif
-    for (int i = 0; i < UPDATES_PER_FRAME; ++i) {
+
+    while (timestep_accumulator > TIMESTEP) {
       mass_springs.ClearForces();
       mass_springs.CalculateSpringForces();
       mass_springs.CalculateRepulsionForces();
-#ifdef VERLET_UPDATE
-      mass_springs.VerletUpdate(GetFrameTime() / UPDATES_PER_FRAME * SIM_SPEED);
-#else
-      mass_springs.EulerUpdate(GetFrameTime() * SIM_SPEED);
-#endif
+      mass_springs.VerletUpdate(TIMESTEP * SIM_SPEED);
+
+      timestep_accumulator -= TIMESTEP;
+      update_accumulator++;
     }
+
 #ifdef PRINT_TIMINGS
     std::chrono::high_resolution_clock::time_point pe =
         std::chrono::high_resolution_clock::now();
@@ -97,6 +102,7 @@ auto main(int argc, char *argv[]) -> int {
     std::chrono::high_resolution_clock::time_point rs =
         std::chrono::high_resolution_clock::now();
 #endif
+
     renderer.UpdateCamera(mass_springs, state.current_state);
     renderer.UpdateTextureSizes();
     renderer.DrawMassSprings(mass_springs, state.current_state,
@@ -107,23 +113,26 @@ auto main(int argc, char *argv[]) -> int {
     renderer.DrawMenu(mass_springs, state.current_preset, state.current_state,
                       state.winning_states);
     renderer.DrawTextures();
+
 #ifdef PRINT_TIMINGS
     std::chrono::high_resolution_clock::time_point re =
         std::chrono::high_resolution_clock::now();
     render_time_accumulator += re - rs;
 
-    time_measure_count++;
+    loop_count++;
     if (GetTime() - last_print_time > 10.0) {
-      std::cout << " - Physics time avg: "
-                << physics_time_accumulator / time_measure_count << "."
-                << std::endl;
-      std::cout << " - Render time avg:  "
-                << render_time_accumulator / time_measure_count << "."
-                << std::endl;
+      std::cout << " - Physics time avg:    "
+                << physics_time_accumulator / loop_count << "." << std::endl;
+      std::cout << " - Render time avg:     "
+                << render_time_accumulator / loop_count << "." << std::endl;
+      std::cout << " - Physics updates avg: "
+                << static_cast<float>(update_accumulator) / loop_count
+                << "x per frame." << std::endl;
       last_print_time = GetTime();
       physics_time_accumulator = std::chrono::duration<double, std::milli>(0);
       render_time_accumulator = std::chrono::duration<double, std::milli>(0);
-      time_measure_count = 0;
+      loop_count = 0;
+      update_accumulator = 0;
     }
 #endif
   }
