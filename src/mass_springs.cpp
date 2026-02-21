@@ -77,26 +77,26 @@ auto Spring::CalculateSpringForce() const -> void {
 }
 
 auto MassSpringSystem::AddMass(float mass, Vector3 position, bool fixed,
-                               const std::string &state) -> void {
-  if (!masses.contains(state)) {
-    masses.insert(std::make_pair(state, Mass(mass, position, fixed)));
+                               const State &state) -> void {
+  if (!masses.contains(state.state)) {
+    masses.insert(std::make_pair(state.state, Mass(mass, position, fixed)));
   }
 }
 
-auto MassSpringSystem::GetMass(const std::string &state) -> Mass & {
-  return masses.at(state);
+auto MassSpringSystem::GetMass(const State &state) -> Mass & {
+  return masses.at(state.state);
 }
 
-auto MassSpringSystem::AddSpring(const std::string &massA,
-                                 const std::string &massB,
+auto MassSpringSystem::AddSpring(const State &massA, const State &massB,
                                  float spring_constant,
                                  float dampening_constant, float rest_length)
     -> void {
   std::string states;
-  if (std::hash<std::string>{}(massA) < std::hash<std::string>{}(massB)) {
-    states = std::format("{}{}", massA, massB);
+  if (std::hash<std::string>{}(massA.state) <
+      std::hash<std::string>{}(massB.state)) {
+    states = std::format("{}{}", massA.state, massB.state);
   } else {
-    states = std::format("{}{}", massB, massA);
+    states = std::format("{}{}", massB.state, massA.state);
   }
 
   if (!springs.contains(states)) {
@@ -109,6 +109,7 @@ auto MassSpringSystem::AddSpring(const std::string &massA,
 auto MassSpringSystem::Clear() -> void {
   masses.clear();
   springs.clear();
+  InvalidateGrid();
 }
 
 auto MassSpringSystem::ClearForces() -> void {
@@ -216,21 +217,6 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
 
     mass->force = Vector3Add(mass->force, force);
   }
-
-  // Old method
-  // for (auto &[state, mass] : masses) {
-  //   for (auto &[s, m] : masses) {
-  //     Vector3 dx = Vector3Subtract(mass.position, m.position);
-  //
-  //     // This can be accelerated with a spatial data structure
-  //     if (Vector3Length(dx) >= 3 * REST_LENGTH) {
-  //       continue;
-  //     }
-  //
-  //     mass.force = Vector3Add(
-  //         mass.force, Vector3Scale(Vector3Normalize(dx), REPULSION_FORCE));
-  //   }
-  // }
 }
 
 auto MassSpringSystem::EulerUpdate(float delta_time) -> void {
@@ -244,4 +230,13 @@ auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
   for (auto &[state, mass] : masses) {
     mass.VerletUpdate(delta_time);
   }
+}
+
+auto MassSpringSystem::InvalidateGrid() -> void {
+  mass_vec.clear();
+  indices.clear();
+  cell_ids.clear();
+  last_build = REPULSION_GRID_REFRESH;
+  last_masses_count = 0;
+  last_springs_count = 0;
 }

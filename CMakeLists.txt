@@ -14,6 +14,8 @@ add_executable(masssprings
     src/renderer.cpp
     src/mass_springs.cpp
     src/klotski.cpp
+    src/state.cpp
+    src/input.cpp
 )
 
 target_include_directories(masssprings PUBLIC ${RAYLIB_CPP_INCLUDE_DIR})

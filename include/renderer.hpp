@@ -48,7 +48,6 @@ private:
   RenderTexture render_target;
   RenderTexture klotski_target;
   RenderTexture menu_target;
-  std::unordered_set<State> winning_states;
 
 public:
   bool mark_solutions;
@@ -77,26 +76,22 @@ public:
   }
 
 public:
-  auto UpdateWinningStates(const MassSpringSystem &masssprings,
-                           const WinCondition win_condition) -> void;
-
-  auto AddWinningState(const State &state, const WinCondition win_condition)
-      -> void;
-
   auto UpdateCamera(const MassSpringSystem &masssprings, const State &current)
       -> void;
 
   auto UpdateTextureSizes() -> void;
 
   auto DrawMassSprings(const MassSpringSystem &masssprings,
-                       const State &current) -> void;
+                       const State &current,
+                       const std::unordered_set<State> &winning_states) -> void;
 
   auto DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
                    int sel_y, int block_add_x, int block_add_y,
                    const WinCondition win_condition) -> void;
 
   auto DrawMenu(const MassSpringSystem &masssprings, int current_preset,
-                const State &current_state) -> void;
+                const State &current_state,
+                const std::unordered_set<State> &winning_states) -> void;
 
   auto DrawTextures() -> void;
 };

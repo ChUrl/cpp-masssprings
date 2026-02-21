@@ -1,6 +1,8 @@
 #ifndef __MASS_SPRINGS_HPP_
 #define __MASS_SPRINGS_HPP_
 
+#include "config.hpp"
+#include "klotski.hpp"
 #include <raylib.h>
 #include <raymath.h>
 #include <string>
@@ -97,7 +99,7 @@ public:
   std::unordered_map<std::string, Spring> springs;
 
 public:
-  MassSpringSystem() : last_build(1000) {};
+  MassSpringSystem() : last_build(REPULSION_GRID_REFRESH) {};
 
   MassSpringSystem(const MassSpringSystem &copy) = delete;
   MassSpringSystem &operator=(const MassSpringSystem &copy) = delete;
@@ -110,14 +112,13 @@ private:
   auto BuildGrid() -> void;
 
 public:
-  auto AddMass(float mass, Vector3 position, bool fixed,
-               const std::string &state) -> void;
+  auto AddMass(float mass, Vector3 position, bool fixed, const State &state)
+      -> void;
 
-  auto GetMass(const std::string &state) -> Mass &;
+  auto GetMass(const State &state) -> Mass &;
 
-  auto AddSpring(const std::string &massA, const std::string &massB,
-                 float spring_constant, float dampening_constant,
-                 float rest_length) -> void;
+  auto AddSpring(const State &massA, const State &massB, float spring_constant,
+                 float dampening_constant, float rest_length) -> void;
 
   auto Clear() -> void;
 
@@ -130,6 +131,8 @@ public:
   auto EulerUpdate(float delta_time) -> void;
 
   auto VerletUpdate(float delta_time) -> void;
+
+  auto InvalidateGrid() -> void;
 };
 
 #endif

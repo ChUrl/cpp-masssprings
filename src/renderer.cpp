@@ -3,6 +3,7 @@
 #include <format>
 #include <raylib.h>
 #include <raymath.h>
+#include <unordered_set>
 
 #include "config.hpp"
 #include "klotski.hpp"
@@ -87,27 +88,6 @@ auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
   camera.target = target;
 }
 
-auto Renderer::UpdateWinningStates(const MassSpringSystem &masssprings,
-                                   const WinCondition win_condition) -> void {
-  winning_states.clear();
-  winning_states.reserve(masssprings.masses.size());
-  for (const auto &[state, mass] : masssprings.masses) {
-    if (win_condition(state)) {
-      winning_states.insert(state);
-    }
-  }
-
-  std::cout << "Found " << winning_states.size() << " winning states."
-            << std::endl;
-}
-
-auto Renderer::AddWinningState(const State &state,
-                               const WinCondition win_condition) -> void {
-  if (win_condition(state)) {
-    winning_states.insert(state);
-  }
-}
-
 auto Renderer::UpdateCamera(const MassSpringSystem &masssprings,
                             const State &current) -> void {
   const Mass &c = masssprings.masses.at(current.state);
@@ -132,7 +112,9 @@ auto Renderer::UpdateTextureSizes() -> void {
 }
 
 auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
-                               const State &current) -> void {
+                               const State &current,
+                               const std::unordered_set<State> &winning_states)
+    -> void {
   BeginTextureMode(render_target);
   ClearBackground(RAYWHITE);
 
@@ -260,7 +242,9 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
 }
 
 auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset,
-                        const State &current_state) -> void {
+                        const State &current_state,
+                        const std::unordered_set<State> &winning_states)
+    -> void {
   BeginTextureMode(menu_target);
   ClearBackground(RAYWHITE);
 
