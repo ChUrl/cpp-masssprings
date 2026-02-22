@@ -4,7 +4,7 @@
 #include <functional>
 #include <vector>
 
-#include "klotski.hpp"
+#include "puzzle.hpp"
 
 using StateGenerator = std::function<State(void)>;
 

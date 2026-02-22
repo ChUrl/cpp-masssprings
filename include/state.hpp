@@ -2,8 +2,8 @@
 #define __STATE_HPP_
 
 #include "config.hpp"
-#include "klotski.hpp"
-#include "mass_springs.hpp"
+#include "puzzle.hpp"
+#include "physics.hpp"
 #include "presets.hpp"
 
 #include <raymath.h>

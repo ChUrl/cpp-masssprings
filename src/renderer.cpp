@@ -8,8 +8,8 @@
 #include <unordered_set>
 
 #include "config.hpp"
-#include "klotski.hpp"
-#include "mass_springs.hpp"
+#include "puzzle.hpp"
+#include "physics.hpp"
 
 #ifdef BATCHING
 #include <cstring>
@@ -94,9 +94,9 @@ auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
   camera.target = target;
 }
 
-auto Renderer::UpdateCamera(const MassSpringSystem &masssprings,
+auto Renderer::UpdateCamera(const MassSpringSystem &mass_springs,
                             const State &current) -> void {
-  const Mass &c = masssprings.masses.at(current);
+  const Mass &c = mass_springs.masses.at(current);
   camera.Update(c);
 }
 
@@ -180,11 +180,6 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   DrawMeshInstanced(cube_instance, vertex_mat, transforms,
                     mass_springs.masses.size());
 
-  // Mark current state
-  const Mass &current_mass = mass_springs.GetMass(current_state);
-  DrawCube(current_mass.position, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
-           VERTEX_SIZE * 2, RED);
-
   // Mark winning states
   if (mark_solutions || connect_solutions) {
     for (const auto &state : winning_states) {
@@ -200,6 +195,11 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
       }
     }
   }
+
+  // Mark current state
+  const Mass &current_mass = mass_springs.GetMass(current_state);
+  DrawCube(current_mass.position, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
+           VERTEX_SIZE * 2, RED);
 
   // DrawGrid(10, 1.0);
   // DrawSphere(camera.target, VERTEX_SIZE, ORANGE);
@@ -293,8 +293,8 @@ auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
   EndTextureMode();
 }
 
-auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset,
-                        const State &current_state,
+auto Renderer::DrawMenu(const MassSpringSystem &mass_springs,
+                        int current_preset, const State &current_state,
                         const std::unordered_set<State> &winning_states)
     -> void {
   BeginTextureMode(menu_target);
@@ -318,7 +318,7 @@ auto Renderer::DrawMenu(const MassSpringSystem &masssprings, int current_preset,
 
   draw_btn(0, 0,
            std::format("States: {}, Transitions: {}, Winning: {}",
-                       masssprings.masses.size(), masssprings.springs.size(),
+                       mass_springs.masses.size(), mass_springs.springs.size(),
                        winning_states.size()),
            DARKGREEN);
   draw_btn(

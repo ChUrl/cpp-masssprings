@@ -7,8 +7,8 @@
 #include <unordered_set>
 
 #include "config.hpp"
-#include "klotski.hpp"
-#include "mass_springs.hpp"
+#include "puzzle.hpp"
+#include "physics.hpp"
 
 class OrbitCamera3D {
   friend class Renderer;

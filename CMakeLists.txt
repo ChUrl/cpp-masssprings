@@ -12,8 +12,8 @@ include_directories(include)
 add_executable(masssprings
     src/main.cpp
     src/renderer.cpp
-    src/mass_springs.cpp
-    src/klotski.cpp
+    src/physics.cpp
+    src/puzzle.cpp
     src/state.cpp
     src/input.cpp
 )

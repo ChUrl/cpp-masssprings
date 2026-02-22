@@ -1,8 +1,8 @@
-#ifndef __MASS_SPRINGS_HPP_
-#define __MASS_SPRINGS_HPP_
+#ifndef __PHYSICS_HPP_
+#define __PHYSICS_HPP_
 
 #include "config.hpp"
-#include "klotski.hpp"
+#include "puzzle.hpp"
 #include <raylib.h>
 #include <raymath.h>
 #include <unordered_map>

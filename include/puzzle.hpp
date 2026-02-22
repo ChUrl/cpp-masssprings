@@ -1,5 +1,5 @@
-#ifndef __KLOTSKI_HPP_
-#define __KLOTSKI_HPP_
+#ifndef __PUZZLE_HPP_
+#define __PUZZLE_HPP_
 
 #include <array>
 #include <cstddef>

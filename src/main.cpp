@@ -4,7 +4,7 @@
 
 #include "config.hpp"
 #include "input.hpp"
-#include "mass_springs.hpp"
+#include "physics.hpp"
 #include "renderer.hpp"
 #include "state.hpp"
 

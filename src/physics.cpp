@@ -1,4 +1,4 @@
-#include "mass_springs.hpp"
+#include "physics.hpp"
 #include "config.hpp"
 
 #include <numeric>

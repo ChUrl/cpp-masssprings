@@ -1,4 +1,4 @@
-#include "klotski.hpp"
+#include "puzzle.hpp"
 
 auto Block::Hash() const -> int {
   std::string s = std::format("{},{},{},{}", x, y, width, height);
