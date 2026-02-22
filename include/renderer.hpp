@@ -49,9 +49,17 @@ private:
   RenderTexture klotski_target;
   RenderTexture menu_target;
 
+  Material vertex_mat;
+
+  // Batching
   float *cube;
   Mesh graph;
-  Material mat;
+
+  // Instancing
+  int transforms_size;
+  Matrix *transforms;
+  Mesh cube_instance;
+  Shader instancing_shader;
 
 public:
   bool mark_solutions;
@@ -60,13 +68,16 @@ public:
 public:
   Renderer()
       : camera(OrbitCamera3D(Vector3(0, 0, 0), CAMERA_DISTANCE)),
-        mark_solutions(false), connect_solutions(false) {
+        mark_solutions(false), connect_solutions(false), cube(nullptr),
+        transforms_size(0), transforms(nullptr) {
     render_target = LoadRenderTexture(GetScreenWidth() / 2.0,
                                       GetScreenHeight() - MENU_HEIGHT);
     klotski_target = LoadRenderTexture(GetScreenWidth() / 2.0,
                                        GetScreenHeight() - MENU_HEIGHT);
     menu_target = LoadRenderTexture(GetScreenWidth(), MENU_HEIGHT);
-    AllocateGraphMesh();
+
+    vertex_mat = LoadMaterialDefault();
+    vertex_mat.maps[MATERIAL_MAP_DIFFUSE].color = VERTEX_COLOR;
   }
 
   Renderer(const Renderer &copy) = delete;
@@ -78,9 +89,23 @@ public:
     UnloadRenderTexture(render_target);
     UnloadRenderTexture(klotski_target);
     UnloadRenderTexture(menu_target);
-    UnloadMesh(graph);
-    UnloadMaterial(mat);
-    MemFree(cube);
+
+    UnloadMaterial(vertex_mat);
+
+    // Batching
+    if (cube != nullptr) {
+      MemFree(cube);
+      UnloadMesh(graph);
+    }
+
+    // Instancing
+    if (transforms != nullptr) {
+      MemFree(transforms);
+      UnloadMesh(cube_instance);
+
+      // I think the shader already gets unloaded with the material?
+      // UnloadShader(instancing_shader);
+    }
   }
 
 public:
@@ -89,10 +114,20 @@ public:
 
   auto UpdateTextureSizes() -> void;
 
-  auto AllocateGraphMesh() -> void;
+#ifdef BATCHING
+  auto AllocateGraphBatching() -> void;
 
-  auto ReallocateGraphMeshIfNecessary(const MassSpringSystem &mass_springs)
+  auto ReallocateGraphBatchingIfNecessary(const MassSpringSystem &mass_springs)
       -> void;
+#endif
+
+#ifdef INSTANCING
+  auto AllocateGraphInstancing(const MassSpringSystem &mass_springs) -> void;
+
+  auto
+  ReallocateGraphInstancingIfNecessary(const MassSpringSystem &mass_springs)
+      -> void;
+#endif
 
   auto DrawMassSprings(const MassSpringSystem &mass_springs,
                        const State &current_state,

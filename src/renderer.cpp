@@ -114,7 +114,8 @@ auto Renderer::UpdateTextureSizes() -> void {
   menu_target = LoadRenderTexture(width * 2, MENU_HEIGHT);
 }
 
-auto Renderer::AllocateGraphMesh() -> void {
+#ifdef BATCHING
+auto Renderer::AllocateGraphBatching() -> void {
   int vertices = 36;
   int max_masses = 100000;
 
@@ -137,13 +138,10 @@ auto Renderer::AllocateGraphMesh() -> void {
   }
   UnloadMesh(indexed_cube);
 
-  mat = LoadMaterialDefault();
-  mat.maps[MATERIAL_MAP_DIFFUSE].color = VERTEX_COLOR;
-
   std::cout << "Allocated graph mesh." << std::endl;
 }
 
-auto Renderer::ReallocateGraphMeshIfNecessary(
+auto Renderer::ReallocateGraphBatchingIfNecessary(
     const MassSpringSystem &mass_springs) -> void {
   if (graph.vertexCount / 3 > mass_springs.masses.size()) {
     return;
@@ -165,6 +163,35 @@ auto Renderer::ReallocateGraphMeshIfNecessary(
 
   std::cout << "Reallocated graph mesh." << std::endl;
 }
+#endif
+
+#ifdef INSTANCING
+auto Renderer::AllocateGraphInstancing(const MassSpringSystem &mass_springs)
+    -> void {
+  cube_instance = GenMeshCube(VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE);
+
+  instancing_shader =
+      LoadShader("instancing_vertex.glsl", "instancing_fragment.glsl");
+  instancing_shader.locs[SHADER_LOC_MATRIX_MVP] =
+      GetShaderLocation(instancing_shader, "mvp");
+  instancing_shader.locs[SHADER_LOC_VECTOR_VIEW] =
+      GetShaderLocation(instancing_shader, "viewPos");
+
+  vertex_mat.shader = instancing_shader;
+
+  transforms = (Matrix *)MemAlloc(mass_springs.masses.size() * sizeof(Matrix));
+  transforms_size = mass_springs.masses.size();
+}
+
+auto Renderer::ReallocateGraphInstancingIfNecessary(
+    const MassSpringSystem &mass_springs) -> void {
+  if (transforms_size != mass_springs.masses.size()) {
+    transforms = (Matrix *)MemRealloc(transforms, mass_springs.masses.size() *
+                                                      sizeof(Matrix));
+    transforms_size = mass_springs.masses.size();
+  }
+}
+#endif
 
 auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
                                const State &current_state,
@@ -186,7 +213,30 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   }
   rlEnd();
 
+  // Draw masses (instanced)
+#ifdef INSTANCING
+  if (transforms == nullptr) {
+    AllocateGraphInstancing(mass_springs);
+  }
+  ReallocateGraphInstancingIfNecessary(mass_springs);
+
+  int i = 0;
+  for (const auto &[state, mass] : mass_springs.masses) {
+    transforms[i] =
+        MatrixTranslate(mass.position.x, mass.position.y, mass.position.z);
+    ++i;
+  }
+  DrawMeshInstanced(cube_instance, vertex_mat, transforms,
+                    mass_springs.masses.size());
+#endif
+
   // Draw masses (batched)
+#ifdef BATCHING
+  if (cube == nullptr) {
+    AllocateGraphBatching();
+  }
+  ReallocateGraphBatchingIfNecessary(mass_springs);
+
   int vertices = 36;
   int current_size = mass_springs.masses.size();
   int i = 0;
@@ -208,11 +258,12 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   graph.vertexCount = current_size * vertices;
   graph.triangleCount = current_size * 12;
 
-  DrawMesh(graph, mat, MatrixIdentity());
+  DrawMesh(graph, vertex_mat, MatrixIdentity());
 
   // Restore the vertex count
   graph.vertexCount = full_size;
   graph.triangleCount = full_size / 3;
+#endif
 
   // Mark current state
   const Mass &current_mass = mass_springs.GetMass(current_state);

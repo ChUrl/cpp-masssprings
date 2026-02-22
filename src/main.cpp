@@ -43,8 +43,8 @@ auto main(int argc, char *argv[]) -> int {
 #endif
 
   // RayLib window setup
-  SetTraceLogLevel(LOG_ERROR);
-  SetConfigFlags(FLAG_VSYNC_HINT);
+  // SetTraceLogLevel(LOG_ERROR);
+  // SetConfigFlags(FLAG_VSYNC_HINT);
   SetConfigFlags(FLAG_MSAA_4X_HINT);
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
@@ -105,7 +105,6 @@ auto main(int argc, char *argv[]) -> int {
 
     renderer.UpdateCamera(mass_springs, state.current_state);
     renderer.UpdateTextureSizes();
-    renderer.ReallocateGraphMeshIfNecessary(mass_springs);
     renderer.DrawMassSprings(mass_springs, state.current_state,
                              state.winning_states);
 
