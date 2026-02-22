@@ -97,6 +97,25 @@ rec {
           '';
         };
 
+        thread-pool = stdenv.mkDerivation {
+          pname = "thread-pool";
+          version = "5.1.0";
+
+          src = pkgs.fetchFromGitHub {
+            owner = "bshoshany";
+            repo = "thread-pool";
+            rev = "bd4533f1f70c2b975cbd5769a60d8eaaea1d2233";
+            hash = "sha256-/RMo5pe9klgSWmoqBpHMq2lbJsnCxMzhsb3ZPsw3aZw=";
+          };
+
+          # Header-only library
+          dontBuild = true;
+          installPhase = ''
+            mkdir -p $out
+            mv ./include $out/include
+          '';
+        };
+
         # ===========================================================================================
         # Specify dependencies
         # https://nixos.org/manual/nixpkgs/stable/#ssec-stdenv-dependencies-overview
@@ -144,6 +163,7 @@ rec {
           # octree # this one doesn't store center of mass per node - which I need :(
           llvmPackages.openmp # not required for compilation but for clangd to find the headers
           tracy
+          thread-pool
           # raylib-cpp
           # tinyobjloader
           # gperftools
