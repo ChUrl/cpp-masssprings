@@ -139,7 +139,7 @@ rec {
           # boost
           # sfml
           raylib
-          octree
+          # octree # this one doesn't store center of mass per node - which I need :(
           llvmPackages.openmp # not required for compilation but for clangd to find the headers
           # raylib-cpp
           # tinyobjloader
