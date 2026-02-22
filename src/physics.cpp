@@ -138,6 +138,8 @@ auto MassSpringSystem::ClearForces() -> void {
 }
 
 auto MassSpringSystem::CalculateSpringForces() -> void {
+  ZoneScoped;
+
   for (auto &[states, spring] : springs) {
     spring.CalculateSpringForce();
   }
@@ -145,6 +147,8 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
 
 #ifdef BARNES_HUT
 auto MassSpringSystem::BuildOctree() -> void {
+  ZoneScoped;
+
   octree.nodes.clear();
   octree.nodes.reserve(masses.size() * 2);
 
@@ -228,17 +232,33 @@ auto MassSpringSystem::BuildUniformGrid() -> void {
 
 auto MassSpringSystem::CalculateRepulsionForces() -> void {
   ZoneScoped;
+
 #ifdef BARNES_HUT
   BuildOctree();
 
-// Calculate forces using Barnes-Hut
-#pragma omp parallel for schedule(dynamic, 256)
-  for (int i = 0; i < mass_pointers.size(); ++i) {
+  auto solve_octree = [&](int i) {
     int root = 0;
     Vector3 force = octree.CalculateForce(root, mass_pointers[i]->position);
 
     mass_pointers[i]->force = Vector3Add(mass_pointers[i]->force, force);
+  };
+
+// Calculate forces using Barnes-Hut
+#ifdef WEB
+  for (int i = 0; i < mass_pointers.size(); ++i) {
+    solve_octree(i);
   }
+#else
+  threads.detach_blocks(
+      0, mass_pointers.size(),
+      [&](int start, int end) {
+        for (int i = start; i < end; ++i) {
+          solve_octree(i);
+        }
+      },
+      256);
+  threads.wait();
+#endif
 
 #else
 
@@ -253,10 +273,7 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
   }
   last_build++;
 
-  // Calculate forces using uniform grid
-#pragma omp parallel for schedule(dynamic, 256)
-  // Search the neighboring cells for each mass to calculate repulsion forces
-  for (int i = 0; i < masses.size(); ++i) {
+  auto solve_grid = [&](int i) {
     Mass *mass = mass_pointers[mass_indices[i]];
     int cell_x = (int)std::floor(mass->position.x / REPULSION_RANGE);
     int cell_y = (int)std::floor(mass->position.y / REPULSION_RANGE);
@@ -299,19 +316,40 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
               continue;
             }
 
-            force = Vector3Add(force, Vector3Scale(Vector3Normalize(direction),
-                                                   REPULSION_FORCE));
+            force = Vector3Add(
+                force, Vector3Scale(Vector3Normalize(direction), GRID_FORCE));
           }
         }
       }
     }
 
     mass->force = Vector3Add(mass->force, force);
+  };
+
+  // Calculate forces using uniform grid
+#ifdef WEB
+  // Search the neighboring cells for each mass to calculate repulsion forces
+  for (int i = 0; i < mass_pointers.size(); ++i) {
+    calculate_grid(i);
   }
+#else
+  threads.detach_blocks(
+      0, mass_pointers.size(),
+      [&](int start, int end) {
+        for (int i = start; i < end; ++i) {
+          solve_grid(i);
+        }
+      },
+      512);
+  threads.wait();
+#endif
+
 #endif
 }
 
 auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
+  ZoneScoped;
+
   for (auto &[state, mass] : masses) {
     mass.VerletUpdate(delta_time);
   }

@@ -129,7 +129,7 @@ auto Octree::CalculateForce(int node_idx, const Vector3 &pos) -> Vector3 {
   // Barnes-Hut
   if (node.leaf || (size * size / dist_sq) < (THETA * THETA)) {
     float dist = std::sqrt(dist_sq);
-    float force_mag = REPULSION_FORCE * node.mass_total / dist_sq;
+    float force_mag = BH_FORCE * node.mass_total / dist_sq;
 
     return Vector3Scale(diff, force_mag / dist);
   }

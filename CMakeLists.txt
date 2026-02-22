@@ -8,7 +8,7 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 find_package(raylib REQUIRED)
 find_package(OpenMP REQUIRED)
 
-# TODO: Need to enable/disable this based on a variable for nix build
+# Need to enable/disable this based on a variable for nix build
 if(USE_TRACY)
 include(FetchContent)
 FetchContent_Declare(tracy

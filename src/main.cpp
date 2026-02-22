@@ -8,9 +8,6 @@
 #include "renderer.hpp"
 #include "state.hpp"
 
-#ifndef WEB
-#include <omp.h>
-#endif
 #ifdef PRINT_TIMINGS
 #include <chrono>
 #include <ratio>
@@ -32,10 +29,6 @@ auto main(int argc, char *argv[]) -> int {
   //   std::cout << "Missing .klotski file." << std::endl;
   //   return 1;
   // }
-
-#ifndef WEB
-  std::cout << "OpenMP: " << omp_get_max_threads() << " threads." << std::endl;
-#endif
 
   // RayLib window setup
   SetTraceLogLevel(LOG_ERROR);

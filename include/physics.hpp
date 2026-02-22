@@ -13,6 +13,10 @@
 #include "octree.hpp"
 #endif
 
+#ifndef WEB
+#include <BS_thread_pool.hpp>
+#endif
+
 class Mass {
 public:
   const float mass;
@@ -71,6 +75,10 @@ private:
   int last_springs_count;
 #endif
 
+#ifndef WEB
+  BS::thread_pool<BS::tp::none> threads;
+#endif
+
 public:
   // This is the main ownership of all the states/masses/springs.
   // TODO: Everything is stored multiple times but idc (currently).
@@ -81,6 +89,11 @@ public:
   MassSpringSystem() {
 #ifndef BARNES_HUT
     last_build = REPULSION_GRID_REFRESH;
+#endif
+
+#ifndef WEB
+    std::cout << "Thread-Pool: " << threads.get_thread_count() << " threads."
+              << std::endl;
 #endif
   };
 

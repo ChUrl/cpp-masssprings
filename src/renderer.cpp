@@ -5,6 +5,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
+#include <tracy/Tracy.hpp>
 #include <unordered_set>
 
 #include "config.hpp"
@@ -64,6 +65,8 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
                                const State &current_state,
                                const std::unordered_set<State> &winning_states)
     -> void {
+  ZoneScoped;
+
   // Prepare cube instancing
   if (transforms == nullptr) {
     AllocateGraphInstancing(mass_springs);
@@ -135,6 +138,8 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
 auto Renderer::DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
                            int sel_y, int block_add_x, int block_add_y,
                            const WinCondition win_condition) -> void {
+  ZoneScoped;
+
   BeginTextureMode(klotski_target);
   ClearBackground(RAYWHITE);
 
@@ -220,6 +225,8 @@ auto Renderer::DrawMenu(const MassSpringSystem &mass_springs,
                         int current_preset, const State &current_state,
                         const std::unordered_set<State> &winning_states)
     -> void {
+  ZoneScoped;
+
   BeginTextureMode(menu_target);
   ClearBackground(RAYWHITE);
 
