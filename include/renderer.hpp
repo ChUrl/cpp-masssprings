@@ -51,10 +51,6 @@ private:
 
   Material vertex_mat;
 
-  // Batching
-  float *cube;
-  Mesh graph;
-
   // Instancing
   int transforms_size;
   Matrix *transforms;
@@ -68,8 +64,8 @@ public:
 public:
   Renderer()
       : camera(OrbitCamera3D(Vector3(0, 0, 0), CAMERA_DISTANCE)),
-        mark_solutions(false), connect_solutions(false), cube(nullptr),
-        transforms_size(0), transforms(nullptr) {
+        mark_solutions(false), connect_solutions(false), transforms_size(0),
+        transforms(nullptr) {
     render_target = LoadRenderTexture(GetScreenWidth() / 2.0,
                                       GetScreenHeight() - MENU_HEIGHT);
     klotski_target = LoadRenderTexture(GetScreenWidth() / 2.0,
@@ -92,12 +88,6 @@ public:
 
     UnloadMaterial(vertex_mat);
 
-    // Batching
-    if (cube != nullptr) {
-      MemFree(cube);
-      UnloadMesh(graph);
-    }
-
     // Instancing
     if (transforms != nullptr) {
       MemFree(transforms);
@@ -108,26 +98,18 @@ public:
     }
   }
 
-public:
-  auto UpdateCamera(const MassSpringSystem &mass_springs,
-                    const State &current_state) -> void;
-
-  auto UpdateTextureSizes() -> void;
-
-#ifdef BATCHING
-  auto AllocateGraphBatching() -> void;
-
-  auto ReallocateGraphBatchingIfNecessary(const MassSpringSystem &mass_springs)
-      -> void;
-#endif
-
-#ifdef INSTANCING
+private:
   auto AllocateGraphInstancing(const MassSpringSystem &mass_springs) -> void;
 
   auto
   ReallocateGraphInstancingIfNecessary(const MassSpringSystem &mass_springs)
       -> void;
-#endif
+
+public:
+  auto UpdateCamera(const MassSpringSystem &mass_springs,
+                    const State &current_state) -> void;
+
+  auto UpdateTextureSizes() -> void;
 
   auto DrawMassSprings(const MassSpringSystem &mass_springs,
                        const State &current_state,

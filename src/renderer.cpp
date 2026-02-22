@@ -117,58 +117,6 @@ auto Renderer::UpdateTextureSizes() -> void {
   menu_target = LoadRenderTexture(width * 2, MENU_HEIGHT);
 }
 
-#ifdef BATCHING
-auto Renderer::AllocateGraphBatching() -> void {
-  int vertices = 36;
-  int max_masses = 100000;
-
-  graph = {0};
-  graph.vertexCount = max_masses * vertices;
-  graph.triangleCount = max_masses * 12;
-  graph.vertices = (float *)MemAlloc(graph.vertexCount * 3 * sizeof(float));
-
-  memset(graph.vertices, 0, graph.vertexCount * 3 * sizeof(float));
-
-  UploadMesh(&graph, true);
-
-  Mesh indexed_cube = GenMeshCube(VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE);
-  cube = (float *)MemAlloc(indexed_cube.triangleCount * 3 * 3 * sizeof(float));
-  for (int i = 0; i < indexed_cube.triangleCount * 3; ++i) {
-    int idx = indexed_cube.indices[i];
-    cube[i * 3 + 0] = indexed_cube.vertices[idx * 3 + 0];
-    cube[i * 3 + 1] = indexed_cube.vertices[idx * 3 + 1];
-    cube[i * 3 + 2] = indexed_cube.vertices[idx * 3 + 2];
-  }
-  UnloadMesh(indexed_cube);
-
-  std::cout << "Allocated graph mesh." << std::endl;
-}
-
-auto Renderer::ReallocateGraphBatchingIfNecessary(
-    const MassSpringSystem &mass_springs) -> void {
-  if (graph.vertexCount / 3 > mass_springs.masses.size()) {
-    return;
-  }
-
-  int vertices = 36;
-  int max_masses = mass_springs.masses.size() * 2;
-
-  UnloadMesh(graph);
-
-  graph = {0};
-  graph.vertexCount = max_masses * vertices;
-  graph.triangleCount = max_masses * 12;
-  graph.vertices = (float *)MemAlloc(graph.vertexCount * 3 * sizeof(float));
-
-  memset(graph.vertices, 0, graph.vertexCount * 3 * sizeof(float));
-
-  UploadMesh(&graph, true);
-
-  std::cout << "Reallocated graph mesh." << std::endl;
-}
-#endif
-
-#ifdef INSTANCING
 auto Renderer::AllocateGraphInstancing(const MassSpringSystem &mass_springs)
     -> void {
   cube_instance = GenMeshCube(VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE);
@@ -194,12 +142,24 @@ auto Renderer::ReallocateGraphInstancingIfNecessary(
     transforms_size = mass_springs.masses.size();
   }
 }
-#endif
 
 auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
                                const State &current_state,
                                const std::unordered_set<State> &winning_states)
     -> void {
+  // Prepare cube instancing
+  if (transforms == nullptr) {
+    AllocateGraphInstancing(mass_springs);
+  }
+  ReallocateGraphInstancingIfNecessary(mass_springs);
+
+  int i = 0;
+  for (const auto &[state, mass] : mass_springs.masses) {
+    transforms[i] =
+        MatrixTranslate(mass.position.x, mass.position.y, mass.position.z);
+    ++i;
+  }
+
   BeginTextureMode(render_target);
   ClearBackground(RAYWHITE);
 
@@ -217,56 +177,8 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   rlEnd();
 
   // Draw masses (instanced)
-#ifdef INSTANCING
-  if (transforms == nullptr) {
-    AllocateGraphInstancing(mass_springs);
-  }
-  ReallocateGraphInstancingIfNecessary(mass_springs);
-
-  int i = 0;
-  for (const auto &[state, mass] : mass_springs.masses) {
-    transforms[i] =
-        MatrixTranslate(mass.position.x, mass.position.y, mass.position.z);
-    ++i;
-  }
   DrawMeshInstanced(cube_instance, vertex_mat, transforms,
                     mass_springs.masses.size());
-#endif
-
-  // Draw masses (batched)
-#ifdef BATCHING
-  if (cube == nullptr) {
-    AllocateGraphBatching();
-  }
-  ReallocateGraphBatchingIfNecessary(mass_springs);
-
-  int vertices = 36;
-  int current_size = mass_springs.masses.size();
-  int i = 0;
-  for (const auto &[state, mass] : mass_springs.masses) {
-    for (int v = 0; v < vertices; ++v) {
-      int dst = (i * vertices + v) * 3;
-      int src = v * 3;
-      graph.vertices[dst + 0] = cube[src + 0] + mass.position.x;
-      graph.vertices[dst + 1] = cube[src + 1] + mass.position.y;
-      graph.vertices[dst + 2] = cube[src + 2] + mass.position.z;
-    }
-    ++i;
-  }
-  UpdateMeshBuffer(graph, 0, graph.vertices,
-                   current_size * vertices * 3 * sizeof(float), 0);
-
-  // Temporarily reduce the vertex count to the used part (we overallocate)
-  int full_size = graph.vertexCount;
-  graph.vertexCount = current_size * vertices;
-  graph.triangleCount = current_size * 12;
-
-  DrawMesh(graph, vertex_mat, MatrixIdentity());
-
-  // Restore the vertex count
-  graph.vertexCount = full_size;
-  graph.triangleCount = full_size / 3;
-#endif
 
   // Mark current state
   const Mass &current_mass = mass_springs.GetMass(current_state);

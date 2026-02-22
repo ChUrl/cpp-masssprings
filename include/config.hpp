@@ -4,8 +4,6 @@
 #include <raylib.h>
 
 #define PRINT_TIMINGS
-// #define BATCHING
-#define INSTANCING // Fastest (so far)
 // #define WEB
 
 // Window
