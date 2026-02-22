@@ -10,8 +10,6 @@
 #include <unordered_set>
 #include <vector>
 
-// #define DBG_PRINT
-
 enum Direction {
   NOR = 1 << 0,
   EAS = 1 << 1,
@@ -39,10 +37,6 @@ public:
       std::cerr << "Block must fit on a 9x9 board!" << std::endl;
       exit(1);
     }
-
-#ifdef DBG_PRINT
-    std::cout << ToString() << std::endl;
-#endif
   }
 
   Block(int x, int y, std::string block) : x(x), y(y) {
@@ -82,24 +76,7 @@ public:
       std::cerr << "Block representation must have length [2]!" << std::endl;
       exit(1);
     }
-
-#ifdef DBG_PRINT
-    std::cout << "At: (" << x << ", " << y << "), Size: (" << width << ", "
-              << height << "), Target: " << target << std::endl;
-#endif
   }
-
-  Block(const Block &copy)
-      : x(copy.x), y(copy.y), width(copy.width), height(copy.height),
-        target(copy.target) {}
-
-  Block &operator=(const Block &copy) = delete;
-
-  Block(Block &&move)
-      : x(move.x), y(move.y), width(move.width), height(move.height),
-        target(move.target) {}
-
-  Block &operator=(Block &&move) = delete;
 
   bool operator==(const Block &other) {
     return x == other.x && y == other.y && width && other.width &&
@@ -107,8 +84,6 @@ public:
   }
 
   bool operator!=(const Block &other) { return !(*this == other); }
-
-  ~Block() {}
 
 public:
   auto Hash() const -> int;
@@ -183,11 +158,6 @@ public:
       std::cerr << "State width/height must be in [1, 9]!" << std::endl;
       exit(1);
     }
-
-#ifdef DBG_PRINT
-    std::cout << "State(" << width << ", " << height << "): \"" << state << "\""
-              << std::endl;
-#endif
   }
 
   explicit State(std::string state)
@@ -206,33 +176,6 @@ public:
     }
   }
 
-  State(const State &copy)
-      : width(copy.width), height(copy.height), restricted(copy.restricted),
-        state(copy.state) {}
-
-  State &operator=(const State &copy) {
-    if (*this != copy) {
-      width = copy.width;
-      height = copy.height;
-      restricted = copy.restricted;
-      state = copy.state;
-    }
-    return *this;
-  }
-
-  State(State &&move)
-      : width(move.width), height(move.height), restricted(move.restricted),
-        state(std::move(move.state)) {}
-
-  State &operator=(State &&move) {
-    if (*this != move) {
-      width = move.width;
-      height = move.height;
-      restricted = move.restricted, state = std::move(move.state);
-    }
-    return *this;
-  };
-
   bool operator==(const State &other) const { return state == other.state; }
 
   bool operator!=(const State &other) const { return !(*this == other); }
@@ -246,8 +189,6 @@ public:
   }
 
   BlockIterator end() const { return BlockIterator(*this, width * height); }
-
-  ~State() {}
 
 public:
   auto Hash() const -> int;
