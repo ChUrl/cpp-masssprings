@@ -9,6 +9,10 @@
 #include "config.hpp"
 #include "puzzle.hpp"
 
+#ifdef BARNES_HUT
+#include "octree.hpp"
+#endif
+
 class Mass {
 public:
   const float mass;
@@ -53,22 +57,32 @@ public:
 
 class MassSpringSystem {
 private:
-  // Uniform grid
   std::vector<Mass *> mass_pointers;
+
+#ifdef BARNES_HUT
+  // Barnes-Hut
+  Octree octree;
+#else
+  // Uniform grid
   std::vector<int> mass_indices;
   std::vector<int64_t> cell_ids;
   int last_build;
   int last_masses_count;
   int last_springs_count;
+#endif
 
 public:
   // This is the main ownership of all the states/masses/springs.
-  // Everything is stored multiple times but idc.
+  // TODO: Everything is stored multiple times but idc (currently).
   std::unordered_map<State, Mass> masses;
   std::unordered_map<std::pair<State, State>, Spring> springs;
 
 public:
-  MassSpringSystem() : last_build(REPULSION_GRID_REFRESH) {};
+  MassSpringSystem() {
+#ifndef BARNES_HUT
+    last_build = REPULSION_GRID_REFRESH;
+#endif
+  };
 
   MassSpringSystem(const MassSpringSystem &copy) = delete;
   MassSpringSystem &operator=(const MassSpringSystem &copy) = delete;
@@ -78,7 +92,11 @@ public:
   ~MassSpringSystem() {};
 
 private:
+#ifdef BARNES_HUT
+  auto BuildOctree() -> void;
+#else
   auto BuildUniformGrid() -> void;
+#endif
 
 public:
   auto AddMass(float mass, bool fixed, const State &state) -> void;
@@ -100,7 +118,9 @@ public:
 
   auto VerletUpdate(float delta_time) -> void;
 
+#ifndef BARNES_HUT
   auto InvalidateGrid() -> void;
+#endif
 };
 
 #endif

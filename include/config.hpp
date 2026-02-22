@@ -5,6 +5,7 @@
 
 #define PRINT_TIMINGS
 // #define WEB
+#define BARNES_HUT
 
 // Window
 constexpr int INITIAL_WIDTH = 800;
@@ -35,8 +36,10 @@ constexpr float MASS = 1.0;
 constexpr float SPRING_CONSTANT = 5.0;
 constexpr float DAMPENING_CONSTANT = 1.0;
 constexpr float REST_LENGTH = 2.0;
-constexpr float REPULSION_FORCE = 0.1;
+constexpr float REPULSION_FORCE = 2.0;
 constexpr float REPULSION_RANGE = 5.0 * REST_LENGTH;
+constexpr float THETA = 1.0;              // Barnes-Hut [0.5, ~]
+constexpr float SOFTENING = 0.01;         // Barnes-Hut [0.01, 1.0]
 constexpr int REPULSION_GRID_REFRESH = 5; // Updates between grid rebuilds
 constexpr float VERLET_DAMPENING = 0.05;  // [0, 1]
 
