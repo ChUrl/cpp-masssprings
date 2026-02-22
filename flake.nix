@@ -78,6 +78,25 @@ rec {
           ];
         };
 
+        octree = stdenv.mkDerivation {
+          pname = "octree";
+          version = "2.5-unstable-2025-12-18";
+
+          src = pkgs.fetchFromGitHub {
+            owner = "attcs";
+            repo = "octree";
+            rev = "5058b3090c8b88e405fe2bfddd6c1c872f2b79d2";
+            hash = "sha256-a/aDGQ7cj1GbCjts2s9VEaxyFnL6PF+xJOsSxm9o+4M=";
+          };
+
+          # Header-only library
+          dontBuild = true;
+          installPhase = ''
+            mkdir -p $out/include
+            mv ./*.h $out/include/
+          '';
+        };
+
         # ===========================================================================================
         # Specify dependencies
         # https://nixos.org/manual/nixpkgs/stable/#ssec-stdenv-dependencies-overview
@@ -120,6 +139,7 @@ rec {
           # boost
           # sfml
           raylib
+          octree
           llvmPackages.openmp # not required for compilation but for clangd to find the headers
           # raylib-cpp
           # tinyobjloader
