@@ -1,8 +1,11 @@
 #include "renderer.hpp"
 
+#include <algorithm>
+#include <cstring>
 #include <format>
 #include <raylib.h>
 #include <raymath.h>
+#include <rlgl.h>
 #include <unordered_set>
 
 #include "config.hpp"
@@ -111,8 +114,60 @@ auto Renderer::UpdateTextureSizes() -> void {
   menu_target = LoadRenderTexture(width * 2, MENU_HEIGHT);
 }
 
-auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
-                               const State &current,
+auto Renderer::AllocateGraphMesh() -> void {
+  int vertices = 36;
+  int max_masses = 100000;
+
+  graph = {0};
+  graph.vertexCount = max_masses * vertices;
+  graph.triangleCount = max_masses * 12;
+  graph.vertices = (float *)MemAlloc(graph.vertexCount * 3 * sizeof(float));
+
+  memset(graph.vertices, 0, graph.vertexCount * 3 * sizeof(float));
+
+  UploadMesh(&graph, true);
+
+  Mesh indexed_cube = GenMeshCube(VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE);
+  cube = (float *)MemAlloc(indexed_cube.triangleCount * 3 * 3 * sizeof(float));
+  for (int i = 0; i < indexed_cube.triangleCount * 3; ++i) {
+    int idx = indexed_cube.indices[i];
+    cube[i * 3 + 0] = indexed_cube.vertices[idx * 3 + 0];
+    cube[i * 3 + 1] = indexed_cube.vertices[idx * 3 + 1];
+    cube[i * 3 + 2] = indexed_cube.vertices[idx * 3 + 2];
+  }
+  UnloadMesh(indexed_cube);
+
+  mat = LoadMaterialDefault();
+  mat.maps[MATERIAL_MAP_DIFFUSE].color = VERTEX_COLOR;
+
+  std::cout << "Allocated graph mesh." << std::endl;
+}
+
+auto Renderer::ReallocateGraphMeshIfNecessary(
+    const MassSpringSystem &mass_springs) -> void {
+  if (graph.vertexCount / 3 > mass_springs.masses.size()) {
+    return;
+  }
+
+  int vertices = 36;
+  int max_masses = mass_springs.masses.size() * 2;
+
+  UnloadMesh(graph);
+
+  graph = {0};
+  graph.vertexCount = max_masses * vertices;
+  graph.triangleCount = max_masses * 12;
+  graph.vertices = (float *)MemAlloc(graph.vertexCount * 3 * sizeof(float));
+
+  memset(graph.vertices, 0, graph.vertexCount * 3 * sizeof(float));
+
+  UploadMesh(&graph, true);
+
+  std::cout << "Reallocated graph mesh." << std::endl;
+}
+
+auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
+                               const State &current_state,
                                const std::unordered_set<State> &winning_states)
     -> void {
   BeginTextureMode(render_target);
@@ -120,32 +175,63 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &masssprings,
 
   BeginMode3D(camera.camera);
 
-  // Draw springs
-  for (const auto &[states, spring] : masssprings.springs) {
-    const Mass a = spring.massA;
-    const Mass b = spring.massB;
-
-    DrawLine3D(a.position, b.position, EDGE_COLOR);
+  // Draw springs (batched)
+  rlBegin(RL_LINES);
+  for (const auto &[states, spring] : mass_springs.springs) {
+    rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
+    rlVertex3f(spring.massA.position.x, spring.massA.position.y,
+               spring.massA.position.z);
+    rlVertex3f(spring.massB.position.x, spring.massB.position.y,
+               spring.massB.position.z);
   }
+  rlEnd();
 
-  // Draw masses (high performance impact)
-  for (const auto &[state, mass] : masssprings.masses) {
-    if (state == current) {
-      DrawCube(mass.position, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE,
-               RED);
-    } else if (winning_states.contains(state)) {
-      // TODO: Would be better to store the winning flag in the state itself
+  // Draw masses (batched)
+  int vertices = 36;
+  int current_size = mass_springs.masses.size();
+  int i = 0;
+  for (const auto &[state, mass] : mass_springs.masses) {
+    for (int v = 0; v < vertices; ++v) {
+      int dst = (i * vertices + v) * 3;
+      int src = v * 3;
+      graph.vertices[dst + 0] = cube[src + 0] + mass.position.x;
+      graph.vertices[dst + 1] = cube[src + 1] + mass.position.y;
+      graph.vertices[dst + 2] = cube[src + 2] + mass.position.z;
+    }
+    ++i;
+  }
+  UpdateMeshBuffer(graph, 0, graph.vertices,
+                   current_size * vertices * 3 * sizeof(float), 0);
+
+  // Temporarily reduce the vertex count to the used part (we overallocate)
+  int full_size = graph.vertexCount;
+  graph.vertexCount = current_size * vertices;
+  graph.triangleCount = current_size * 12;
+
+  DrawMesh(graph, mat, MatrixIdentity());
+
+  // Restore the vertex count
+  graph.vertexCount = full_size;
+  graph.triangleCount = full_size / 3;
+
+  // Mark current state
+  const Mass &current_mass = mass_springs.GetMass(current_state);
+  DrawCube(current_mass.position, VERTEX_SIZE * 4, VERTEX_SIZE * 4,
+           VERTEX_SIZE * 4, RED);
+
+  // Mark winning states
+  if (mark_solutions || connect_solutions) {
+    for (const auto &state : winning_states) {
+      const Mass &winning_mass = mass_springs.GetMass(state);
       if (mark_solutions) {
-        DrawCube(mass.position, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE,
+        DrawCube(winning_mass.position, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE,
                  4 * VERTEX_SIZE, BLUE);
       }
+
       if (connect_solutions) {
-        DrawLine3D(mass.position, masssprings.masses.at(current).position,
-                   PURPLE);
+        DrawLine3D(winning_mass.position,
+                   mass_springs.GetMass(current_state).position, PURPLE);
       }
-    } else if (masssprings.masses.size() <= DRAW_VERTICES_LIMIT) {
-      DrawCube(mass.position, VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE,
-               VERTEX_COLOR);
     }
   }
 

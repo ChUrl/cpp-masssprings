@@ -49,6 +49,10 @@ private:
   RenderTexture klotski_target;
   RenderTexture menu_target;
 
+  float *cube;
+  Mesh graph;
+  Material mat;
+
 public:
   bool mark_solutions;
   bool connect_solutions;
@@ -62,6 +66,7 @@ public:
     klotski_target = LoadRenderTexture(GetScreenWidth() / 2.0,
                                        GetScreenHeight() - MENU_HEIGHT);
     menu_target = LoadRenderTexture(GetScreenWidth(), MENU_HEIGHT);
+    AllocateGraphMesh();
   }
 
   Renderer(const Renderer &copy) = delete;
@@ -73,23 +78,31 @@ public:
     UnloadRenderTexture(render_target);
     UnloadRenderTexture(klotski_target);
     UnloadRenderTexture(menu_target);
+    UnloadMesh(graph);
+    UnloadMaterial(mat);
+    MemFree(cube);
   }
 
 public:
-  auto UpdateCamera(const MassSpringSystem &masssprings, const State &current)
-      -> void;
+  auto UpdateCamera(const MassSpringSystem &mass_springs,
+                    const State &current_state) -> void;
 
   auto UpdateTextureSizes() -> void;
 
-  auto DrawMassSprings(const MassSpringSystem &masssprings,
-                       const State &current,
+  auto AllocateGraphMesh() -> void;
+
+  auto ReallocateGraphMeshIfNecessary(const MassSpringSystem &mass_springs)
+      -> void;
+
+  auto DrawMassSprings(const MassSpringSystem &mass_springs,
+                       const State &current_state,
                        const std::unordered_set<State> &winning_states) -> void;
 
   auto DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
                    int sel_y, int block_add_x, int block_add_y,
                    const WinCondition win_condition) -> void;
 
-  auto DrawMenu(const MassSpringSystem &masssprings, int current_preset,
+  auto DrawMenu(const MassSpringSystem &mass_springs, int current_preset,
                 const State &current_state,
                 const std::unordered_set<State> &winning_states) -> void;
 

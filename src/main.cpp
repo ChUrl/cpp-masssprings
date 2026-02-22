@@ -105,8 +105,11 @@ auto main(int argc, char *argv[]) -> int {
 
     renderer.UpdateCamera(mass_springs, state.current_state);
     renderer.UpdateTextureSizes();
+    renderer.ReallocateGraphMeshIfNecessary(mass_springs);
     renderer.DrawMassSprings(mass_springs, state.current_state,
                              state.winning_states);
+
+    // TODO: Don't render each frame
     renderer.DrawKlotski(state.current_state, input.hov_x, input.hov_y,
                          input.sel_x, input.sel_y, input.block_add_x,
                          input.block_add_y, state.CurrentWinCondition());

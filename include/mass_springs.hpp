@@ -118,6 +118,8 @@ public:
 
   auto GetMass(const State &state) -> Mass &;
 
+  auto GetMass(const State &state) const -> const Mass &;
+
   auto AddSpring(const State &massA, const State &massB, float spring_constant,
                  float dampening_constant, float rest_length) -> void;
 

@@ -89,6 +89,10 @@ auto MassSpringSystem::GetMass(const State &state) -> Mass & {
   return masses.at(state);
 }
 
+auto MassSpringSystem::GetMass(const State &state) const -> const Mass & {
+  return masses.at(state);
+}
+
 auto MassSpringSystem::AddSpring(const State &massA, const State &massB,
                                  float spring_constant,
                                  float dampening_constant, float rest_length)

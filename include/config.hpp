@@ -41,10 +41,10 @@ constexpr int REPULSION_GRID_REFRESH = 5; // Frames between grid rebuilds
 constexpr float VERLET_DAMPENING = 0.05;  // [0, 1]
 
 // Graph Drawing
-constexpr float VERTEX_SIZE = 0.1;
+constexpr float VERTEX_SIZE = 0.5;
 constexpr Color VERTEX_COLOR = GREEN;
 constexpr Color EDGE_COLOR = DARKGREEN;
-constexpr int DRAW_VERTICES_LIMIT = 10000;
+constexpr int DRAW_VERTICES_LIMIT = 100000;
 
 // Klotski Drawing
 constexpr int BOARD_PADDING = 5;
