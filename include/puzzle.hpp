@@ -282,6 +282,8 @@ public:
                                     std::vector<std::pair<State, State>>>;
 };
 
+// Provide hash functions so we can use State and <State, State> as hash-set
+// keys for masses and springs.
 template <> struct std::hash<State> {
   std::size_t operator()(const State &s) const noexcept { return s.Hash(); }
 };

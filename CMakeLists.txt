@@ -11,6 +11,7 @@ include_directories(include)
 
 add_executable(masssprings
     src/main.cpp
+    src/camera.cpp
     src/renderer.cpp
     src/physics.cpp
     src/puzzle.cpp

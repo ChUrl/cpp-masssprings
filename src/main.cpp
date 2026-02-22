@@ -46,10 +46,11 @@ auto main(int argc, char *argv[]) -> int {
   InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + MENU_HEIGHT, "MassSprings");
 
   // Game setup
-  Renderer renderer;
+  OrbitCamera3D camera;
+  Renderer renderer(camera);
   MassSpringSystem mass_springs;
-  StateManager state = StateManager(mass_springs);
-  InputHandler input = InputHandler(state, renderer);
+  StateManager state(mass_springs);
+  InputHandler input(state, renderer);
 
   // Game loop
 #ifdef PRINT_TIMINGS
@@ -68,7 +69,8 @@ auto main(int argc, char *argv[]) -> int {
     // Input update
     state.previous_state = state.current_state;
     input.HandleInput();
-    state.UpdateGraph();
+    state.UpdateGraph(); // Add state added after user input
+    camera.Update(mass_springs.GetMass(state.current_state).position);
 
     // Physics update
 #ifdef PRINT_TIMINGS
@@ -98,7 +100,6 @@ auto main(int argc, char *argv[]) -> int {
         std::chrono::high_resolution_clock::now();
 #endif
 
-    renderer.UpdateCamera(mass_springs, state.current_state);
     renderer.UpdateTextureSizes();
     renderer.DrawMassSprings(mass_springs, state.current_state,
                              state.winning_states);

@@ -86,7 +86,6 @@ public:
 
 class MassSpringSystem {
 private:
-  // TODO: Use references
   std::vector<Mass *> mass_vec;
   std::vector<int> indices;
   std::vector<int64_t> cell_ids;
