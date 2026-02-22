@@ -125,7 +125,9 @@ rec {
           # clang-tools
           # compdb
           # pprof
-          gprof2dot
+          # gprof2dot
+          perf
+          hotspot
           kdePackages.kcachegrind
           gdbgui
           # renderdoc
@@ -141,6 +143,7 @@ rec {
           raylib
           # octree # this one doesn't store center of mass per node - which I need :(
           llvmPackages.openmp # not required for compilation but for clangd to find the headers
+          tracy
           # raylib-cpp
           # tinyobjloader
           # gperftools
@@ -225,6 +228,7 @@ rec {
                   echo "Running cmake"
                   cmake -G "Unix Makefiles" \
                         -DCMAKE_BUILD_TYPE="${type}" \
+                        -DUSE_TRACY=On \
                         ..
 
                   echo "Linking compile_commands.json"
