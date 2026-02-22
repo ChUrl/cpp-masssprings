@@ -63,7 +63,6 @@ auto main(int argc, char *argv[]) -> int {
     state.previous_state = state.current_state;
     input.HandleInput();
     state.UpdateGraph(); // Add state added after user input
-    camera.Update(mass_springs.GetMass(state.current_state).position);
 
     // Physics update
 #ifdef PRINT_TIMINGS
@@ -86,6 +85,9 @@ auto main(int argc, char *argv[]) -> int {
         std::chrono::high_resolution_clock::now();
     physics_time_accumulator += pe - ps;
 #endif
+
+    // Update the camera after the physics, so target lock is smooth
+    camera.Update(mass_springs.GetMass(state.current_state).position);
 
     // Rendering
 #ifdef PRINT_TIMINGS
