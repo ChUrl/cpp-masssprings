@@ -1,7 +1,6 @@
 #include "renderer.hpp"
 
 #include <algorithm>
-#include <cstring>
 #include <format>
 #include <raylib.h>
 #include <raymath.h>
@@ -11,6 +10,10 @@
 #include "config.hpp"
 #include "klotski.hpp"
 #include "mass_springs.hpp"
+
+#ifdef BATCHING
+#include <cstring>
+#endif
 
 auto OrbitCamera3D::Update(const Mass &current_mass) -> void {
   Vector2 mouse = GetMousePosition();

@@ -26,11 +26,6 @@
 //       - Click states to display them in the board
 //       - Find shortest path to any winning state and mark it in the graph
 //         - Also mark the next move along the path on the board
-// TODO: Don't tie the simulation step resolution to the FPS (frametime)
-//       - This breaks the simulation on slower systems
-//       - Add a modifiable speed setting?
-//       - Clamp the frametime?
-//       - Use a fixed step size and control how often it runs per frame?
 
 auto main(int argc, char *argv[]) -> int {
   // if (argc < 2) {
@@ -43,7 +38,7 @@ auto main(int argc, char *argv[]) -> int {
 #endif
 
   // RayLib window setup
-  // SetTraceLogLevel(LOG_ERROR);
+  SetTraceLogLevel(LOG_ERROR);
   // SetConfigFlags(FLAG_VSYNC_HINT);
   SetConfigFlags(FLAG_MSAA_4X_HINT);
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
