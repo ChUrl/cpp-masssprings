@@ -1,6 +1,7 @@
 #include "physics.hpp"
 #include "config.hpp"
 
+#include <algorithm>
 #include <numeric>
 #include <raylib.h>
 #include <raymath.h>
@@ -135,92 +136,104 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
   }
 }
 
-auto MassSpringSystem::BuildGrid() -> void {
-  const float INV_CELL = 1.0f / REPULSION_RANGE;
-  const int n = masses.size();
-
-  // Collect pointers
-  mass_vec.clear();
-  mass_vec.reserve(n);
+auto MassSpringSystem::BuildUniformGrid() -> void {
+  // Collect pointers to all masses
+  mass_pointers.clear();
+  mass_pointers.reserve(masses.size());
   for (auto &[state, mass] : masses) {
-    mass_vec.push_back(&mass);
+    mass_pointers.push_back(&mass);
   }
 
-  // Assign each particle a cell index
-  auto cellID = [&](const Vector3 &p) -> int64_t {
-    int x = (int)std::floor(p.x * INV_CELL);
-    int y = (int)std::floor(p.y * INV_CELL);
-    int z = (int)std::floor(p.z * INV_CELL);
-    // Pack into a single int64 (assumes coords fit in 20 bits each)
+  // Assign each mass a cell_id based on its position.
+  auto cell_id = [&](const Vector3 &position) -> int64_t {
+    int x = (int)std::floor(position.x / REPULSION_RANGE);
+    int y = (int)std::floor(position.y / REPULSION_RANGE);
+    int z = (int)std::floor(position.z / REPULSION_RANGE);
+    // Pack into a single int64 (assumes a coordinate fits in 20 bits)
     return ((int64_t)(x & 0xFFFFF) << 40) | ((int64_t)(y & 0xFFFFF) << 20) |
            (int64_t)(z & 0xFFFFF);
   };
 
-  // Sort particles by cell
-  indices.clear();
-  indices.resize(n);
-  std::iota(indices.begin(), indices.end(), 0);
-  std::sort(indices.begin(), indices.end(), [&](int a, int b) {
-    return cellID(mass_vec[a]->position) < cellID(mass_vec[b]->position);
+  // Sort mass indices by cell_id to improve cache locality and allow cell
+  // iteration with std::lower_bound and std::upper_bound
+  mass_indices.clear();
+  mass_indices.resize(masses.size());
+  std::iota(mass_indices.begin(), mass_indices.end(),
+            0); // Fill the indices array with ascending numbers
+  std::sort(mass_indices.begin(), mass_indices.end(), [&](int a, int b) {
+    return cell_id(mass_pointers[a]->position) <
+           cell_id(mass_pointers[b]->position);
   });
 
-  // Build cell start/end table
+  // Build cell start/end table: maps mass index to cell_id.
+  // All indices of a single cell are consecutive.
   cell_ids.clear();
-  cell_ids.resize(n);
-  for (int i = 0; i < n; ++i) {
-    cell_ids[i] = cellID(mass_vec[indices[i]]->position);
+  cell_ids.resize(masses.size());
+  for (int i = 0; i < masses.size(); ++i) {
+    cell_ids[i] = cell_id(mass_pointers[mass_indices[i]]->position);
   }
 }
 
 auto MassSpringSystem::CalculateRepulsionForces() -> void {
-  const float INV_CELL = 1.0f / REPULSION_RANGE;
-  const int n = masses.size();
-
+  // Refresh grid if necessary
   if (last_build >= REPULSION_GRID_REFRESH ||
       masses.size() != last_masses_count ||
       springs.size() != last_springs_count) {
-    BuildGrid();
+    BuildUniformGrid();
     last_build = 0;
     last_masses_count = masses.size();
     last_springs_count = springs.size();
   }
   last_build++;
 
+  // TODO: Use Barnes-Hut + Octree
 #pragma omp parallel for
-  for (int i = 0; i < n; ++i) {
-    Mass *mass = mass_vec[indices[i]];
-    int cx = (int)std::floor(mass->position.x * INV_CELL);
-    int cy = (int)std::floor(mass->position.y * INV_CELL);
-    int cz = (int)std::floor(mass->position.z * INV_CELL);
+  // Search the neighboring cells for each mass to calculate repulsion forces
+  for (int i = 0; i < masses.size(); ++i) {
+    Mass *mass = mass_pointers[mass_indices[i]];
+    int cell_x = (int)std::floor(mass->position.x / REPULSION_RANGE);
+    int cell_y = (int)std::floor(mass->position.y / REPULSION_RANGE);
+    int cell_z = (int)std::floor(mass->position.z / REPULSION_RANGE);
 
-    Vector3 force = {0, 0, 0};
+    Vector3 force = Vector3Zero();
 
-    // Search all 3*3*3 neighbor cells for particles
+    // Search all 3*3*3 neighbor cells for masses
     for (int dx = -1; dx <= 1; ++dx) {
       for (int dy = -1; dy <= 1; ++dy) {
         for (int dz = -1; dz <= 1; ++dz) {
-          int64_t nid = ((int64_t)((cx + dx) & 0xFFFFF) << 40) |
-                        ((int64_t)((cy + dy) & 0xFFFFF) << 20) |
-                        (int64_t)((cz + dz) & 0xFFFFF);
+          int64_t neighbor_id = ((int64_t)((cell_x + dx) & 0xFFFFF) << 40) |
+                                ((int64_t)((cell_y + dy) & 0xFFFFF) << 20) |
+                                (int64_t)((cell_z + dz) & 0xFFFFF);
 
-          // Binary search for this neighbor cell in sorted array
-          auto lo = std::lower_bound(cell_ids.begin(), cell_ids.end(), nid);
-          auto hi = std::upper_bound(cell_ids.begin(), cell_ids.end(), nid);
+          // Find the first and last occurence of the neighbor_id (iterator).
+          // Because cell_ids is sorted, all elements of this cell are between
+          // those.
+          // If there is no cell, the iterators just won't do anything.
+          auto cell_start =
+              std::lower_bound(cell_ids.begin(), cell_ids.end(), neighbor_id);
+          auto cell_end =
+              std::upper_bound(cell_ids.begin(), cell_ids.end(), neighbor_id);
 
-          for (auto it = lo; it != hi; ++it) {
-            Mass *m = mass_vec[indices[it - cell_ids.begin()]];
-            if (m == mass) {
+          // For each mass, iterate through all the masses of neighboring cells
+          // to accumulate the repulsion forces.
+          // This is slow with O(n * m), where m is the number of masses in each
+          // neighboring cell.
+          for (auto it = cell_start; it != cell_end; ++it) {
+            Mass *neighbor = mass_pointers[mass_indices[it - cell_ids.begin()]];
+            if (neighbor == mass) {
+              // Skip ourselves
               continue;
             }
 
-            Vector3 diff = Vector3Subtract(mass->position, m->position);
-            float len = Vector3Length(diff);
-            if (len == 0.0f || len >= REPULSION_RANGE) {
+            Vector3 direction =
+                Vector3Subtract(mass->position, neighbor->position);
+            float distance = Vector3Length(direction);
+            if (distance == 0.0f || distance >= REPULSION_RANGE) {
               continue;
             }
 
-            force = Vector3Add(
-                force, Vector3Scale(Vector3Normalize(diff), REPULSION_FORCE));
+            force = Vector3Add(force, Vector3Scale(Vector3Normalize(direction),
+                                                   REPULSION_FORCE));
           }
         }
       }
@@ -237,8 +250,8 @@ auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
 }
 
 auto MassSpringSystem::InvalidateGrid() -> void {
-  mass_vec.clear();
-  indices.clear();
+  mass_pointers.clear();
+  mass_indices.clear();
   cell_ids.clear();
   last_build = REPULSION_GRID_REFRESH;
   last_masses_count = 0;

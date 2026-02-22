@@ -2,9 +2,9 @@
 #define __STATE_HPP_
 
 #include "config.hpp"
-#include "puzzle.hpp"
 #include "physics.hpp"
 #include "presets.hpp"
+#include "puzzle.hpp"
 
 #include <raymath.h>
 

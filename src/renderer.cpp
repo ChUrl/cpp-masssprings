@@ -94,6 +94,10 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   rlEnd();
 
   // Draw masses (instanced)
+  // NOTE: I don't know if drawing all this inside a shader would make it much
+  //       faster...
+  //       The amount of data sent to the GPU would be reduced (just positions
+  //       instead of matrices), but is this noticable for < 100000 cubes?
   DrawMeshInstanced(cube_instance, vertex_mat, transforms,
                     mass_springs.masses.size());
 
@@ -118,7 +122,9 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   DrawCube(current_mass.position, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
            VERTEX_SIZE * 2, RED);
 
-  // DrawGrid(10, 1.0);
+  // DrawCubeWires(current_mass.position, REPULSION_RANGE, REPULSION_RANGE,
+  //               REPULSION_RANGE, BLACK);
+  // DrawGrid(100, 1.0);
   // DrawSphere(camera.target, VERTEX_SIZE, ORANGE);
   EndMode3D();
 

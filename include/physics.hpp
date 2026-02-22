@@ -86,8 +86,8 @@ public:
 
 class MassSpringSystem {
 private:
-  std::vector<Mass *> mass_vec;
-  std::vector<int> indices;
+  std::vector<Mass *> mass_pointers;
+  std::vector<int> mass_indices;
   std::vector<int64_t> cell_ids;
   int last_build;
   int last_masses_count;
@@ -110,7 +110,7 @@ public:
   ~MassSpringSystem() {};
 
 private:
-  auto BuildGrid() -> void;
+  auto BuildUniformGrid() -> void;
 
 public:
   auto AddMass(float mass, bool fixed, const State &state) -> void;

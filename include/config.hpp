@@ -37,7 +37,7 @@ constexpr float DAMPENING_CONSTANT = 1.0;
 constexpr float REST_LENGTH = 2.0;
 constexpr float REPULSION_FORCE = 0.1;
 constexpr float REPULSION_RANGE = 5.0 * REST_LENGTH;
-constexpr int REPULSION_GRID_REFRESH = 5; // Frames between grid rebuilds
+constexpr int REPULSION_GRID_REFRESH = 5; // Updates between grid rebuilds
 constexpr float VERLET_DAMPENING = 0.05;  // [0, 1]
 
 // Graph Drawing
