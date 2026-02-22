@@ -216,16 +216,16 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
 
   // Mark current state
   const Mass &current_mass = mass_springs.GetMass(current_state);
-  DrawCube(current_mass.position, VERTEX_SIZE * 4, VERTEX_SIZE * 4,
-           VERTEX_SIZE * 4, RED);
+  DrawCube(current_mass.position, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
+           VERTEX_SIZE * 2, RED);
 
   // Mark winning states
   if (mark_solutions || connect_solutions) {
     for (const auto &state : winning_states) {
       const Mass &winning_mass = mass_springs.GetMass(state);
       if (mark_solutions) {
-        DrawCube(winning_mass.position, 4 * VERTEX_SIZE, 4 * VERTEX_SIZE,
-                 4 * VERTEX_SIZE, BLUE);
+        DrawCube(winning_mass.position, 2 * VERTEX_SIZE, 2 * VERTEX_SIZE,
+                 2 * VERTEX_SIZE, BLUE);
       }
 
       if (connect_solutions) {

@@ -88,19 +88,19 @@ auto InputHandler::HandleMouse() -> void {
 }
 
 auto InputHandler::HandleKeys() -> void {
-  if (IsKeyPressed(KEY_W)) {
+  if (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_K)) {
     if (state.current_state.MoveBlockAt(sel_x, sel_y, Direction::NOR)) {
       sel_y--;
     }
-  } else if (IsKeyPressed(KEY_A)) {
+  } else if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_H)) {
     if (state.current_state.MoveBlockAt(sel_x, sel_y, Direction::WES)) {
       sel_x--;
     }
-  } else if (IsKeyPressed(KEY_S)) {
+  } else if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_J)) {
     if (state.current_state.MoveBlockAt(sel_x, sel_y, Direction::SOU)) {
       sel_y++;
     }
-  } else if (IsKeyPressed(KEY_D)) {
+  } else if (IsKeyPressed(KEY_D) || IsKeyPressed(KEY_L)) {
     if (state.current_state.MoveBlockAt(sel_x, sel_y, Direction::EAS)) {
       sel_x++;
     }

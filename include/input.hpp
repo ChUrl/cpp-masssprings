@@ -14,14 +14,14 @@ public:
   int sel_x;
   int sel_y;
 
-  bool has_block_add_xy = false;
-  int block_add_x = -1;
-  int block_add_y = -1;
+  bool has_block_add_xy;
+  int block_add_x;
+  int block_add_y;
 
 public:
   InputHandler(StateManager &state, Renderer &renderer)
-      : state(state), renderer(renderer), hov_x(-1), hov_y(-1), sel_x(-1),
-        sel_y(-1), has_block_add_xy(false), block_add_x(-1), block_add_y(-1) {}
+      : state(state), renderer(renderer), hov_x(-1), hov_y(-1), sel_x(0),
+        sel_y(0), has_block_add_xy(false), block_add_x(-1), block_add_y(-1) {}
 
   InputHandler(const InputHandler &copy) = delete;
   InputHandler &operator=(const InputHandler &copy) = delete;
