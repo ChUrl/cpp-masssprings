@@ -8,8 +8,8 @@
 #include <unordered_set>
 
 #include "config.hpp"
-#include "puzzle.hpp"
 #include "physics.hpp"
+#include "puzzle.hpp"
 
 #ifdef BATCHING
 #include <cstring>
@@ -121,8 +121,8 @@ auto Renderer::AllocateGraphInstancing(const MassSpringSystem &mass_springs)
     -> void {
   cube_instance = GenMeshCube(VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE);
 
-  instancing_shader =
-      LoadShader("instancing_vertex.glsl", "instancing_fragment.glsl");
+  instancing_shader = LoadShader("shader/instancing_vertex.glsl",
+                                 "shader/instancing_fragment.glsl");
   instancing_shader.locs[SHADER_LOC_MATRIX_MVP] =
       GetShaderLocation(instancing_shader, "mvp");
   instancing_shader.locs[SHADER_LOC_VECTOR_VIEW] =
