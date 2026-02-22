@@ -68,16 +68,18 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   ZoneScoped;
 
   // Prepare cube instancing
-  if (transforms == nullptr) {
-    AllocateGraphInstancing(mass_springs);
-  }
-  ReallocateGraphInstancingIfNecessary(mass_springs);
+  if (mass_springs.masses.size() < DRAW_VERTICES_LIMIT) {
+    if (transforms == nullptr) {
+      AllocateGraphInstancing(mass_springs);
+    }
+    ReallocateGraphInstancingIfNecessary(mass_springs);
 
-  int i = 0;
-  for (const auto &[state, mass] : mass_springs.masses) {
-    transforms[i] =
-        MatrixTranslate(mass.position.x, mass.position.y, mass.position.z);
-    ++i;
+    int i = 0;
+    for (const auto &[state, mass] : mass_springs.masses) {
+      transforms[i] =
+          MatrixTranslate(mass.position.x, mass.position.y, mass.position.z);
+      ++i;
+    }
   }
 
   BeginTextureMode(render_target);
@@ -97,12 +99,14 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   rlEnd();
 
   // Draw masses (instanced)
-  // NOTE: I don't know if drawing all this inside a shader would make it much
-  //       faster...
-  //       The amount of data sent to the GPU would be reduced (just positions
-  //       instead of matrices), but is this noticable for < 100000 cubes?
-  DrawMeshInstanced(cube_instance, vertex_mat, transforms,
-                    mass_springs.masses.size());
+  if (mass_springs.masses.size() < DRAW_VERTICES_LIMIT) {
+    // NOTE: I don't know if drawing all this inside a shader would make it much
+    //       faster...
+    //       The amount of data sent to the GPU would be reduced (just positions
+    //       instead of matrices), but is this noticable for < 100000 cubes?
+    DrawMeshInstanced(cube_instance, vertex_mat, transforms,
+                      mass_springs.masses.size());
+  }
 
   // Mark winning states
   if (mark_solutions || connect_solutions) {

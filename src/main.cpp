@@ -70,7 +70,11 @@ auto main(int argc, char *argv[]) -> int {
         std::chrono::high_resolution_clock::now();
 #endif
 
-    while (timestep_accumulator > TIMESTEP) {
+    // Do not try to catch up if we're falling behind. Frametimes would get
+    // larger, resulting in more catching up, resulting in even larger
+    // frametimes.
+    // while (timestep_accumulator > TIMESTEP) {
+    if (timestep_accumulator > TIMESTEP) {
       mass_springs.ClearForces();
       mass_springs.CalculateSpringForces();
       mass_springs.CalculateRepulsionForces();
@@ -119,7 +123,8 @@ auto main(int argc, char *argv[]) -> int {
                 << render_time_accumulator / loop_count << "." << std::endl;
       std::cout << " - Physics updates avg: "
                 << static_cast<float>(update_accumulator) / loop_count
-                << "x per frame." << std::endl;
+                << "x per frame (" << timestep_accumulator << "s remaining)."
+                << std::endl;
       last_print_time = GetTime();
       physics_time_accumulator = std::chrono::duration<double, std::milli>(0);
       render_time_accumulator = std::chrono::duration<double, std::milli>(0);

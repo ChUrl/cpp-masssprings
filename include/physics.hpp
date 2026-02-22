@@ -89,6 +89,10 @@ public:
   MassSpringSystem() {
 #ifndef BARNES_HUT
     last_build = REPULSION_GRID_REFRESH;
+    std::cout << "Using uniform grid repulsion force calculation." << std::endl;
+#else
+    std::cout << "Using Barnes-Hut + octree repulsion force calculation."
+              << std::endl;
 #endif
 
 #ifndef WEB
