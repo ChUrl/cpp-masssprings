@@ -4,8 +4,8 @@
 #include <raylib.h>
 
 #define PRINT_TIMINGS
-// #define WEB // Disables multithreading
 #define BARNES_HUT // Use octree BH instead of uniform grid
+// #define WEB        // Disables multithreading
 
 // Window
 constexpr int INITIAL_WIDTH = 800;
@@ -31,7 +31,7 @@ constexpr float ROT_SPEED = 1.0;
 
 // Physics Engine
 constexpr float SIM_SPEED = 4.0;          // How large each update should be
-constexpr float TIMESTEP = 1.0 / 60;      // Do 60 physics updates per second
+constexpr float TIMESTEP = 1.0 / 90;      // Do 90 physics updates per second
 constexpr float MASS = 1.0;               // Mass spring system
 constexpr float SPRING_CONSTANT = 5.0;    // Mass spring system
 constexpr float DAMPENING_CONSTANT = 1.0; // Mass spring system

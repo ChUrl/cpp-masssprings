@@ -23,6 +23,9 @@
 //       - Click states to display them in the board
 //       - Find shortest path to any winning state and mark it in the graph
 //         - Also mark the next move along the path on the board
+// TODO: Smooth camera (on target change)
+// TODO: Mark the starting state
+// TODO: Mark the visited states
 
 auto main(int argc, char *argv[]) -> int {
   // if (argc < 2) {
@@ -52,10 +55,10 @@ auto main(int argc, char *argv[]) -> int {
       std::chrono::duration<double, std::milli>(0);
   std::chrono::duration<double, std::milli> render_time_accumulator =
       std::chrono::duration<double, std::milli>(0);
-  int loop_count = 0;
+  long loop_count = 0;
 #endif
-  float timestep_accumulator = 0.0;
-  int update_accumulator = 0;
+  double timestep_accumulator = 0.0;
+  long update_accumulator = 0;
   while (!WindowShouldClose()) {
     timestep_accumulator += GetFrameTime();
 
@@ -123,8 +126,9 @@ auto main(int argc, char *argv[]) -> int {
                 << render_time_accumulator / loop_count << "." << std::endl;
       std::cout << " - Physics updates avg: "
                 << static_cast<float>(update_accumulator) / loop_count
-                << "x per frame (" << timestep_accumulator << "s remaining)."
-                << std::endl;
+                << "x per frame ("
+                << static_cast<int>(timestep_accumulator / TIMESTEP)
+                << "x behind)." << std::endl;
       last_print_time = GetTime();
       physics_time_accumulator = std::chrono::duration<double, std::milli>(0);
       render_time_accumulator = std::chrono::duration<double, std::milli>(0);

@@ -1,7 +1,19 @@
 #include "octree.hpp"
 #include "config.hpp"
+#include "util.hpp"
 
+#include <iostream>
 #include <raymath.h>
+
+auto OctreeNode::ChildCount() const -> int {
+  int child_count = 0;
+  for (int child : children) {
+    if (child != -1) {
+      ++child_count;
+    }
+  }
+  return child_count;
+}
 
 auto Octree::CreateNode(const Vector3 &box_min, const Vector3 &box_max) -> int {
   OctreeNode node;
@@ -43,8 +55,8 @@ auto Octree::GetChildBounds(int node_idx, int octant)
                            (node.box_min.y + node.box_max.y) / 2.0,
                            (node.box_min.z + node.box_max.z) / 2.0);
 
-  Vector3 min;
-  Vector3 max;
+  Vector3 min = Vector3Zero();
+  Vector3 max = Vector3Zero();
 
   // If (octant & 1), the octant is to the right of the node region's x-axis
   // (see GetOctant). This means the left bound is the x-axis and the right
@@ -61,31 +73,34 @@ auto Octree::GetChildBounds(int node_idx, int octant)
 
 auto Octree::Insert(int node_idx, int mass_id, const Vector3 &pos, float mass)
     -> void {
-  OctreeNode &node = nodes[node_idx];
+  // NOTE: Do not store a nodes[node_idx] reference beforehand as the nodes
+  //       vector might reallocate during this function
 
-  if (node.leaf && node.mass_id == -1) {
+  if (nodes[node_idx].leaf && nodes[node_idx].mass_id == -1) {
     // We can place the particle in the empty leaf
-    node.mass_id = mass_id;
-    node.mass_center = pos;
-    node.mass_total = mass;
+    nodes[node_idx].mass_id = mass_id;
+    nodes[node_idx].mass_center = pos;
+    nodes[node_idx].mass_total = mass;
     return;
   }
 
-  if (node.leaf) {
+  if (nodes[node_idx].leaf) {
     // The leaf is occupied, we need to subdivide
-    int existing_id = node.mass_id;
-    Vector3 existing_pos = node.mass_center;
-    float existing_mass = node.mass_total;
-    node.mass_id = -1;
-    node.leaf = false;
+    int existing_id = nodes[node_idx].mass_id;
+    Vector3 existing_pos = nodes[node_idx].mass_center;
+    float existing_mass = nodes[node_idx].mass_total;
+    nodes[node_idx].mass_id = -1;
+    nodes[node_idx].leaf = false;
+    nodes[node_idx].mass_total = 0.0;
 
-    // Re-add the existing mass into a new empty leaf (see above)
+    // Re-insert the existing mass into a new empty leaf (see above)
     int oct = GetOctant(node_idx, existing_pos);
-    if (node.children[oct] == -1) {
+    if (nodes[node_idx].children[oct] == -1) {
       auto [min, max] = GetChildBounds(node_idx, oct);
-      node.children[oct] = CreateNode(min, max);
+      nodes[node_idx].children[oct] = CreateNode(min, max);
     }
-    Insert(node.children[oct], existing_id, existing_pos, existing_mass);
+    Insert(nodes[node_idx].children[oct], existing_id, existing_pos,
+           existing_mass);
   }
 
   // Insert the new mass
@@ -97,23 +112,25 @@ auto Octree::Insert(int node_idx, int mass_id, const Vector3 &pos, float mass)
   Insert(nodes[node_idx].children[oct], mass_id, pos, mass);
 
   // Update the center of mass
-  node = nodes[node_idx];
-  float new_mass = node.mass_total + mass;
-  node.mass_center.x =
-      (node.mass_center.x * node.mass_total + pos.x) / new_mass;
-  node.mass_center.y =
-      (node.mass_center.y * node.mass_total + pos.y) / new_mass;
-  node.mass_center.z =
-      (node.mass_center.z * node.mass_total + pos.z) / new_mass;
-  node.mass_total = new_mass;
+  float new_mass = nodes[node_idx].mass_total + mass;
+  nodes[node_idx].mass_center.x =
+      (nodes[node_idx].mass_center.x * nodes[node_idx].mass_total + pos.x) /
+      new_mass;
+  nodes[node_idx].mass_center.y =
+      (nodes[node_idx].mass_center.y * nodes[node_idx].mass_total + pos.y) /
+      new_mass;
+  nodes[node_idx].mass_center.z =
+      (nodes[node_idx].mass_center.z * nodes[node_idx].mass_total + pos.z) /
+      new_mass;
+  nodes[node_idx].mass_total = new_mass;
 }
 
-auto Octree::CalculateForce(int node_idx, const Vector3 &pos) -> Vector3 {
+auto Octree::CalculateForce(int node_idx, const Vector3 &pos) const -> Vector3 {
   if (node_idx < 0) {
     return Vector3Zero();
   }
 
-  OctreeNode &node = nodes[node_idx];
+  const OctreeNode &node = nodes[node_idx];
   if (node.mass_total == 0.0f) {
     return Vector3Zero();
   }
@@ -145,4 +162,12 @@ auto Octree::CalculateForce(int node_idx, const Vector3 &pos) -> Vector3 {
   }
 
   return force;
+}
+
+auto Octree::Print() const -> void {
+  std::cout << "Octree Start ===========================" << std::endl;
+  for (const auto &node : nodes) {
+    std::cout << "Center: " << node.mass_center << ", Mass: " << node.mass_total
+              << ", Direct Children: " << node.ChildCount() << std::endl;
+  }
 }

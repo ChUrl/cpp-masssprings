@@ -20,7 +20,8 @@ public:
       : mass_center(Vector3Zero()), mass_total(0.0),
         children(-1, -1, -1, -1, -1, -1, -1, -1), mass_id(-1), leaf(true) {}
 
-  ~OctreeNode() {}
+public:
+  auto ChildCount() const -> int;
 };
 
 class Octree {
@@ -35,8 +36,6 @@ public:
   Octree(Octree &&move) = delete;
   Octree &operator=(Octree &&move) = delete;
 
-  ~Octree() {}
-
 public:
   auto CreateNode(const Vector3 &box_min, const Vector3 &box_max) -> int;
 
@@ -47,7 +46,9 @@ public:
   auto Insert(int node_idx, int mass_id, const Vector3 &pos, float mass)
       -> void;
 
-  auto CalculateForce(int node_idx, const Vector3 &pos) -> Vector3;
+  auto CalculateForce(int node_idx, const Vector3 &pos) const -> Vector3;
+
+  auto Print() const -> void;
 };
 
 #endif

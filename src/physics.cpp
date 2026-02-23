@@ -1,5 +1,6 @@
 #include "physics.hpp"
 #include "config.hpp"
+#include "util.hpp"
 
 #include <algorithm>
 #include <cfloat>
@@ -249,15 +250,9 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
     solve_octree(i);
   }
 #else
-  threads.detach_blocks(
-      0, mass_pointers.size(),
-      [&](int start, int end) {
-        for (int i = start; i < end; ++i) {
-          solve_octree(i);
-        }
-      },
-      256);
-  threads.wait();
+  BS::multi_future<void> loop_future =
+      threads.submit_loop(0, mass_pointers.size(), solve_octree, 256);
+  loop_future.wait();
 #endif
 
 #else
@@ -333,15 +328,9 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
     calculate_grid(i);
   }
 #else
-  threads.detach_blocks(
-      0, mass_pointers.size(),
-      [&](int start, int end) {
-        for (int i = start; i < end; ++i) {
-          solve_grid(i);
-        }
-      },
-      512);
-  threads.wait();
+  BS::multi_future<void> loop_future =
+      threads.submit_loop(0, mass_pointers.size(), solve_grid, 512);
+  loop_future.wait();
 #endif
 
 #endif

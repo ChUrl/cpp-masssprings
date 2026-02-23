@@ -106,8 +106,6 @@ public:
   MassSpringSystem(MassSpringSystem &move) = delete;
   MassSpringSystem &operator=(MassSpringSystem &&move) = delete;
 
-  ~MassSpringSystem() {};
-
 private:
 #ifdef BARNES_HUT
   auto BuildOctree() -> void;

@@ -16,8 +16,8 @@ auto StateManager::ResetState() -> void {
   current_state = generators[current_preset]();
   previous_state = current_state;
   if (edited) {
-    // We also need to clear the graph, in case the state has been edited.
-    // Then the graph would contain states that are impossible to reach.
+    // We also need to clear the graph in case the state has been edited
+    // because the graph could contain states that are impossible to reach now.
     ClearGraph();
     edited = false;
   }
