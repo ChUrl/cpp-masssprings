@@ -1,4 +1,5 @@
 #include "puzzle.hpp"
+#include "tracy.hpp"
 
 auto Block::Hash() const -> int {
   std::string s = std::format("{},{},{},{}", x, y, width, height);
@@ -144,12 +145,11 @@ auto State::ToggleTarget(int x, int y) -> bool {
 
   // Remove the current target
   int index;
-  for (const auto &block : *this) {
-    if (block.target) {
-      index = GetIndex(block.x, block.y);
-      state.replace(
-          index, 2,
-          Block(block.x, block.y, block.width, block.height, false).ToString());
+  for (const auto &b : *this) {
+    if (b.target) {
+      index = GetIndex(b.x, b.y);
+      state.replace(index, 2,
+                    Block(b.x, b.y, b.width, b.height, false).ToString());
       break;
     }
   }

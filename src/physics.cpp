@@ -1,9 +1,10 @@
 #include "physics.hpp"
 #include "config.hpp"
-#include "util.hpp"
+#include "tracy.hpp"
 
 #include <algorithm>
 #include <cfloat>
+#include <cstddef>
 #include <raylib.h>
 #include <raymath.h>
 #include <tracy/Tracy.hpp>
@@ -62,23 +63,19 @@ auto Mass::VerletUpdate(const float delta_time) -> void {
 }
 
 auto Spring::CalculateSpringForce() const -> void {
-  Vector3 delta_position;
-  float current_length;
-  Vector3 delta_velocity;
-  Vector3 force_a;
-  Vector3 force_b;
-
-  delta_position = Vector3Subtract(massA.position, massB.position);
-  current_length = Vector3Length(delta_position);
-  delta_velocity = Vector3Subtract(massA.velocity, massB.velocity);
+  Vector3 delta_position = Vector3Subtract(massA.position, massB.position);
+  float current_length = Vector3Length(delta_position);
+  float inv_current_length = 1.0 / current_length;
+  Vector3 delta_velocity = Vector3Subtract(massA.velocity, massB.velocity);
 
   float hooke = spring_constant * (current_length - rest_length);
   float dampening = dampening_constant *
-                    Vector3DotProduct(delta_velocity, delta_position) /
-                    current_length;
+                    Vector3DotProduct(delta_velocity, delta_position) *
+                    inv_current_length;
 
-  force_a = Vector3Scale(delta_position, -(hooke + dampening) / current_length);
-  force_b = Vector3Scale(force_a, -1.0);
+  Vector3 force_a =
+      Vector3Scale(delta_position, -(hooke + dampening) * inv_current_length);
+  Vector3 force_b = Vector3Scale(force_a, -1.0);
 
   massA.force = Vector3Add(massA.force, force_a);
   massB.force = Vector3Add(massB.force, force_b);
@@ -133,6 +130,8 @@ auto MassSpringSystem::Clear() -> void {
 }
 
 auto MassSpringSystem::ClearForces() -> void {
+  ZoneScoped;
+
   for (auto &[state, mass] : masses) {
     mass.ClearForce();
   }
@@ -144,6 +143,20 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
   for (auto &[states, spring] : springs) {
     spring.CalculateSpringForce();
   }
+
+  // spring_pointers.clear();
+  // spring_pointers.reserve(springs.size());
+  // for (auto &[states, spring] : springs) {
+  //   spring_pointers.push_back(&spring);
+  // }
+  //
+  // auto solve_spring = [&](int i) {
+  //   spring_pointers[i]->CalculateSpringForce();
+  // };
+  //
+  // BS::multi_future<void> loop_future =
+  //     threads.submit_loop(0, spring_pointers.size(), solve_spring, 4096);
+  // loop_future.wait();
 }
 
 #ifdef BARNES_HUT
@@ -184,7 +197,7 @@ auto MassSpringSystem::BuildOctree() -> void {
   for (auto &[state, mass] : masses) {
     mass_pointers.push_back(&mass);
   }
-  for (int i = 0; i < mass_pointers.size(); ++i) {
+  for (std::size_t i = 0; i < mass_pointers.size(); ++i) {
     octree.Insert(root, i, mass_pointers[i]->position, mass_pointers[i]->mass);
   }
 }
@@ -307,7 +320,7 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
             Vector3 direction =
                 Vector3Subtract(mass->position, neighbor->position);
             float distance = Vector3Length(direction);
-            if (distance == 0.0f || distance >= REPULSION_RANGE) {
+            if (std::abs(distance) <= 0.001f || distance >= REPULSION_RANGE) {
               continue;
             }
 

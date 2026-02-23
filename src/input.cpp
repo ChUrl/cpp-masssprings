@@ -1,8 +1,9 @@
+#include "input.hpp"
+#include "config.hpp"
+#include "tracy.hpp"
+
 #include <algorithm>
 #include <raylib.h>
-
-#include "config.hpp"
-#include "input.hpp"
 
 auto InputHandler::HandleMouseHover() -> void {
   const int board_width = GetScreenWidth() / 2.0 - 2 * BOARD_PADDING;

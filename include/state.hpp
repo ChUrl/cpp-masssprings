@@ -13,6 +13,7 @@ public:
   MassSpringSystem &mass_springs;
 
   int current_preset;
+  State starting_state;
   State current_state;
   State previous_state;
 
@@ -22,10 +23,11 @@ public:
   std::unordered_set<State> visited_states;
 
 public:
-  StateManager(MassSpringSystem &mass_springs)
-      : mass_springs(mass_springs), current_preset(0),
-        current_state(generators[current_preset]()),
-        previous_state(current_state), edited(false) {
+  StateManager(MassSpringSystem &_mass_springs)
+      : mass_springs(_mass_springs), current_preset(0),
+        starting_state(generators[current_preset]()),
+        current_state(starting_state), previous_state(starting_state),
+        edited(false) {
     mass_springs.AddMass(MASS, false, current_state);
   }
 

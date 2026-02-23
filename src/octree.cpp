@@ -1,5 +1,6 @@
 #include "octree.hpp"
 #include "config.hpp"
+#include "tracy.hpp"
 #include "util.hpp"
 
 #include <iostream>
@@ -131,7 +132,7 @@ auto Octree::CalculateForce(int node_idx, const Vector3 &pos) const -> Vector3 {
   }
 
   const OctreeNode &node = nodes[node_idx];
-  if (node.mass_total == 0.0f) {
+  if (std::abs(node.mass_total) <= 0.001f) {
     return Vector3Zero();
   }
 

@@ -1,12 +1,15 @@
-#include <iostream>
-#include <raylib.h>
-#include <raymath.h>
-
 #include "config.hpp"
 #include "input.hpp"
 #include "physics.hpp"
 #include "renderer.hpp"
 #include "state.hpp"
+#include "tracy.hpp"
+
+#include <iostream>
+#include <raylib.h>
+#include <raymath.h>
+#include <tracy/Tracy.hpp>
+// #include <tracy/TracyOpenGL.hpp>
 
 #ifdef PRINT_TIMINGS
 #include <chrono>
@@ -37,6 +40,8 @@ auto main(int argc, char *argv[]) -> int {
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
   InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + MENU_HEIGHT, "MassSprings");
+
+  // TracyGpuContext;
 
   // Game setup
   OrbitCamera3D camera;
@@ -101,7 +106,7 @@ auto main(int argc, char *argv[]) -> int {
 
     renderer.UpdateTextureSizes();
     renderer.DrawMassSprings(mass_springs, state.current_state,
-                             state.CurrentGenerator()(), state.winning_states,
+                             state.starting_state, state.winning_states,
                              state.visited_states);
 
     renderer.DrawKlotski(state.current_state, input.hov_x, input.hov_y,

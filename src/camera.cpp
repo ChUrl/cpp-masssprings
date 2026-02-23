@@ -1,5 +1,6 @@
 #include "camera.hpp"
 #include "config.hpp"
+#include "tracy.hpp"
 
 #include <raylib.h>
 #include <raymath.h>

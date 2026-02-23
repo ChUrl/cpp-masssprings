@@ -19,7 +19,7 @@ private:
 
   // Instancing
   Material vertex_mat;
-  int transforms_size;
+  std::size_t transforms_size;
   Matrix *transforms;
   Mesh cube_instance;
   Shader instancing_shader;
@@ -29,9 +29,9 @@ public:
   bool connect_solutions;
 
 public:
-  Renderer(const OrbitCamera3D &camera)
-      : camera(camera), mark_solutions(false), connect_solutions(false),
-        transforms_size(0), transforms(nullptr) {
+  Renderer(const OrbitCamera3D &_camera)
+      : camera(_camera), transforms_size(0), transforms(nullptr),
+        mark_solutions(false), connect_solutions(false) {
     render_target = LoadRenderTexture(GetScreenWidth() / 2.0,
                                       GetScreenHeight() - MENU_HEIGHT);
     klotski_target = LoadRenderTexture(GetScreenWidth() / 2.0,

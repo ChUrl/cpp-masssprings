@@ -27,9 +27,9 @@ public:
   const bool fixed;
 
 public:
-  Mass(float mass, Vector3 position, bool fixed)
-      : mass(mass), position(position), previous_position(position),
-        velocity(Vector3Zero()), force(Vector3Zero()), fixed(fixed) {}
+  Mass(float _mass, Vector3 _position, bool _fixed)
+      : mass(_mass), position(_position), previous_position(_position),
+        velocity(Vector3Zero()), force(Vector3Zero()), fixed(_fixed) {}
 
 public:
   auto ClearForce() -> void;
@@ -50,10 +50,10 @@ public:
   const float rest_length;
 
 public:
-  Spring(Mass &massA, Mass &massB, float spring_constant,
-         float dampening_constant, float rest_length)
-      : massA(massA), massB(massB), spring_constant(spring_constant),
-        dampening_constant(dampening_constant), rest_length(rest_length) {}
+  Spring(Mass &_massA, Mass &_massB, float _spring_constant,
+         float _dampening_constant, float _rest_length)
+      : massA(_massA), massB(_massB), spring_constant(_spring_constant),
+        dampening_constant(_dampening_constant), rest_length(_rest_length) {}
 
 public:
   auto CalculateSpringForce() const -> void;

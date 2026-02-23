@@ -26,7 +26,8 @@ private:
 
 public:
   OrbitCamera3D()
-      : camera({0}), position(Vector3Zero()), target(Vector3Zero()),
+      : camera(Camera(Vector3Zero(), Vector3Zero(), Vector3Zero(), 0.0, 0)),
+        position(Vector3Zero()), target(Vector3Zero()),
         distance(CAMERA_DISTANCE), angle_x(0.0), angle_y(0.0),
         last_mouse(Vector2Zero()), rotating(false), panning(false),
         target_lock(true) {

@@ -26,76 +26,76 @@ rec {
         # ===========================================================================================
 
         # 64 bit C/C++ compilers that don't collide (use the same libc)
-        bintools = pkgs.wrapBintoolsWith {
-          bintools = pkgs.bintools.bintools; # Unwrapped bintools
-          libc = pkgs.glibc;
-        };
-        gcc = lib.hiPrio (pkgs.wrapCCWith {
-          cc = pkgs.gcc.cc; # Unwrapped gcc
-          libc = pkgs.glibc;
-          bintools = bintools;
-        });
-        clang = pkgs.wrapCCWith {
-          cc = pkgs.clang.cc; # Unwrapped clang
-          libc = pkgs.glibc;
-          bintools = bintools;
-        };
+        # bintools = pkgs.wrapBintoolsWith {
+        #   bintools = pkgs.bintools.bintools; # Unwrapped bintools
+        #   libc = pkgs.glibc;
+        # };
+        # gcc = lib.hiPrio (pkgs.wrapCCWith {
+        #   cc = pkgs.gcc.cc; # Unwrapped gcc
+        #   libc = pkgs.glibc;
+        #   bintools = bintools;
+        # });
+        # clang = pkgs.wrapCCWith {
+        #   cc = pkgs.clang.cc; # Unwrapped clang
+        #   libc = pkgs.glibc;
+        #   bintools = bintools;
+        # };
 
         # Raylib CPP wrapper
-        raylib-cpp = stdenv.mkDerivation {
-          pname = "raylib-cpp";
-          version = "5.5.0-unstable-2025-11-12";
+        # raylib-cpp = stdenv.mkDerivation {
+        #   pname = "raylib-cpp";
+        #   version = "5.5.0-unstable-2025-11-12";
+        #
+        #   src = pkgs.fetchFromGitHub {
+        #     owner = "RobLoach";
+        #     repo = "raylib-cpp";
+        #     rev = "21b0d0f57a09a7f741d20b7157f440ae87f02c76";
+        #     hash = "sha256-P9x6Zc5t648gR7oYXe38PEX/a4oh4PfuVCnjT0vC10k=";
+        #   };
+        #
+        #   # autoPatchelfHook is needed for appendRunpaths
+        #   nativeBuildInputs = with pkgs; [
+        #     cmake
+        #     # autoPatchelfHook
+        #   ];
+        #
+        #   buildInputs = with pkgs; [
+        #     raylib
+        #     glfw
+        #     SDL2
+        #   ];
+        #
+        #   propagatedBuildInputs = with pkgs; [
+        #     libGLU
+        #     libx11
+        #   ];
+        #
+        #   cmakeFlags = [
+        #     "-DBUILD_RAYLIB_CPP_EXAMPLES=OFF"
+        #     "-DBUILD_TESTING=OFF"
+        #     # Point CMake to the nixpkgs raylib so it doesn't try to fetch its own
+        #     "-Draylib_DIR=${pkgs.raylib}/lib/cmake/raylib"
+        #   ];
+        # };
 
-          src = pkgs.fetchFromGitHub {
-            owner = "RobLoach";
-            repo = "raylib-cpp";
-            rev = "21b0d0f57a09a7f741d20b7157f440ae87f02c76";
-            hash = "sha256-P9x6Zc5t648gR7oYXe38PEX/a4oh4PfuVCnjT0vC10k=";
-          };
-
-          # autoPatchelfHook is needed for appendRunpaths
-          nativeBuildInputs = with pkgs; [
-            cmake
-            # autoPatchelfHook
-          ];
-
-          buildInputs = with pkgs; [
-            raylib
-            glfw
-            SDL2
-          ];
-
-          propagatedBuildInputs = with pkgs; [
-            libGLU
-            libx11
-          ];
-
-          cmakeFlags = [
-            "-DBUILD_RAYLIB_CPP_EXAMPLES=OFF"
-            "-DBUILD_TESTING=OFF"
-            # Point CMake to the nixpkgs raylib so it doesn't try to fetch its own
-            "-Draylib_DIR=${pkgs.raylib}/lib/cmake/raylib"
-          ];
-        };
-
-        octree = stdenv.mkDerivation {
-          pname = "octree";
-          version = "2.5-unstable-2025-12-18";
-
-          src = pkgs.fetchFromGitHub {
-            owner = "attcs";
-            repo = "octree";
-            rev = "5058b3090c8b88e405fe2bfddd6c1c872f2b79d2";
-            hash = "sha256-a/aDGQ7cj1GbCjts2s9VEaxyFnL6PF+xJOsSxm9o+4M=";
-          };
-
-          # Header-only library
-          dontBuild = true;
-          installPhase = ''
-            mkdir -p $out/include
-            mv ./*.h $out/include/
-          '';
-        };
+        # octree = stdenv.mkDerivation {
+        #   pname = "octree";
+        #   version = "2.5-unstable-2025-12-18";
+        #
+        #   src = pkgs.fetchFromGitHub {
+        #     owner = "attcs";
+        #     repo = "octree";
+        #     rev = "5058b3090c8b88e405fe2bfddd6c1c872f2b79d2";
+        #     hash = "sha256-a/aDGQ7cj1GbCjts2s9VEaxyFnL6PF+xJOsSxm9o+4M=";
+        #   };
+        #
+        #   # Header-only library
+        #   dontBuild = true;
+        #   installPhase = ''
+        #     mkdir -p $out/include
+        #     mv ./*.h $out/include/
+        #   '';
+        # };
 
         thread-pool = stdenv.mkDerivation {
           pname = "thread-pool";
@@ -130,10 +130,6 @@ rec {
           # Languages:
           # bintools
           gcc
-          # clang
-          # bintools_multilib
-          # gcc_multilib
-          # clang_multilib
 
           # C/C++:
           gdb
@@ -161,9 +157,9 @@ rec {
           # sfml
           raylib
           # octree # this one doesn't store center of mass per node - which I need :(
-          llvmPackages.openmp # not required for compilation but for clangd to find the headers
-          tracy
+          tracy-wayland
           thread-pool
+          # llvmPackages.openmp # not required for compilation but for clangd to find the headers
           # raylib-cpp
           # tinyobjloader
           # gperftools
@@ -235,8 +231,8 @@ rec {
                 pkgs.writers.writeFish "cmake-${typeLower}.fish" ''
                   cd $FLAKE_PROJECT_ROOT
 
-                  # set -g -x CC ${clang}/bin/clang
-                  # set -g -x CXX ${clang}/bin/clang++
+                  # set -g -x CC ${pkgs.clang}/bin/clang
+                  # set -g -x CXX ${pkgs.clang}/bin/clang++
 
                   echo "Removing build directory ./cmake-build-${typeLower}/"
                   rm -rf ./cmake-build-${typeLower}
@@ -266,7 +262,7 @@ rec {
                   cd $FLAKE_PROJECT_ROOT/cmake-build-${typeLower}
 
                   echo "Running cmake"
-                  cmake --build . -j$(nproc)
+                  NIX_ENFORCE_NO_NATIVE=0 cmake --build . -j$(nproc)
                 '';
 
               buildDebug = mkBuildScript "Debug";
@@ -286,6 +282,8 @@ rec {
                 abbr -a build-release "${buildRelease}"
                 abbr -a debug "${buildDebug} && ./cmake-build-debug/masssprings"
                 abbr -a release "${buildRelease} && ./cmake-build-release/masssprings"
+                abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"
+                abbr -a runtracy "tracy -a 127.0.0.1"
               '';
             in
               builtins.concatStringsSep "\n" [

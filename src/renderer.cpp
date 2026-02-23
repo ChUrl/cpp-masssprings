@@ -1,4 +1,8 @@
 #include "renderer.hpp"
+#include "config.hpp"
+#include "physics.hpp"
+#include "puzzle.hpp"
+#include "tracy.hpp"
 
 #include <algorithm>
 #include <format>
@@ -7,10 +11,6 @@
 #include <rlgl.h>
 #include <tracy/Tracy.hpp>
 #include <unordered_set>
-
-#include "config.hpp"
-#include "physics.hpp"
-#include "puzzle.hpp"
 
 #ifdef BATCHING
 #include <cstring>
@@ -314,4 +314,5 @@ auto Renderer::DrawTextures() -> void {
                  Vector2(GetScreenWidth() / 2.0, MENU_HEIGHT), WHITE);
   DrawFPS(GetScreenWidth() / 2 + 10, MENU_HEIGHT + 10);
   EndDrawing();
+  FrameMark;
 }

@@ -31,15 +31,15 @@ public:
   bool target;
 
 public:
-  Block(int x, int y, int width, int height, bool target)
-      : x(x), y(y), width(width), height(height), target(target) {
-    if (x < 0 || x + width >= 10 || y < 0 || y + height >= 10) {
+  Block(int _x, int _y, int _width, int _height, bool _target)
+      : x(_x), y(_y), width(_width), height(_height), target(_target) {
+    if (_x < 0 || _x + _width >= 10 || _y < 0 || _y + _height >= 10) {
       std::cerr << "Block must fit on a 9x9 board!" << std::endl;
       exit(1);
     }
   }
 
-  Block(int x, int y, std::string block) : x(x), y(y) {
+  Block(int _x, int _y, std::string block) : x(_x), y(_y) {
     if (block == "..") {
       this->x = 0;
       this->y = 0;
@@ -68,7 +68,7 @@ public:
       height = std::stoi(block.substr(1, 1));
     }
 
-    if (x < 0 || x + width >= 10 || y < 0 || y + height >= 10) {
+    if (_x < 0 || _x + width >= 10 || _y < 0 || _y + height >= 10) {
       std::cerr << "Block must fit on a 9x9 board!" << std::endl;
       exit(1);
     }
@@ -125,10 +125,10 @@ public:
     int current_pos;
 
   public:
-    BlockIterator(const State &state) : state(state), current_pos(0) {}
+    BlockIterator(const State &_state) : state(_state), current_pos(0) {}
 
-    BlockIterator(const State &state, int current_pos)
-        : state(state), current_pos(current_pos) {}
+    BlockIterator(const State &_state, int _current_pos)
+        : state(_state), current_pos(_current_pos) {}
 
     Block operator*() const {
       return Block(current_pos % state.width, current_pos / state.width,
@@ -150,25 +150,25 @@ public:
   };
 
 public:
-  State(int width, int height, bool restricted)
-      : width(width), height(height), restricted(restricted),
-        state(std::format("{}{}x{}:{}", restricted ? "R" : "F", width, height,
-                          std::string(width * height * 2, '.'))) {
-    if (width <= 0 || width >= 10 || height <= 0 || height >= 10) {
+  State(int _width, int _height, bool _restricted)
+      : width(_width), height(_height), restricted(_restricted),
+        state(std::format("{}{}x{}:{}", _restricted ? "R" : "F", _width,
+                          _height, std::string(_width * _height * 2, '.'))) {
+    if (_width <= 0 || _width >= 10 || _height <= 0 || _height >= 10) {
       std::cerr << "State width/height must be in [1, 9]!" << std::endl;
       exit(1);
     }
   }
 
-  explicit State(std::string state)
-      : width(std::stoi(state.substr(1, 1))),
-        height(std::stoi(state.substr(3, 1))),
-        restricted(state.substr(0, 1) == "R"), state(state) {
+  explicit State(std::string _state)
+      : width(std::stoi(_state.substr(1, 1))),
+        height(std::stoi(_state.substr(3, 1))),
+        restricted(_state.substr(0, 1) == "R"), state(_state) {
     if (width <= 0 || width >= 10 || height <= 0 || height >= 10) {
       std::cerr << "State width/height must be in [1, 9]!" << std::endl;
       exit(1);
     }
-    if (state.length() != width * height * 2 + 5) {
+    if (static_cast<int>(_state.length()) != width * height * 2 + 5) {
       std::cerr
           << "State representation must have length [width * height * 2 + 5]!"
           << std::endl;

@@ -1,6 +1,7 @@
 #include "state.hpp"
 #include "config.hpp"
 #include "presets.hpp"
+#include "tracy.hpp"
 
 #include <raymath.h>
 
@@ -76,6 +77,9 @@ auto StateManager::ClearGraph() -> void {
 
   // The previous_state is no longer in the graph
   previous_state = current_state;
+
+  // The starting state is no longer in the graph
+  starting_state = current_state;
 }
 
 auto StateManager::FindWinningStates() -> void {
