@@ -3,7 +3,6 @@
 
 #include <raylib.h>
 
-#define PRINT_TIMINGS
 #define BARNES_HUT // Use octree BH instead of uniform grid
 // #define WEB        // Disables multithreading
 
