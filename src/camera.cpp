@@ -1,8 +1,6 @@
 #include "camera.hpp"
 #include "config.hpp"
-#include "util.hpp"
 
-#include <iostream>
 #include <raylib.h>
 #include <raymath.h>
 
@@ -78,11 +76,10 @@ auto OrbitCamera3D::Update(const Vector3 &current_target) -> void {
   }
 
   if (target_lock) {
-    target_target = current_target;
     target = Vector3MoveTowards(
-        target, target_target,
+        target, current_target,
         CAMERA_SMOOTH_SPEED * GetFrameTime() *
-            Vector3Length(Vector3Subtract(target, target_target)));
+            Vector3Length(Vector3Subtract(target, current_target)));
   }
 
   distance = Clamp(distance, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);

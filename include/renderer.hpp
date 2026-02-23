@@ -71,8 +71,9 @@ public:
   auto UpdateTextureSizes() -> void;
 
   auto DrawMassSprings(const MassSpringSystem &mass_springs,
-                       const State &current_state,
-                       const std::unordered_set<State> &winning_states) -> void;
+                       const State &current_state, const State &starting_state,
+                       const std::unordered_set<State> &winning_states,
+                       const std::unordered_set<State> &visited_states) -> void;
 
   auto DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
                    int sel_y, int block_add_x, int block_add_y,

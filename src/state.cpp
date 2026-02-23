@@ -64,11 +64,13 @@ auto StateManager::UpdateGraph() -> void {
     if (win_conditions[current_preset](current_state)) {
       winning_states.insert(current_state);
     }
+    visited_states.insert(current_state);
   }
 }
 
 auto StateManager::ClearGraph() -> void {
   winning_states.clear();
+  visited_states.clear();
   mass_springs.Clear();
   mass_springs.AddMass(MASS, false, current_state);
 
@@ -86,6 +88,10 @@ auto StateManager::FindWinningStates() -> void {
 
   std::cout << "Found " << winning_states.size() << " winning states."
             << std::endl;
+}
+
+auto StateManager::CurrentGenerator() -> StateGenerator {
+  return generators[current_preset];
 }
 
 auto StateManager::CurrentWinCondition() -> WinCondition {

@@ -23,8 +23,6 @@
 //       - Click states to display them in the board
 //       - Find shortest path to any winning state and mark it in the graph
 //         - Also mark the next move along the path on the board
-// TODO: Mark the starting state
-// TODO: Mark the visited states
 
 auto main(int argc, char *argv[]) -> int {
   // if (argc < 2) {
@@ -103,7 +101,8 @@ auto main(int argc, char *argv[]) -> int {
 
     renderer.UpdateTextureSizes();
     renderer.DrawMassSprings(mass_springs, state.current_state,
-                             state.winning_states);
+                             state.CurrentGenerator()(), state.winning_states,
+                             state.visited_states);
 
     renderer.DrawKlotski(state.current_state, input.hov_x, input.hov_y,
                          input.sel_x, input.sel_y, input.block_add_x,

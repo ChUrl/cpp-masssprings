@@ -63,7 +63,9 @@ auto Renderer::ReallocateGraphInstancingIfNecessary(
 
 auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
                                const State &current_state,
-                               const std::unordered_set<State> &winning_states)
+                               const State &starting_state,
+                               const std::unordered_set<State> &winning_states,
+                               const std::unordered_set<State> &visited_states)
     -> void {
   ZoneScoped;
 
@@ -123,6 +125,19 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
       }
     }
   }
+
+  // Mark visited states
+  for (const auto &state : visited_states) {
+    const Mass &visited_mass = mass_springs.GetMass(state);
+
+    DrawCube(visited_mass.position, VERTEX_SIZE * 1.5, VERTEX_SIZE * 1.5,
+             VERTEX_SIZE * 1.5, PURPLE);
+  }
+
+  // Mark starting state
+  const Mass &starting_mass = mass_springs.GetMass(starting_state);
+  DrawCube(starting_mass.position, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
+           VERTEX_SIZE * 2, ORANGE);
 
   // Mark current state
   const Mass &current_mass = mass_springs.GetMass(current_state);

@@ -19,6 +19,7 @@ public:
   bool edited = false;
 
   std::unordered_set<State> winning_states;
+  std::unordered_set<State> visited_states;
 
 public:
   StateManager(MassSpringSystem &mass_springs)
@@ -51,6 +52,8 @@ public:
   auto ClearGraph() -> void;
 
   auto FindWinningStates() -> void;
+
+  auto CurrentGenerator() -> StateGenerator;
 
   auto CurrentWinCondition() -> WinCondition;
 };
