@@ -19,23 +19,15 @@
 auto Mass::ClearForce() -> void { force = Vector3Zero(); }
 
 auto Mass::CalculateVelocity(const float delta_time) -> void {
-  if (fixed) {
-    return;
-  }
-
   Vector3 acceleration;
   Vector3 temp;
 
-  acceleration = Vector3Scale(force, 1.0 / mass);
+  acceleration = Vector3Scale(force, 1.0 / MASS);
   temp = Vector3Scale(acceleration, delta_time);
   velocity = Vector3Add(velocity, temp);
 }
 
 auto Mass::CalculatePosition(const float delta_time) -> void {
-  if (fixed) {
-    return;
-  }
-
   previous_position = position;
 
   Vector3 temp;
@@ -45,11 +37,7 @@ auto Mass::CalculatePosition(const float delta_time) -> void {
 }
 
 auto Mass::VerletUpdate(const float delta_time) -> void {
-  if (fixed) {
-    return;
-  }
-
-  Vector3 acceleration = Vector3Scale(force, 1.0 / mass);
+  Vector3 acceleration = Vector3Scale(force, 1.0 / MASS);
   Vector3 temp_position = position;
 
   Vector3 displacement = Vector3Subtract(position, previous_position);
@@ -62,14 +50,14 @@ auto Mass::VerletUpdate(const float delta_time) -> void {
   previous_position = temp_position;
 }
 
-auto Spring::CalculateSpringForce() const -> void {
-  Vector3 delta_position = Vector3Subtract(massA.position, massB.position);
+auto Spring::CalculateSpringForce(Mass &_mass_a, Mass &_mass_b) const -> void {
+  Vector3 delta_position = Vector3Subtract(_mass_a.position, _mass_b.position);
   float current_length = Vector3Length(delta_position);
   float inv_current_length = 1.0 / current_length;
-  Vector3 delta_velocity = Vector3Subtract(massA.velocity, massB.velocity);
+  Vector3 delta_velocity = Vector3Subtract(_mass_a.velocity, _mass_b.velocity);
 
-  float hooke = spring_constant * (current_length - rest_length);
-  float dampening = dampening_constant *
+  float hooke = SPRING_CONSTANT * (current_length - REST_LENGTH);
+  float dampening = DAMPENING_CONSTANT *
                     Vector3DotProduct(delta_velocity, delta_position) *
                     inv_current_length;
 
@@ -77,53 +65,59 @@ auto Spring::CalculateSpringForce() const -> void {
       Vector3Scale(delta_position, -(hooke + dampening) * inv_current_length);
   Vector3 force_b = Vector3Scale(force_a, -1.0);
 
-  massA.force = Vector3Add(massA.force, force_a);
-  massB.force = Vector3Add(massB.force, force_b);
+  _mass_a.force = Vector3Add(_mass_a.force, force_a);
+  _mass_b.force = Vector3Add(_mass_b.force, force_b);
 }
 
 auto MassSpringSystem::AddMass(float mass, bool fixed, const State &state)
     -> void {
-  if (!masses.contains(state)) {
-    masses.insert(
-        std::make_pair(state.state, Mass(mass, Vector3Zero(), fixed)));
+  if (!state_masses.contains(state)) {
+    masses.emplace_back(Vector3Zero());
+    std::size_t idx = masses.size() - 1;
+    state_masses.insert(std::make_pair(state, idx));
   }
 }
 
 auto MassSpringSystem::GetMass(const State &state) -> Mass & {
-  return masses.at(state);
+  return masses.at(state_masses.at(state));
 }
 
 auto MassSpringSystem::GetMass(const State &state) const -> const Mass & {
-  return masses.at(state);
+  return masses.at(state_masses.at(state));
 }
 
-auto MassSpringSystem::AddSpring(const State &massA, const State &massB,
+auto MassSpringSystem::AddSpring(const State &state_a, const State &state_b,
                                  float spring_constant,
                                  float dampening_constant, float rest_length)
     -> void {
-  std::pair<State, State> key = std::make_pair(massA, massB);
-  if (!springs.contains(key)) {
-    Mass &a = GetMass(massA);
-    Mass &b = GetMass(massB);
+  std::pair<State, State> key = std::make_pair(state_a, state_b);
+  if (!state_springs.contains(key)) {
+    int a = state_masses.at(state_a);
+    int b = state_masses.at(state_b);
+    const Mass &mass_a = masses.at(a);
+    Mass &mass_b = masses.at(b);
 
-    Vector3 position = a.position;
+    Vector3 position = mass_a.position;
     Vector3 offset = Vector3(static_cast<float>(GetRandomValue(-100, 100)),
                              static_cast<float>(GetRandomValue(-100, 100)),
                              static_cast<float>(GetRandomValue(-100, 100)));
     offset = Vector3Scale(Vector3Normalize(offset), REST_LENGTH);
 
-    if (b.position == Vector3Zero()) {
-      b.position = Vector3Add(position, offset);
+    if (mass_b.position == Vector3Zero()) {
+      mass_b.position = Vector3Add(position, offset);
     }
 
-    springs.insert(std::make_pair(
-        key, Spring(a, b, spring_constant, dampening_constant, rest_length)));
+    springs.emplace_back(a, b);
+    int idx = springs.size() - 1;
+    state_springs.insert(std::make_pair(key, idx));
   }
 }
 
 auto MassSpringSystem::Clear() -> void {
   masses.clear();
+  state_masses.clear();
   springs.clear();
+  state_springs.clear();
 #ifndef BARNES_HUT
   InvalidateGrid();
 #endif
@@ -132,7 +126,7 @@ auto MassSpringSystem::Clear() -> void {
 auto MassSpringSystem::ClearForces() -> void {
   ZoneScoped;
 
-  for (auto &[state, mass] : masses) {
+  for (auto &mass : masses) {
     mass.ClearForce();
   }
 }
@@ -140,23 +134,11 @@ auto MassSpringSystem::ClearForces() -> void {
 auto MassSpringSystem::CalculateSpringForces() -> void {
   ZoneScoped;
 
-  for (auto &[states, spring] : springs) {
-    spring.CalculateSpringForce();
+  for (const auto spring : springs) {
+    Mass &a = masses.at(spring.mass_a);
+    Mass &b = masses.at(spring.mass_b);
+    spring.CalculateSpringForce(a, b);
   }
-
-  // spring_pointers.clear();
-  // spring_pointers.reserve(springs.size());
-  // for (auto &[states, spring] : springs) {
-  //   spring_pointers.push_back(&spring);
-  // }
-  //
-  // auto solve_spring = [&](int i) {
-  //   spring_pointers[i]->CalculateSpringForce();
-  // };
-  //
-  // BS::multi_future<void> loop_future =
-  //     threads.submit_loop(0, spring_pointers.size(), solve_spring, 4096);
-  // loop_future.wait();
 }
 
 #ifdef BARNES_HUT
@@ -169,7 +151,7 @@ auto MassSpringSystem::BuildOctree() -> void {
   // Compute bounding box around all masses
   Vector3 min = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
   Vector3 max = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-  for (const auto &[state, mass] : masses) {
+  for (const auto &mass : masses) {
     min.x = std::min(min.x, mass.position.x);
     max.x = std::max(max.x, mass.position.x);
     min.y = std::min(min.y, mass.position.y);
@@ -190,15 +172,8 @@ auto MassSpringSystem::BuildOctree() -> void {
   // Root node spans the entire area
   int root = octree.CreateNode(min, max);
 
-  // Use a vector of pointers to the masses, because we can't parallelize the
-  // range-based for loop over the masses unordered_map using OpenMP.
-  mass_pointers.clear();
-  mass_pointers.reserve(masses.size());
-  for (auto &[state, mass] : masses) {
-    mass_pointers.push_back(&mass);
-  }
-  for (std::size_t i = 0; i < mass_pointers.size(); ++i) {
-    octree.Insert(root, i, mass_pointers[i]->position, mass_pointers[i]->mass);
+  for (std::size_t i = 0; i < masses.size(); ++i) {
+    octree.Insert(root, i, masses[i].position, MASS);
   }
 }
 
@@ -251,10 +226,8 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
   BuildOctree();
 
   auto solve_octree = [&](int i) {
-    int root = 0;
-    Vector3 force = octree.CalculateForce(root, mass_pointers[i]->position);
-
-    mass_pointers[i]->force = Vector3Add(mass_pointers[i]->force, force);
+    Vector3 force = octree.CalculateForce(0, masses[i].position);
+    masses[i].force = Vector3Add(masses[i].force, force);
   };
 
 // Calculate forces using Barnes-Hut
@@ -264,7 +237,7 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
   }
 #else
   BS::multi_future<void> loop_future =
-      threads.submit_loop(0, mass_pointers.size(), solve_octree, 256);
+      threads.submit_loop(0, masses.size(), solve_octree, 256);
   loop_future.wait();
 #endif
 
@@ -352,7 +325,7 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
 auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
   ZoneScoped;
 
-  for (auto &[state, mass] : masses) {
+  for (auto &mass : masses) {
     mass.VerletUpdate(delta_time);
   }
 }

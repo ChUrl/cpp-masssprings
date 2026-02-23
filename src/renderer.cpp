@@ -70,17 +70,20 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   ZoneScoped;
 
   // Prepare cube instancing
-  if (mass_springs.masses.size() < DRAW_VERTICES_LIMIT) {
-    if (transforms == nullptr) {
-      AllocateGraphInstancing(mass_springs);
-    }
-    ReallocateGraphInstancingIfNecessary(mass_springs);
+  {
+    ZoneNamedN(prepare_masses, "PrepareMasses", true);
+    if (mass_springs.masses.size() < DRAW_VERTICES_LIMIT) {
+      if (transforms == nullptr) {
+        AllocateGraphInstancing(mass_springs);
+      }
+      ReallocateGraphInstancingIfNecessary(mass_springs);
 
-    int i = 0;
-    for (const auto &[state, mass] : mass_springs.masses) {
-      transforms[i] =
-          MatrixTranslate(mass.position.x, mass.position.y, mass.position.z);
-      ++i;
+      int i = 0;
+      for (const auto &mass : mass_springs.masses) {
+        transforms[i] =
+            MatrixTranslate(mass.position.x, mass.position.y, mass.position.z);
+        ++i;
+      }
     }
   }
 
@@ -90,24 +93,31 @@ auto Renderer::DrawMassSprings(const MassSpringSystem &mass_springs,
   BeginMode3D(camera.camera);
 
   // Draw springs (batched)
-  rlBegin(RL_LINES);
-  for (const auto &[states, spring] : mass_springs.springs) {
-    rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
-    rlVertex3f(spring.massA.position.x, spring.massA.position.y,
-               spring.massA.position.z);
-    rlVertex3f(spring.massB.position.x, spring.massB.position.y,
-               spring.massB.position.z);
+  {
+    ZoneNamedN(draw_springs, "DrawSprings", true);
+    rlBegin(RL_LINES);
+    for (const auto &spring : mass_springs.springs) {
+      // We have to do a lookup of the actual mass object, which is slow :(
+      const Mass &a = mass_springs.masses.at(spring.mass_a);
+      const Mass &b = mass_springs.masses.at(spring.mass_b);
+      rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
+      rlVertex3f(a.position.x, a.position.y, a.position.z);
+      rlVertex3f(b.position.x, b.position.y, b.position.z);
+    }
+    rlEnd();
   }
-  rlEnd();
 
   // Draw masses (instanced)
-  if (mass_springs.masses.size() < DRAW_VERTICES_LIMIT) {
-    // NOTE: I don't know if drawing all this inside a shader would make it much
-    //       faster...
-    //       The amount of data sent to the GPU would be reduced (just positions
-    //       instead of matrices), but is this noticable for < 100000 cubes?
-    DrawMeshInstanced(cube_instance, vertex_mat, transforms,
-                      mass_springs.masses.size());
+  {
+    ZoneNamedN(draw_masses, "DrawMasses", true);
+    if (mass_springs.masses.size() < DRAW_VERTICES_LIMIT) {
+      // NOTE: I don't know if drawing all this inside a shader would make it
+      //       much faster... The amount of data sent to the GPU would be
+      //       reduced (just positions instead of matrices), but is this
+      //       noticable for < 100000 cubes?
+      DrawMeshInstanced(cube_instance, vertex_mat, transforms,
+                        mass_springs.masses.size());
+    }
   }
 
   // Mark winning states

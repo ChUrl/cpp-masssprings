@@ -84,7 +84,7 @@ auto StateManager::ClearGraph() -> void {
 
 auto StateManager::FindWinningStates() -> void {
   winning_states.clear();
-  for (const auto &[state, mass] : mass_springs.masses) {
+  for (const auto &[state, mass] : mass_springs.state_masses) {
     if (win_conditions[current_preset](state)) {
       winning_states.insert(state);
     }

@@ -19,17 +19,15 @@
 
 class Mass {
 public:
-  const float mass;
   Vector3 position;
   Vector3 previous_position; // for verlet integration
   Vector3 velocity;
   Vector3 force;
-  const bool fixed;
 
 public:
-  Mass(float _mass, Vector3 _position, bool _fixed)
-      : mass(_mass), position(_position), previous_position(_position),
-        velocity(Vector3Zero()), force(Vector3Zero()), fixed(_fixed) {}
+  Mass(Vector3 _position)
+      : position(_position), previous_position(_position),
+        velocity(Vector3Zero()), force(Vector3Zero()) {}
 
 public:
   auto ClearForce() -> void;
@@ -43,26 +41,18 @@ public:
 
 class Spring {
 public:
-  Mass &massA;
-  Mass &massB;
-  const float spring_constant;
-  const float dampening_constant;
-  const float rest_length;
+  int mass_a;
+  int mass_b;
 
 public:
-  Spring(Mass &_massA, Mass &_massB, float _spring_constant,
-         float _dampening_constant, float _rest_length)
-      : massA(_massA), massB(_massB), spring_constant(_spring_constant),
-        dampening_constant(_dampening_constant), rest_length(_rest_length) {}
+  Spring(int _mass_a, int _mass_b) : mass_a(_mass_a), mass_b(_mass_b) {}
 
 public:
-  auto CalculateSpringForce() const -> void;
+  auto CalculateSpringForce(Mass &_mass_a, Mass &_mass_b) const -> void;
 };
 
 class MassSpringSystem {
 private:
-  std::vector<Mass *> mass_pointers;
-
 #ifdef BARNES_HUT
   // Barnes-Hut
   Octree octree;
@@ -81,9 +71,10 @@ private:
 
 public:
   // This is the main ownership of all the states/masses/springs.
-  // TODO: Everything is stored multiple times but idc (currently).
-  std::unordered_map<State, Mass> masses;
-  std::unordered_map<std::pair<State, State>, Spring> springs;
+  std::vector<Mass> masses;
+  std::unordered_map<State, int> state_masses;
+  std::vector<Spring> springs;
+  std::unordered_map<std::pair<State, State>, int> state_springs;
 
 public:
   MassSpringSystem() {
