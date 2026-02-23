@@ -23,7 +23,6 @@
 //       - Click states to display them in the board
 //       - Find shortest path to any winning state and mark it in the graph
 //         - Also mark the next move along the path on the board
-// TODO: Smooth camera (on target change)
 // TODO: Mark the starting state
 // TODO: Mark the visited states
 

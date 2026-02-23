@@ -11,19 +11,25 @@ class OrbitCamera3D {
 
 private:
   Camera camera;
+
+  Vector3 position;
   Vector3 target;
+  Vector3 target_target;
   float distance;
   float angle_x;
   float angle_y;
+
+  // Input
   Vector2 last_mouse;
-  bool dragging;
+  bool rotating;
   bool panning;
   bool target_lock;
 
 public:
   OrbitCamera3D()
-      : camera({0}), target(Vector3Zero()), distance(CAMERA_DISTANCE),
-        angle_x(0.0), angle_y(0.0), last_mouse(Vector2Zero()), dragging(false),
+      : camera({0}), position(Vector3Zero()), target(Vector3Zero()),
+        target_target(Vector3Zero()), distance(CAMERA_DISTANCE), angle_x(0.0),
+        angle_y(0.0), last_mouse(Vector2Zero()), rotating(false),
         panning(false), target_lock(true) {
     camera.position = Vector3(0, 0, -1.0 * distance);
     camera.target = target;
@@ -35,6 +41,8 @@ public:
   ~OrbitCamera3D() {}
 
 public:
+  auto HandleCameraInput() -> Vector2;
+
   auto Update(const Vector3 &current_target) -> void;
 };
 

@@ -1,20 +1,34 @@
 #include "camera.hpp"
+#include "config.hpp"
+#include "util.hpp"
 
-auto OrbitCamera3D::Update(const Vector3 &current_target) -> void {
+#include <iostream>
+#include <raylib.h>
+#include <raymath.h>
+
+auto OrbitCamera3D::HandleCameraInput() -> Vector2 {
   Vector2 mouse = GetMousePosition();
   if (mouse.x >= GetScreenWidth() / 2.0 && mouse.y >= MENU_HEIGHT) {
     if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-      dragging = true;
+      rotating = true;
       last_mouse = mouse;
     } else if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
       panning = true;
       target_lock = false;
       last_mouse = mouse;
     }
+
+    // Zoom
+    float wheel = GetMouseWheelMove();
+    if (IsKeyDown(KEY_LEFT_SHIFT)) {
+      distance -= wheel * ZOOM_SPEED * ZOOM_MULTIPLIER;
+    } else {
+      distance -= wheel * ZOOM_SPEED;
+    }
   }
 
   if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
-    dragging = false;
+    rotating = false;
   }
   if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
     panning = false;
@@ -23,8 +37,13 @@ auto OrbitCamera3D::Update(const Vector3 &current_target) -> void {
   if (IsKeyPressed(KEY_L)) {
     target_lock = !target_lock;
   }
+  return mouse;
+}
 
-  if (dragging) {
+auto OrbitCamera3D::Update(const Vector3 &current_target) -> void {
+  Vector2 mouse = HandleCameraInput();
+
+  if (rotating) {
     Vector2 dx = Vector2Subtract(mouse, last_mouse);
     last_mouse = mouse;
 
@@ -38,13 +57,15 @@ auto OrbitCamera3D::Update(const Vector3 &current_target) -> void {
     Vector2 dx = Vector2Subtract(mouse, last_mouse);
     last_mouse = mouse;
 
-    // float speed = PAN_SPEED;
     float speed;
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
       speed = distance * PAN_SPEED / 1000.0 * PAN_MULTIPLIER;
     } else {
       speed = distance * PAN_SPEED / 1000.0;
     }
+
+    // The panning needs to happen in camera coordinates, otherwise rotating the
+    // camera breaks it
     Vector3 forward =
         Vector3Normalize(Vector3Subtract(camera.target, camera.position));
     Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
@@ -57,17 +78,13 @@ auto OrbitCamera3D::Update(const Vector3 &current_target) -> void {
   }
 
   if (target_lock) {
-    target = current_target;
+    target_target = current_target;
+    target = Vector3MoveTowards(
+        target, target_target,
+        CAMERA_SMOOTH_SPEED * GetFrameTime() *
+            Vector3Length(Vector3Subtract(target, target_target)));
   }
 
-  if (mouse.x >= GetScreenWidth() / 2.0 && mouse.y >= MENU_HEIGHT) {
-    float wheel = GetMouseWheelMove();
-    if (IsKeyDown(KEY_LEFT_SHIFT)) {
-      distance -= wheel * ZOOM_SPEED * ZOOM_MULTIPLIER;
-    } else {
-      distance -= wheel * ZOOM_SPEED;
-    }
-  }
   distance = Clamp(distance, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);
 
   // Spherical coordinates
