@@ -53,6 +53,24 @@ auto Block::Collides(const Block &other) const -> bool {
 
 auto State::Hash() const -> int { return std::hash<std::string>{}(state); }
 
+auto State::HasWinCondition() const -> bool {
+  return target_x == 9 || target_y == 9;
+}
+
+auto State::IsWon() const -> bool {
+  if (!HasWinCondition()) {
+    return false;
+  }
+
+  for (const auto &block : *this) {
+    if (block.target) {
+      return block.x == target_x && block.y == target_y;
+    }
+  }
+
+  return false;
+}
+
 auto State::AddColumn() const -> State {
   State newstate = State(width + 1, height, restricted);
 
@@ -129,7 +147,7 @@ auto State::GetBlockAt(int x, int y) const -> std::string {
 }
 
 auto State::GetIndex(int x, int y) const -> int {
-  return 5 + (y * width + x) * 2;
+  return prefix + (y * width + x) * 2;
 }
 
 auto State::RemoveBlock(int x, int y) -> bool {
@@ -185,36 +203,36 @@ auto State::MoveBlockAt(int x, int y, Direction dir) -> bool {
                               Direction::WES;
 
   // Get target block
-  int target_x = block.x;
-  int target_y = block.y;
+  int _target_x = block.x;
+  int _target_y = block.y;
   switch (dir) {
   case Direction::NOR:
-    if (!(dirs & Direction::NOR) || target_y < 1) {
+    if (!(dirs & Direction::NOR) || _target_y < 1) {
       return false;
     }
-    target_y--;
+    _target_y--;
     break;
   case Direction::EAS:
-    if (!(dirs & Direction::EAS) || target_x + block.width >= width) {
+    if (!(dirs & Direction::EAS) || _target_x + block.width >= width) {
       return false;
     }
-    target_x++;
+    _target_x++;
     break;
   case Direction::SOU:
-    if (!(dirs & Direction::SOU) || target_y + block.height >= height) {
+    if (!(dirs & Direction::SOU) || _target_y + block.height >= height) {
       return false;
     }
-    target_y++;
+    _target_y++;
     break;
   case Direction::WES:
-    if (!(dirs & Direction::WES) || target_x < 1) {
+    if (!(dirs & Direction::WES) || _target_x < 1) {
       return false;
     }
-    target_x--;
+    _target_x--;
     break;
   }
   Block target =
-      Block(target_x, target_y, block.width, block.height, block.target);
+      Block(_target_x, _target_y, block.width, block.height, block.target);
 
   // Check collisions
   for (Block b : *this) {

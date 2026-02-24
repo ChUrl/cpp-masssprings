@@ -4,8 +4,10 @@
 #include <raylib.h>
 
 #define THREADPOOL // Enable physics threadpool
-#define TRACY      // Enable tracy profiling support
 #define BACKWARD   // Enable pretty stack traces
+
+// Gets set by CMake
+// #define TRACY      // Enable tracy profiling support
 
 // Window
 constexpr int INITIAL_WIDTH = 800;

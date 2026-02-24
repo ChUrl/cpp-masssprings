@@ -25,10 +25,12 @@
 //       - Also mark the next move along the path on the board
 
 auto main(int argc, char *argv[]) -> int {
-  // if (argc < 2) {
-  //   std::cout << "Missing .klotski file." << std::endl;
-  //   return 1;
-  // }
+  std::string preset_file;
+  if (argc != 2) {
+    preset_file = "default.puzzle";
+  } else {
+    preset_file = argv[1];
+  }
 
   // RayLib window setup
   SetTraceLogLevel(LOG_ERROR);
@@ -40,7 +42,7 @@ auto main(int argc, char *argv[]) -> int {
 
   // Game setup
   ThreadedPhysics physics;
-  StateManager state(physics);
+  StateManager state(physics, preset_file);
   InputHandler input(state);
   OrbitCamera3D camera;
   Renderer renderer(camera, state, input);

@@ -102,16 +102,21 @@ public:
   auto Collides(const Block &other) const -> bool;
 };
 
-// A state is represented by a string "WxH:blocks", where W is the board width,
-// H is the board height and blocks is an enumeration of each of the board's
-// cells, with each cell being a 2-letter or 2-digit block representation (a 3x3
-// board would have a string representation with length 4 + 3*3 * 2).
-// The board's cells are enumerated from top-left to bottom-right with each
-// block's pivot being its top-left corner.
+// A state is represented by a string "MWHXYblocks", where M is "R"
+// (restricted) or "F" (free), W is the board width, H is the board height, X is
+// the target block x goal, Y is the target block y goal and blocks is an
+// enumeration of each of the board's cells, with each cell being a 2-letter or
+// 2-digit block representation (a 3x3 board would have a string representation
+// with length 5 + 3*3 * 2). The board's cells are enumerated from top-left to
+// bottom-right with each block's pivot being its top-left corner.
 class State {
 public:
+  static constexpr int prefix = 5;
+
   int width;
   int height;
+  int target_x;
+  int target_y;
   bool restricted; // Only allow blocks to move in their principal direction
   std::string state;
 
@@ -133,13 +138,13 @@ public:
 
     Block operator*() const {
       return Block(current_pos % state.width, current_pos / state.width,
-                   state.state.substr(current_pos * 2 + 5, 2));
+                   state.state.substr(current_pos * 2 + prefix, 2));
     }
 
     BlockIterator &operator++() {
       do {
         current_pos++;
-      } while (state.state.substr(current_pos * 2 + 5, 2) == "..");
+      } while (state.state.substr(current_pos * 2 + prefix, 2) == "..");
       return *this;
     }
 
@@ -151,28 +156,51 @@ public:
   };
 
 public:
-  State(int _width, int _height, bool _restricted)
-      : width(_width), height(_height), restricted(_restricted),
-        state(std::format("{}{}x{}:{}", _restricted ? "R" : "F", _width,
-                          _height, std::string(_width * _height * 2, '.'))) {
-    if (_width <= 0 || _width >= 10 || _height <= 0 || _height >= 10) {
+  State(int _width, int _height, int _target_x, int _target_y, bool _restricted)
+      : width(_width), height(_height), target_x(_target_x),
+        target_y(_target_y), restricted(_restricted),
+        state(std::format("{}{}{}{}{}{}", _restricted ? "R" : "F", _width,
+                          _height, _target_x, _target_y,
+                          std::string(_width * _height * 2, '.'))) {
+    if (_width < 1 || _width > 9 || _height < 1 || _height > 9) {
       std::cerr << "State width/height must be in [1, 9]!" << std::endl;
       exit(1);
+    }
+    if (_target_x < 0 || _target_x >= 9 || _target_y < 0 || _target_y >= 9) {
+      if (_target_x != 9 && _target_y != 9) {
+        std::cerr << "State target must be within the board bounds!"
+                  << std::endl;
+        exit(1);
+      }
     }
   }
 
+  State(int _width, int _height, bool _restricted)
+      : State(_width, _height, 9, 9, _restricted) {}
+
+  State() : State(4, 5, 9, 9, false) {}
+
   explicit State(std::string _state)
       : width(std::stoi(_state.substr(1, 1))),
-        height(std::stoi(_state.substr(3, 1))),
+        height(std::stoi(_state.substr(2, 1))),
+        target_x(std::stoi(_state.substr(3, 1))),
+        target_y(std::stoi(_state.substr(4, 1))),
         restricted(_state.substr(0, 1) == "R"), state(_state) {
-    if (width <= 0 || width >= 10 || height <= 0 || height >= 10) {
+    if (width < 1 || width > 9 || height < 1 || height > 9) {
       std::cerr << "State width/height must be in [1, 9]!" << std::endl;
       exit(1);
     }
-    if (static_cast<int>(_state.length()) != width * height * 2 + 5) {
+    if (target_x < 0 || target_x >= 9 || target_y < 0 || target_y >= 9) {
+      if (target_x != 9 && target_y != 9) {
+        std::cerr << "State target must be within the board bounds!"
+                  << std::endl;
+        exit(1);
+      }
+    }
+    if (static_cast<int>(_state.length()) != width * height * 2 + prefix) {
       std::cerr
-          << "State representation must have length [width * height * 2 + 5]!"
-          << std::endl;
+          << "State representation must have length [width * height * 2 + "
+          << prefix << "]!" << std::endl;
       exit(1);
     }
   }
@@ -193,6 +221,10 @@ public:
 
 public:
   auto Hash() const -> int;
+
+  auto HasWinCondition() const -> bool;
+
+  auto IsWon() const -> bool;
 
   auto AddColumn() const -> State;
 

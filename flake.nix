@@ -172,7 +172,7 @@ rec {
         package = stdenv.mkDerivation rec {
           inherit buildInputs;
           pname = "masssprings";
-          version = "0.0.1";
+          version = "1.0.0";
           src = ./.;
 
           nativeBuildInputs = with pkgs; [
@@ -182,7 +182,8 @@ rec {
 
           installPhase = ''
             mkdir -p $out/bin
-            mv ./${pname} $out/bin
+            cp ./${pname} $out/bin/
+            cp $src/default.puzzle $out/bin/
           '';
         };
       in rec {

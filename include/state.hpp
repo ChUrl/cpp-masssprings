@@ -3,7 +3,6 @@
 
 #include "config.hpp"
 #include "physics.hpp"
-#include "presets.hpp"
 #include "puzzle.hpp"
 
 #include <raymath.h>
@@ -13,6 +12,8 @@
 class StateManager {
 public:
   ThreadedPhysics &physics;
+
+  std::vector<State> presets;
 
   std::unordered_map<State, std::size_t> states;
   std::unordered_set<State> winning_states;
@@ -26,11 +27,11 @@ public:
   bool edited = false;
 
 public:
-  StateManager(ThreadedPhysics &_physics)
-      : physics(_physics), current_preset(0),
-        starting_state(generators[current_preset]()),
-        current_state(starting_state), previous_state(starting_state),
+  StateManager(ThreadedPhysics &_physics, const std::string &preset_file)
+      : physics(_physics), presets({State()}), current_preset(0),
         edited(false) {
+    ParsePresetFile(preset_file);
+    current_state = presets.at(current_preset);
     ClearGraph();
   }
 
@@ -40,6 +41,9 @@ public:
   StateManager &operator=(StateManager &&move) = delete;
 
   ~StateManager() {}
+
+private:
+  auto ParsePresetFile(const std::string &preset_file) -> void;
 
 public:
   auto LoadPreset(int preset) -> void;
@@ -57,10 +61,6 @@ public:
   auto ClearGraph() -> void;
 
   auto FindWinningStates() -> void;
-
-  auto CurrentGenerator() const -> StateGenerator;
-
-  auto CurrentWinCondition() const -> WinCondition;
 
   auto CurrentMassIndex() const -> std::size_t;
 };

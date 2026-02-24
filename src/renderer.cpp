@@ -207,7 +207,7 @@ auto Renderer::DrawKlotski() -> void {
   DrawRectangle(x_offset, y_offset,
                 board_width - 2 * x_offset + 2 * BOARD_PADDING,
                 board_height - 2 * y_offset + 2 * BOARD_PADDING,
-                state.CurrentWinCondition()(state.current_state)
+                state.current_state.IsWon()
                     ? GREEN
                     : (state.current_state.restricted ? DARKGRAY : LIGHTGRAY));
   for (int x = 0; x < state.current_state.width; ++x) {

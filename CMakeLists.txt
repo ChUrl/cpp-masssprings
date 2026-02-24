@@ -19,6 +19,9 @@ if(USE_TRACY)
     FetchContent_MakeAvailable(tracy)
     option(TRACY_ENABLE "" ON)
     option(TRACY_ON_DEMAND "" ON)
+
+    # Enable tracy macros in the application
+    add_compile_definitions(TRACY)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wno-unused-parameter -Wunreachable-code")

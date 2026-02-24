@@ -1,7 +1,8 @@
 #include "state.hpp"
 #include "config.hpp"
-#include "presets.hpp"
 
+#include <fstream>
+#include <ios>
 #include <raymath.h>
 
 #ifdef TRACY
@@ -9,30 +10,61 @@
 #include <tracy/Tracy.hpp>
 #endif
 
+auto StateManager::ParsePresetFile(const std::string &preset_file) -> void {
+  std::ifstream file(preset_file);
+  if (!file) {
+    std::cout << "Preset file \"" << preset_file << "\" couldn't be loaded."
+              << std::endl;
+    return;
+  }
+
+  std::string line;
+  std::vector<std::string> lines;
+  while (std::getline(file, line)) {
+    if (line.starts_with("F") || line.starts_with("R")) {
+      lines.push_back(line);
+    }
+  }
+
+  if (lines.size() == 0) {
+    std::cout << "Preset file \"" << preset_file << "\" couldn't be loaded."
+              << std::endl;
+    return;
+  }
+
+  presets.clear();
+  for (const auto &preset : lines) {
+    presets.emplace_back(preset);
+  }
+
+  std::cout << "Loaded " << lines.size() << " presets." << std::endl;
+}
+
 auto StateManager::LoadPreset(int preset) -> void {
   current_preset = preset;
-  current_state = CurrentGenerator()();
+  current_state = presets.at(current_preset);
   ClearGraph();
   edited = false;
 }
 
 auto StateManager::ResetState() -> void {
-  current_state = CurrentGenerator()();
+  current_state = presets.at(current_preset);
   previous_state = current_state;
   if (edited) {
     // We also need to clear the graph in case the state has been edited
-    // because the graph could contain states that are impossible to reach now.
+    // because the graph could contain states that are impossible to reach
+    // now.
     ClearGraph();
     edited = false;
   }
 }
 
 auto StateManager::PreviousPreset() -> void {
-  LoadPreset((generators.size() + current_preset - 1) % generators.size());
+  LoadPreset((presets.size() + current_preset - 1) % presets.size());
 }
 
 auto StateManager::NextPreset() -> void {
-  LoadPreset((current_preset + 1) % generators.size());
+  LoadPreset((current_preset + 1) % presets.size());
 }
 
 auto StateManager::FillGraph() -> void {
@@ -62,7 +94,7 @@ auto StateManager::UpdateGraph() -> void {
   }
 
   visited_states.insert(current_state);
-  if (win_conditions[current_preset](current_state)) {
+  if (current_state.IsWon()) {
     winning_states.insert(current_state);
   }
 }
@@ -85,18 +117,10 @@ auto StateManager::ClearGraph() -> void {
 auto StateManager::FindWinningStates() -> void {
   winning_states.clear();
   for (const auto &[state, mass] : states) {
-    if (CurrentWinCondition()(state)) {
+    if (state.IsWon()) {
       winning_states.insert(state);
     }
   }
-}
-
-auto StateManager::CurrentGenerator() const -> StateGenerator {
-  return generators[current_preset];
-}
-
-auto StateManager::CurrentWinCondition() const -> WinCondition {
-  return win_conditions[current_preset];
 }
 
 auto StateManager::CurrentMassIndex() const -> std::size_t {
