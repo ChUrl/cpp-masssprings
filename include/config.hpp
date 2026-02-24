@@ -3,7 +3,6 @@
 
 #include <raylib.h>
 
-#define BARNES_HUT // Use octree BH instead of uniform grid
 // #define WEB        // Disables multithreading
 
 // Window
@@ -30,19 +29,17 @@ constexpr float ROT_SPEED = 1.0;
 constexpr float CAMERA_SMOOTH_SPEED = 15.0;
 
 // Physics Engine
-constexpr float SIM_SPEED = 4.0;          // How large each update should be
-constexpr float TIMESTEP = 1.0 / 90;      // Do 90 physics updates per second
-constexpr float MASS = 1.0;               // Mass spring system
-constexpr float SPRING_CONSTANT = 5.0;    // Mass spring system
-constexpr float DAMPENING_CONSTANT = 1.0; // Mass spring system
-constexpr float REST_LENGTH = 2.0;        // Mass spring system
-constexpr float VERLET_DAMPENING = 0.05;  // [0, 1]
-constexpr float BH_FORCE = 2.0;           // BH: [1.0, 3.0]
-constexpr float THETA = 1.0;              // Barnes-Hut [0.5, 1.0]
-constexpr float SOFTENING = 0.01;         // Barnes-Hut [0.01, 1.0]
-constexpr float GRID_FORCE = 0.02;        // Grid: [0.0, ~0.05]
-constexpr float REPULSION_RANGE = 5.0 * REST_LENGTH; // Grid
-constexpr int REPULSION_GRID_REFRESH = 5;            // Grid rebuild freq
+constexpr float TARGET_UPS = 90;             // How often to update physics
+constexpr float TIMESTEP = 1.0 / TARGET_UPS; // Update interval in seconds
+constexpr float SIM_SPEED = 4.0;             // How large each update should be
+constexpr float MASS = 1.0;                  // Mass spring system
+constexpr float SPRING_CONSTANT = 5.0;       // Mass spring system
+constexpr float DAMPENING_CONSTANT = 1.0;    // Mass spring system
+constexpr float REST_LENGTH = 2.0;           // Mass spring system
+constexpr float VERLET_DAMPENING = 0.05;     // [0, 1]
+constexpr float BH_FORCE = 2.0;              // Barnes-Hut [1.0, 3.0]
+constexpr float THETA = 0.9;                 // Barnes-Hut [0.5, 1.0]
+constexpr float SOFTENING = 0.01;            // Barnes-Hut [0.01, 1.0]
 
 // Graph Drawing
 constexpr float VERTEX_SIZE = 0.5;

@@ -1,16 +1,21 @@
 #ifndef __STATE_HPP_
 #define __STATE_HPP_
 
-#include "config.hpp"
 #include "physics.hpp"
 #include "presets.hpp"
 #include "puzzle.hpp"
 
 #include <raymath.h>
+#include <unordered_map>
+#include <unordered_set>
 
 class StateManager {
 public:
-  MassSpringSystem &mass_springs;
+  ThreadedPhysics &physics;
+
+  std::unordered_map<State, std::size_t> states;
+  std::unordered_set<State> winning_states;
+  std::unordered_set<State> visited_states;
 
   int current_preset;
   State starting_state;
@@ -19,16 +24,13 @@ public:
 
   bool edited = false;
 
-  std::unordered_set<State> winning_states;
-  std::unordered_set<State> visited_states;
-
 public:
-  StateManager(MassSpringSystem &_mass_springs)
-      : mass_springs(_mass_springs), current_preset(0),
+  StateManager(ThreadedPhysics &_physics)
+      : physics(_physics), current_preset(0),
         starting_state(generators[current_preset]()),
         current_state(starting_state), previous_state(starting_state),
         edited(false) {
-    mass_springs.AddMass(MASS, false, current_state);
+    ClearGraph();
   }
 
   StateManager(const StateManager &copy) = delete;
@@ -55,9 +57,11 @@ public:
 
   auto FindWinningStates() -> void;
 
-  auto CurrentGenerator() -> StateGenerator;
+  auto CurrentGenerator() const -> StateGenerator;
 
-  auto CurrentWinCondition() -> WinCondition;
+  auto CurrentWinCondition() const -> WinCondition;
+
+  auto CurrentMassIndex() const -> std::size_t;
 };
 
 #endif

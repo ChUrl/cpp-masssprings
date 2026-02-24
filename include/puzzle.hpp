@@ -7,7 +7,6 @@
 #include <functional>
 #include <iostream>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 enum Direction {
@@ -219,8 +218,9 @@ public:
 
   auto GetNextStates() const -> std::vector<State>;
 
-  auto Closure() const -> std::pair<std::unordered_set<State>,
-                                    std::vector<std::pair<State, State>>>;
+  auto Closure() const
+      -> std::pair<std::vector<State>,
+                   std::vector<std::pair<std::size_t, std::size_t>>>;
 };
 
 // Provide hash functions so we can use State and <State, State> as hash-set

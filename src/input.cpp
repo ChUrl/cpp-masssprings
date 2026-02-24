@@ -133,9 +133,9 @@ auto InputHandler::HandleKeys() -> void {
   } else if (IsKeyPressed(KEY_C)) {
     state.ClearGraph();
   } else if (IsKeyPressed(KEY_I)) {
-    renderer.mark_solutions = !renderer.mark_solutions;
+    mark_solutions = !mark_solutions;
   } else if (IsKeyPressed(KEY_O)) {
-    renderer.connect_solutions = !renderer.connect_solutions;
+    connect_solutions = !connect_solutions;
   } else if (IsKeyPressed(KEY_F)) {
     state.current_state.ToggleRestricted();
     state.ClearGraph();

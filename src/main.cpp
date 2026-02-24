@@ -1,13 +1,14 @@
+#include <mutex>
+#include <raylib.h>
+#include <raymath.h>
+#include <tracy/Tracy.hpp>
+
 #include "config.hpp"
 #include "input.hpp"
 #include "physics.hpp"
 #include "renderer.hpp"
 #include "state.hpp"
 #include "tracy.hpp"
-
-#include <raylib.h>
-#include <raymath.h>
-#include <tracy/Tracy.hpp>
 
 // TODO: Klotski state file loading
 //       - File should contain a single state per line, multiple lines possible
@@ -18,7 +19,9 @@
 // TODO: Graph interaction
 //       - Click states to display them in the board
 //       - Find shortest path to any winning state and mark it in the graph
-//         - Also mark the next move along the path on the board
+//       - Also mark the next move along the path on the board
+// TODO: Do I have a huge memory leak or is the memory just not reclaimed from
+//       the C++ runtime?
 
 auto main(int argc, char *argv[]) -> int {
   // if (argc < 2) {
@@ -35,50 +38,61 @@ auto main(int argc, char *argv[]) -> int {
   InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + MENU_HEIGHT, "MassSprings");
 
   // Game setup
+  ThreadedPhysics physics;
+  StateManager state(physics);
+  InputHandler input(state);
   OrbitCamera3D camera;
-  Renderer renderer(camera);
-  MassSpringSystem mass_springs;
-  StateManager state(mass_springs);
-  InputHandler input(state, renderer);
+  Renderer renderer(camera, state, input);
+
+  unsigned int ups;
+  std::vector<Vector3> masses;                              // Read from physics
+  std::vector<std::pair<std::size_t, std::size_t>> springs; // Read from physics
 
   // Game loop
-  double timestep_accumulator = 0.0;
   while (!WindowShouldClose()) {
-    timestep_accumulator += GetFrameTime();
+    FrameMarkStart("MainThread");
 
     // Input update
     state.previous_state = state.current_state;
     input.HandleInput();
     state.UpdateGraph(); // Add state added after user input
 
-    // Physics update
-    if (timestep_accumulator > TIMESTEP) {
-      // Do not try to catch up if we're falling behind. Frametimes would get
-      // larger, resulting in more catching up, resulting in even larger
-      // frametimes -> death spiral.
-      mass_springs.ClearForces();
-      mass_springs.CalculateSpringForces();
-      mass_springs.CalculateRepulsionForces();
-      mass_springs.VerletUpdate(TIMESTEP * SIM_SPEED);
+    // Read positions from physics thread
+    FrameMarkStart("MainThreadConsumeLock");
+    {
+      std::unique_lock<LockableBase(std::mutex)> lock(physics.state.data_mtx);
 
-      timestep_accumulator -= TIMESTEP;
+      ups = physics.state.ups;
+
+      // Only copy data if any has been produced
+      if (physics.state.data_ready) {
+        masses = physics.state.masses;
+        springs = physics.state.springs;
+
+        physics.state.data_ready = false;
+        physics.state.data_consumed = true;
+
+        lock.unlock();
+        // Notify the physics thread that data has been consumed
+        physics.state.data_consumed_cnd.notify_all();
+      }
     }
+    FrameMarkEnd("MainThreadConsumeLock");
 
     // Update the camera after the physics, so target lock is smooth
-    camera.Update(mass_springs.GetMass(state.current_state).position);
+    std::size_t current_index = state.CurrentMassIndex();
+    if (masses.size() > current_index) {
+      const Mass &current_mass = masses.at(current_index);
+      camera.Update(current_mass.position);
+    }
 
     // Rendering
     renderer.UpdateTextureSizes();
-    renderer.DrawMassSprings(mass_springs, state.current_state,
-                             state.starting_state, state.winning_states,
-                             state.visited_states);
-
-    renderer.DrawKlotski(state.current_state, input.hov_x, input.hov_y,
-                         input.sel_x, input.sel_y, input.block_add_x,
-                         input.block_add_y, state.CurrentWinCondition());
-    renderer.DrawMenu(mass_springs, state.current_preset, state.current_state,
-                      state.winning_states);
-    renderer.DrawTextures();
+    renderer.DrawMassSprings(masses, springs);
+    renderer.DrawKlotski();
+    renderer.DrawMenu(masses, springs);
+    renderer.DrawTextures(ups);
+    FrameMarkEnd("MainThread");
   }
 
   CloseWindow();

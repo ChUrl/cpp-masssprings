@@ -128,7 +128,7 @@ rec {
         # - Interpreters needed by patchShebangs for build scripts (with the --build flag), which can be the case for e.g. perl
         nativeBuildInputs = with pkgs; [
           # Languages:
-          # bintools
+          binutils
           gcc
 
           # C/C++:
@@ -159,6 +159,8 @@ rec {
           # octree # this one doesn't store center of mass per node - which I need :(
           tracy-wayland
           thread-pool
+          backward-cpp
+          libbfd
           # llvmPackages.openmp # not required for compilation but for clangd to find the headers
           # raylib-cpp
           # tinyobjloader
@@ -283,7 +285,7 @@ rec {
                 abbr -a debug "${buildDebug} && ./cmake-build-debug/masssprings"
                 abbr -a release "${buildRelease} && ./cmake-build-release/masssprings"
                 abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"
-                abbr -a runtracy "tracy -a 127.0.0.1"
+                abbr -a runtracy "tracy -a 127.0.0.1 &; ${buildRelease} && sudo -E ./cmake-build-release/masssprings"
               '';
             in
               builtins.concatStringsSep "\n" [

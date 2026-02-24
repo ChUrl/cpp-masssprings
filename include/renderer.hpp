@@ -3,15 +3,17 @@
 
 #include <raylib.h>
 #include <raymath.h>
-#include <unordered_set>
 
 #include "camera.hpp"
 #include "config.hpp"
-#include "physics.hpp"
-#include "puzzle.hpp"
+#include "input.hpp"
+#include "state.hpp"
 
 class Renderer {
 private:
+  const StateManager &state;
+  const InputHandler &input;
+
   const OrbitCamera3D &camera;
   RenderTexture render_target;
   RenderTexture klotski_target;
@@ -25,13 +27,10 @@ private:
   Shader instancing_shader;
 
 public:
-  bool mark_solutions;
-  bool connect_solutions;
-
-public:
-  Renderer(const OrbitCamera3D &_camera)
-      : camera(_camera), transforms_size(0), transforms(nullptr),
-        mark_solutions(false), connect_solutions(false) {
+  Renderer(const OrbitCamera3D &_camera, const StateManager &_state,
+           const InputHandler &_input)
+      : state(_state), input(_input), camera(_camera), transforms_size(0),
+        transforms(nullptr) {
     render_target = LoadRenderTexture(GetScreenWidth() / 2.0,
                                       GetScreenHeight() - MENU_HEIGHT);
     klotski_target = LoadRenderTexture(GetScreenWidth() / 2.0,
@@ -61,29 +60,24 @@ public:
   }
 
 private:
-  auto AllocateGraphInstancing(const MassSpringSystem &mass_springs) -> void;
+  auto AllocateGraphInstancing(std::size_t size) -> void;
 
-  auto
-  ReallocateGraphInstancingIfNecessary(const MassSpringSystem &mass_springs)
-      -> void;
+  auto ReallocateGraphInstancingIfNecessary(std::size_t size) -> void;
 
 public:
   auto UpdateTextureSizes() -> void;
 
-  auto DrawMassSprings(const MassSpringSystem &mass_springs,
-                       const State &current_state, const State &starting_state,
-                       const std::unordered_set<State> &winning_states,
-                       const std::unordered_set<State> &visited_states) -> void;
+  auto DrawMassSprings(
+      const std::vector<Vector3> &masses,
+      const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void;
 
-  auto DrawKlotski(const State &state, int hov_x, int hov_y, int sel_x,
-                   int sel_y, int block_add_x, int block_add_y,
-                   const WinCondition win_condition) -> void;
+  auto DrawKlotski() -> void;
 
-  auto DrawMenu(const MassSpringSystem &mass_springs, int current_preset,
-                const State &current_state,
-                const std::unordered_set<State> &winning_states) -> void;
+  auto DrawMenu(const std::vector<Vector3> &masses,
+                const std::vector<std::pair<std::size_t, std::size_t>> &springs)
+      -> void;
 
-  auto DrawTextures() -> void;
+  auto DrawTextures(float ups) -> void;
 };
 
 #endif

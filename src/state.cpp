@@ -1,20 +1,18 @@
 #include "state.hpp"
-#include "config.hpp"
 #include "presets.hpp"
 #include "tracy.hpp"
 
 #include <raymath.h>
 
 auto StateManager::LoadPreset(int preset) -> void {
-  current_state = generators[preset]();
-  previous_state = current_state;
-  ClearGraph();
   current_preset = preset;
+  current_state = CurrentGenerator()();
+  ClearGraph();
   edited = false;
 }
 
 auto StateManager::ResetState() -> void {
-  current_state = generators[current_preset]();
+  current_state = CurrentGenerator()();
   previous_state = current_state;
   if (edited) {
     // We also need to clear the graph in case the state has been edited
@@ -35,69 +33,67 @@ auto StateManager::NextPreset() -> void {
 auto StateManager::FillGraph() -> void {
   ClearGraph();
 
-  std::pair<std::unordered_set<State>, std::vector<std::pair<State, State>>>
+  std::pair<std::vector<State>,
+            std::vector<std::pair<std::size_t, std::size_t>>>
       closure = current_state.Closure();
-  for (const auto &state : closure.first) {
-    mass_springs.AddMass(MASS, false, state);
+
+  physics.ClearCmd();
+  physics.AddMassSpringsCmd(closure.first.size(), closure.second);
+  for (const State &state : closure.first) {
+    states.insert(std::make_pair(state, states.size()));
   }
-  for (const auto &[from, to] : closure.second) {
-    mass_springs.AddSpring(from, to, SPRING_CONSTANT, DAMPENING_CONSTANT,
-                           REST_LENGTH);
-  }
-  std::cout << "Inserted " << mass_springs.masses.size() << " masses and "
-            << mass_springs.springs.size() << " springs." << std::endl;
   FindWinningStates();
-  std::cout << "Consuming "
-            << sizeof(decltype(*mass_springs.masses.begin())) *
-                   mass_springs.masses.size()
-            << " Bytes for masses." << std::endl;
-  std::cout << "Consuming "
-            << sizeof(decltype(*mass_springs.springs.begin())) *
-                   mass_springs.springs.size()
-            << " Bytes for springs." << std::endl;
 }
 
 auto StateManager::UpdateGraph() -> void {
-  if (previous_state != current_state) {
-    mass_springs.AddMass(MASS, false, current_state);
-    mass_springs.AddSpring(current_state, previous_state, SPRING_CONSTANT,
-                           DAMPENING_CONSTANT, REST_LENGTH);
-    if (win_conditions[current_preset](current_state)) {
-      winning_states.insert(current_state);
-    }
-    visited_states.insert(current_state);
+  if (previous_state == current_state) {
+    return;
+  }
+
+  if (!states.contains(current_state)) {
+    states.insert(std::make_pair(current_state, states.size()));
+    physics.AddMassCmd();
+    physics.AddSpringCmd(states.at(current_state), states.at(previous_state));
+  }
+
+  visited_states.insert(current_state);
+  if (win_conditions[current_preset](current_state)) {
+    winning_states.insert(current_state);
   }
 }
 
 auto StateManager::ClearGraph() -> void {
+  states.clear();
   winning_states.clear();
   visited_states.clear();
-  mass_springs.Clear();
-  mass_springs.AddMass(MASS, false, current_state);
+  physics.ClearCmd();
 
-  // The previous_state is no longer in the graph
+  states.insert(std::make_pair(current_state, states.size()));
+  visited_states.insert(current_state);
+  physics.AddMassCmd();
+
+  // These states are no longer in the graph
   previous_state = current_state;
-
-  // The starting state is no longer in the graph
   starting_state = current_state;
 }
 
 auto StateManager::FindWinningStates() -> void {
   winning_states.clear();
-  for (const auto &[state, mass] : mass_springs.state_masses) {
-    if (win_conditions[current_preset](state)) {
+  for (const auto &[state, mass] : states) {
+    if (CurrentWinCondition()(state)) {
       winning_states.insert(state);
     }
   }
-
-  std::cout << "Found " << winning_states.size() << " winning states."
-            << std::endl;
 }
 
-auto StateManager::CurrentGenerator() -> StateGenerator {
+auto StateManager::CurrentGenerator() const -> StateGenerator {
   return generators[current_preset];
 }
 
-auto StateManager::CurrentWinCondition() -> WinCondition {
+auto StateManager::CurrentWinCondition() const -> WinCondition {
   return win_conditions[current_preset];
+}
+
+auto StateManager::CurrentMassIndex() const -> std::size_t {
+  return states.at(current_state);
 }

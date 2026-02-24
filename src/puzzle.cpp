@@ -1,6 +1,8 @@
 #include "puzzle.hpp"
 #include "tracy.hpp"
 
+#include <unordered_set>
+
 auto Block::Hash() const -> int {
   std::string s = std::format("{},{},{},{}", x, y, width, height);
   return std::hash<std::string>{}(s);
@@ -262,11 +264,16 @@ auto State::GetNextStates() const -> std::vector<State> {
   return new_states;
 }
 
-auto State::Closure() const -> std::pair<std::unordered_set<State>,
-                                         std::vector<std::pair<State, State>>> {
-  std::unordered_set<State> states;
-  std::vector<std::pair<State, State>> links;
+auto State::Closure() const
+    -> std::pair<std::vector<State>,
+                 std::vector<std::pair<std::size_t, std::size_t>>> {
+  std::vector<State> states;
+  std::vector<std::pair<std::size_t, std::size_t>> links;
 
+  // Helper to construct the links vector
+  std::unordered_map<State, std::size_t> state_indices;
+
+  // Buffer for all states we want to call GetNextStates() on
   std::unordered_set<State> remaining_states;
   remaining_states.insert(*this);
 
@@ -274,13 +281,18 @@ auto State::Closure() const -> std::pair<std::unordered_set<State>,
     const State current = *remaining_states.begin();
     remaining_states.erase(current);
 
-    std::vector<State> new_states = current.GetNextStates();
-    for (const State &s : new_states) {
-      if (!states.contains(s)) {
+    if (!state_indices.contains(current)) {
+      state_indices.emplace(current, states.size());
+      states.push_back(current);
+    }
+
+    for (const State &s : current.GetNextStates()) {
+      if (!state_indices.contains(s)) {
         remaining_states.insert(s);
-        states.insert(s);
+        state_indices.emplace(s, states.size());
+        states.push_back(s);
       }
-      links.emplace_back(current.state, s.state);
+      links.emplace_back(state_indices.at(current), state_indices.at(s));
     }
   } while (remaining_states.size() > 0);
 

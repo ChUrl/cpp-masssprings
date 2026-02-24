@@ -1,19 +1,22 @@
 #ifndef __PHYSICS_HPP_
 #define __PHYSICS_HPP_
 
+#include <atomic>
+#include <condition_variable>
+#include <cstddef>
+#include <mutex>
+#include <queue>
 #include <raylib.h>
 #include <raymath.h>
-#include <unordered_map>
+#include <thread>
+#include <tracy/Tracy.hpp>
+#include <variant>
 #include <vector>
 
-#include "config.hpp"
-#include "puzzle.hpp"
-
-#ifdef BARNES_HUT
 #include "octree.hpp"
-#endif
 
 #ifndef WEB
+#define BS_THREAD_POOL_NATIVE_EXTENSIONS
 #include <BS_thread_pool.hpp>
 #endif
 
@@ -41,29 +44,19 @@ public:
 
 class Spring {
 public:
-  int mass_a;
-  int mass_b;
+  std::size_t a;
+  std::size_t b;
 
 public:
-  Spring(int _mass_a, int _mass_b) : mass_a(_mass_a), mass_b(_mass_b) {}
+  Spring(std::size_t _a, std::size_t _b) : a(_a), b(_b) {}
 
 public:
-  auto CalculateSpringForce(Mass &_mass_a, Mass &_mass_b) const -> void;
+  auto CalculateSpringForce(Mass &_a, Mass &_b) const -> void;
 };
 
 class MassSpringSystem {
 private:
-#ifdef BARNES_HUT
-  // Barnes-Hut
   Octree octree;
-#else
-  // Uniform grid
-  std::vector<int> mass_indices;
-  std::vector<int64_t> cell_ids;
-  int last_build;
-  int last_masses_count;
-  int last_springs_count;
-#endif
 
 #ifndef WEB
   BS::thread_pool<BS::tp::none> threads;
@@ -72,19 +65,13 @@ private:
 public:
   // This is the main ownership of all the states/masses/springs.
   std::vector<Mass> masses;
-  std::unordered_map<State, int> state_masses;
   std::vector<Spring> springs;
-  std::unordered_map<std::pair<State, State>, int> state_springs;
 
 public:
-  MassSpringSystem() {
-#ifndef BARNES_HUT
-    last_build = REPULSION_GRID_REFRESH;
-    std::cout << "Using uniform grid repulsion force calculation." << std::endl;
-#else
+  MassSpringSystem()
+      : threads(std::thread::hardware_concurrency() - 1, SetThreadName) {
     std::cout << "Using Barnes-Hut + octree repulsion force calculation."
               << std::endl;
-#endif
 
 #ifndef WEB
     std::cout << "Thread-Pool: " << threads.get_thread_count() << " threads."
@@ -98,21 +85,14 @@ public:
   MassSpringSystem &operator=(MassSpringSystem &&move) = delete;
 
 private:
-#ifdef BARNES_HUT
+  static auto SetThreadName(std::size_t idx) -> void;
+
   auto BuildOctree() -> void;
-#else
-  auto BuildUniformGrid() -> void;
-#endif
 
 public:
-  auto AddMass(float mass, bool fixed, const State &state) -> void;
+  auto AddMass() -> void;
 
-  auto GetMass(const State &state) -> Mass &;
-
-  auto GetMass(const State &state) const -> const Mass &;
-
-  auto AddSpring(const State &massA, const State &massB, float spring_constant,
-                 float dampening_constant, float rest_length) -> void;
+  auto AddSpring(int a, int b) -> void;
 
   auto Clear() -> void;
 
@@ -123,10 +103,74 @@ public:
   auto CalculateRepulsionForces() -> void;
 
   auto VerletUpdate(float delta_time) -> void;
+};
 
-#ifndef BARNES_HUT
-  auto InvalidateGrid() -> void;
-#endif
+class ThreadedPhysics {
+  struct AddMass {};
+  struct AddSpring {
+    std::size_t a;
+    std::size_t b;
+  };
+  struct ClearGraph {};
+
+  using Command = std::variant<AddMass, AddSpring, ClearGraph>;
+
+  struct PhysicsState {
+    TracyLockable(std::mutex, command_mtx);
+    std::queue<Command> pending_commands;
+
+    TracyLockable(std::mutex, data_mtx);
+    std::condition_variable_any data_ready_cnd;
+    std::condition_variable_any data_consumed_cnd;
+    unsigned int ups = 0;
+    bool data_ready = false;
+    bool data_consumed = true;
+    std::vector<Vector3> masses; // Read by renderer
+    std::vector<std::pair<std::size_t, std::size_t>>
+        springs; // Read by renderer
+
+    std::atomic<bool> running{true};
+  };
+
+private:
+  std::thread physics;
+
+public:
+  PhysicsState state;
+
+public:
+  ThreadedPhysics() : physics(PhysicsThread, std::ref(state)) {}
+
+  ThreadedPhysics(const ThreadedPhysics &copy) = delete;
+  ThreadedPhysics &operator=(const ThreadedPhysics &copy) = delete;
+  ThreadedPhysics(ThreadedPhysics &&move) = delete;
+  ThreadedPhysics &operator=(ThreadedPhysics &&move) = delete;
+
+  ~ThreadedPhysics() {
+    state.running = false;
+    state.data_ready_cnd.notify_all();
+    state.data_consumed_cnd.notify_all();
+    physics.join();
+  }
+
+private:
+  static auto PhysicsThread(PhysicsState &state) -> void;
+
+public:
+  auto AddMassCmd() -> void;
+
+  auto AddSpringCmd(std::size_t a, std::size_t b) -> void;
+
+  auto ClearCmd() -> void;
+
+  auto AddMassSpringsCmd(
+      std::size_t num_masses,
+      const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void;
+};
+
+// https://en.cppreference.com/w/cpp/utility/variant/visit
+template <class... Ts> struct overloads : Ts... {
+  using Ts::operator()...;
 };
 
 #endif

@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.25)
 project(MassSprings)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(raylib REQUIRED)
+find_package(Backward REQUIRED)
 
 # Need to enable/disable this based on a variable for nix build
 if(USE_TRACY)
@@ -43,14 +44,15 @@ add_executable(masssprings
     src/state.cpp
     src/input.cpp
     src/tracy.cpp
+    src/backward.cpp
 )
 
 target_include_directories(masssprings PUBLIC ${RAYLIB_CPP_INCLUDE_DIR})
 
 if(USE_TRACY)
-    target_link_libraries(masssprings PUBLIC raylib TracyClient)
+    target_link_libraries(masssprings PUBLIC raylib Backward::Backward TracyClient)
 else()
-    target_link_libraries(masssprings PUBLIC raylib)
+    target_link_libraries(masssprings PUBLIC raylib Backward::Backward)
 endif()
 
 include(CheckIPOSupported)

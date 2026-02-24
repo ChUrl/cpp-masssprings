@@ -2,19 +2,18 @@
 #include "config.hpp"
 #include "tracy.hpp"
 
+#include <BS_thread_pool.hpp>
 #include <algorithm>
 #include <cfloat>
+#include <chrono>
 #include <cstddef>
+#include <mutex>
+#include <ratio>
 #include <raylib.h>
 #include <raymath.h>
 #include <tracy/Tracy.hpp>
-#include <unordered_map>
 #include <utility>
 #include <vector>
-
-#ifndef BARNES_HUT
-#include <numeric>
-#endif
 
 auto Mass::ClearForce() -> void { force = Vector3Zero(); }
 
@@ -69,58 +68,29 @@ auto Spring::CalculateSpringForce(Mass &_mass_a, Mass &_mass_b) const -> void {
   _mass_b.force = Vector3Add(_mass_b.force, force_b);
 }
 
-auto MassSpringSystem::AddMass(float mass, bool fixed, const State &state)
-    -> void {
-  if (!state_masses.contains(state)) {
-    masses.emplace_back(Vector3Zero());
-    std::size_t idx = masses.size() - 1;
-    state_masses.insert(std::make_pair(state, idx));
+auto MassSpringSystem::AddMass() -> void { masses.emplace_back(Vector3Zero()); }
+
+auto MassSpringSystem::AddSpring(int a, int b) -> void {
+  Mass &mass_a = masses.at(a);
+  Mass &mass_b = masses.at(b);
+
+  Vector3 position = mass_a.position;
+  Vector3 offset = Vector3(static_cast<float>(GetRandomValue(-100, 100)),
+                           static_cast<float>(GetRandomValue(-100, 100)),
+                           static_cast<float>(GetRandomValue(-100, 100)));
+  offset = Vector3Scale(Vector3Normalize(offset), REST_LENGTH);
+
+  if (mass_b.position == Vector3Zero()) {
+    mass_b.position = Vector3Add(position, offset);
   }
-}
 
-auto MassSpringSystem::GetMass(const State &state) -> Mass & {
-  return masses.at(state_masses.at(state));
-}
-
-auto MassSpringSystem::GetMass(const State &state) const -> const Mass & {
-  return masses.at(state_masses.at(state));
-}
-
-auto MassSpringSystem::AddSpring(const State &state_a, const State &state_b,
-                                 float spring_constant,
-                                 float dampening_constant, float rest_length)
-    -> void {
-  std::pair<State, State> key = std::make_pair(state_a, state_b);
-  if (!state_springs.contains(key)) {
-    int a = state_masses.at(state_a);
-    int b = state_masses.at(state_b);
-    const Mass &mass_a = masses.at(a);
-    Mass &mass_b = masses.at(b);
-
-    Vector3 position = mass_a.position;
-    Vector3 offset = Vector3(static_cast<float>(GetRandomValue(-100, 100)),
-                             static_cast<float>(GetRandomValue(-100, 100)),
-                             static_cast<float>(GetRandomValue(-100, 100)));
-    offset = Vector3Scale(Vector3Normalize(offset), REST_LENGTH);
-
-    if (mass_b.position == Vector3Zero()) {
-      mass_b.position = Vector3Add(position, offset);
-    }
-
-    springs.emplace_back(a, b);
-    int idx = springs.size() - 1;
-    state_springs.insert(std::make_pair(key, idx));
-  }
+  springs.emplace_back(a, b);
 }
 
 auto MassSpringSystem::Clear() -> void {
   masses.clear();
-  state_masses.clear();
   springs.clear();
-  state_springs.clear();
-#ifndef BARNES_HUT
-  InvalidateGrid();
-#endif
+  octree.nodes.clear();
 }
 
 auto MassSpringSystem::ClearForces() -> void {
@@ -135,13 +105,16 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
   ZoneScoped;
 
   for (const auto spring : springs) {
-    Mass &a = masses.at(spring.mass_a);
-    Mass &b = masses.at(spring.mass_b);
+    Mass &a = masses.at(spring.a);
+    Mass &b = masses.at(spring.b);
     spring.CalculateSpringForce(a, b);
   }
 }
 
-#ifdef BARNES_HUT
+auto MassSpringSystem::SetThreadName(std::size_t idx) -> void {
+  BS::this_thread::set_os_thread_name(std::format("bh-worker-{}", idx));
+}
+
 auto MassSpringSystem::BuildOctree() -> void {
   ZoneScoped;
 
@@ -177,52 +150,9 @@ auto MassSpringSystem::BuildOctree() -> void {
   }
 }
 
-#else
-
-auto MassSpringSystem::BuildUniformGrid() -> void {
-  // Use a vector of pointers to masses, because we can't parallelize the
-  // range-based for loop over the masses unordered_map using OpenMP.
-  mass_pointers.clear();
-  mass_pointers.reserve(masses.size());
-  for (auto &[state, mass] : masses) {
-    mass_pointers.push_back(&mass);
-  }
-
-  // Assign each mass a cell_id based on its position.
-  auto cell_id = [&](const Vector3 &position) -> int64_t {
-    int x = (int)std::floor(position.x / REPULSION_RANGE);
-    int y = (int)std::floor(position.y / REPULSION_RANGE);
-    int z = (int)std::floor(position.z / REPULSION_RANGE);
-    // Pack into a single int64 (assumes a coordinate fits in 20 bits)
-    return ((int64_t)(x & 0xFFFFF) << 40) | ((int64_t)(y & 0xFFFFF) << 20) |
-           (int64_t)(z & 0xFFFFF);
-  };
-
-  // Sort mass indices by cell_id to improve cache locality and allow cell
-  // iteration with std::lower_bound and std::upper_bound
-  mass_indices.clear();
-  mass_indices.resize(masses.size());
-  std::iota(mass_indices.begin(), mass_indices.end(),
-            0); // Fill the indices array with ascending numbers
-  std::sort(mass_indices.begin(), mass_indices.end(), [&](int a, int b) {
-    return cell_id(mass_pointers[a]->position) <
-           cell_id(mass_pointers[b]->position);
-  });
-
-  // Build cell start/end table: maps mass index to cell_id.
-  // All indices of a single cell are consecutive.
-  cell_ids.clear();
-  cell_ids.resize(masses.size());
-  for (int i = 0; i < masses.size(); ++i) {
-    cell_ids[i] = cell_id(mass_pointers[mass_indices[i]]->position);
-  }
-}
-#endif
-
 auto MassSpringSystem::CalculateRepulsionForces() -> void {
   ZoneScoped;
 
-#ifdef BARNES_HUT
   BuildOctree();
 
   auto solve_octree = [&](int i) {
@@ -240,86 +170,6 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
       threads.submit_loop(0, masses.size(), solve_octree, 256);
   loop_future.wait();
 #endif
-
-#else
-
-  // Refresh grid if necessary
-  if (last_build >= REPULSION_GRID_REFRESH ||
-      masses.size() != last_masses_count ||
-      springs.size() != last_springs_count) {
-    BuildUniformGrid();
-    last_build = 0;
-    last_masses_count = masses.size();
-    last_springs_count = springs.size();
-  }
-  last_build++;
-
-  auto solve_grid = [&](int i) {
-    Mass *mass = mass_pointers[mass_indices[i]];
-    int cell_x = (int)std::floor(mass->position.x / REPULSION_RANGE);
-    int cell_y = (int)std::floor(mass->position.y / REPULSION_RANGE);
-    int cell_z = (int)std::floor(mass->position.z / REPULSION_RANGE);
-
-    Vector3 force = Vector3Zero();
-
-    // Search all 3*3*3 neighbor cells for masses
-    for (int dx = -1; dx <= 1; ++dx) {
-      for (int dy = -1; dy <= 1; ++dy) {
-        for (int dz = -1; dz <= 1; ++dz) {
-          int64_t neighbor_id = ((int64_t)((cell_x + dx) & 0xFFFFF) << 40) |
-                                ((int64_t)((cell_y + dy) & 0xFFFFF) << 20) |
-                                (int64_t)((cell_z + dz) & 0xFFFFF);
-
-          // Find the first and last occurence of the neighbor_id (iterator).
-          // Because cell_ids is sorted, all elements of this cell are between
-          // those.
-          // If there is no cell, the iterators just won't do anything.
-          auto cell_start =
-              std::lower_bound(cell_ids.begin(), cell_ids.end(), neighbor_id);
-          auto cell_end =
-              std::upper_bound(cell_ids.begin(), cell_ids.end(), neighbor_id);
-
-          // For each mass, iterate through all the masses of neighboring cells
-          // to accumulate the repulsion forces.
-          // This is slow with O(n * m), where m is the number of masses in each
-          // neighboring cell.
-          for (auto it = cell_start; it != cell_end; ++it) {
-            Mass *neighbor = mass_pointers[mass_indices[it - cell_ids.begin()]];
-            if (neighbor == mass) {
-              // Skip ourselves
-              continue;
-            }
-
-            Vector3 direction =
-                Vector3Subtract(mass->position, neighbor->position);
-            float distance = Vector3Length(direction);
-            if (std::abs(distance) <= 0.001f || distance >= REPULSION_RANGE) {
-              continue;
-            }
-
-            force = Vector3Add(
-                force, Vector3Scale(Vector3Normalize(direction), GRID_FORCE));
-          }
-        }
-      }
-    }
-
-    mass->force = Vector3Add(mass->force, force);
-  };
-
-  // Calculate forces using uniform grid
-#ifdef WEB
-  // Search the neighboring cells for each mass to calculate repulsion forces
-  for (int i = 0; i < mass_pointers.size(); ++i) {
-    calculate_grid(i);
-  }
-#else
-  BS::multi_future<void> loop_future =
-      threads.submit_loop(0, mass_pointers.size(), solve_grid, 512);
-  loop_future.wait();
-#endif
-
-#endif
 }
 
 auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
@@ -330,13 +180,131 @@ auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
   }
 }
 
-#ifndef BARNES_HUT
-auto MassSpringSystem::InvalidateGrid() -> void {
-  mass_pointers.clear();
-  mass_indices.clear();
-  cell_ids.clear();
-  last_build = REPULSION_GRID_REFRESH;
-  last_masses_count = 0;
-  last_springs_count = 0;
+auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
+    -> void {
+  BS::this_thread::set_os_thread_name("physics");
+
+  MassSpringSystem mass_springs;
+
+  const auto visitor = overloads{
+      [&](const struct AddMass &am) { mass_springs.AddMass(); },
+      [&](const struct AddSpring &as) { mass_springs.AddSpring(as.a, as.b); },
+      [&](const struct ClearGraph &cg) { mass_springs.Clear(); },
+  };
+
+  std::chrono::time_point last = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> accumulator(0);
+  std::chrono::duration<double> update_accumulator(0);
+  unsigned int updates = 0;
+
+  while (state.running.load()) {
+    FrameMarkStart("PhysicsThread");
+
+    // Time tracking
+    std::chrono::time_point now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> deltatime = now - last;
+    accumulator += deltatime;
+    update_accumulator += deltatime;
+    last = now;
+
+    // Handle queued commands
+    {
+      std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+      while (!state.pending_commands.empty()) {
+        Command &cmd = state.pending_commands.front();
+        cmd.visit(visitor);
+        state.pending_commands.pop();
+      }
+    }
+
+    if (mass_springs.masses.empty()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
+    }
+
+    // Physics update
+    if (accumulator.count() > TIMESTEP) {
+      mass_springs.ClearForces();
+      mass_springs.CalculateSpringForces();
+      mass_springs.CalculateRepulsionForces();
+      mass_springs.VerletUpdate(TIMESTEP * SIM_SPEED);
+
+      ++updates;
+      accumulator -= std::chrono::duration<double>(TIMESTEP);
+    }
+
+    // Publish the positions for the renderer (copy)
+    FrameMarkStart("PhysicsThreadProduceLock");
+    {
+      std::unique_lock<LockableBase(std::mutex)> lock(state.data_mtx);
+      state.data_consumed_cnd.wait(
+          lock, [&] { return state.data_consumed || !state.running.load(); });
+      if (!state.running.load()) {
+        // Running turned false while we were waiting for the condition
+        break;
+      }
+
+      if (update_accumulator.count() > 1.0) {
+        // Update each second
+        state.ups = updates;
+        updates = 0;
+        update_accumulator = std::chrono::duration<double>(0);
+      }
+
+      state.masses.clear();
+      state.masses.reserve(mass_springs.masses.size());
+      for (const auto &mass : mass_springs.masses) {
+        state.masses.emplace_back(mass.position);
+      }
+
+      state.springs.clear();
+      state.springs.reserve(mass_springs.springs.size());
+      for (const auto &spring : mass_springs.springs) {
+        state.springs.emplace_back(spring.a, spring.b);
+      }
+
+      state.data_ready = true;
+      state.data_consumed = false;
+    }
+    // Notify the rendering thread that new data is available
+    state.data_ready_cnd.notify_all();
+    FrameMarkEnd("PhysicsThreadProduceLock");
+
+    FrameMarkEnd("PhysicsThread");
+  }
 }
-#endif
+
+auto ThreadedPhysics::AddMassCmd() -> void {
+  {
+    std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+    state.pending_commands.push(AddMass{});
+  }
+}
+
+auto ThreadedPhysics::AddSpringCmd(std::size_t a, std::size_t b) -> void {
+  {
+    std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+    state.pending_commands.push(AddSpring{a, b});
+  }
+}
+
+auto ThreadedPhysics::ClearCmd() -> void {
+  {
+    std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+    state.pending_commands.push(ClearGraph{});
+  }
+}
+
+auto ThreadedPhysics::AddMassSpringsCmd(
+    std::size_t num_masses,
+    const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void {
+  {
+    std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+    for (std::size_t i = 0; i < num_masses; ++i) {
+      state.pending_commands.push(AddMass{});
+    }
+    for (const auto &[from, to] : springs) {
+      state.pending_commands.push(AddSpring{from, to});
+    }
+  }
+}
