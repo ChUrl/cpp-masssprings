@@ -1,7 +1,6 @@
 #include "physics.hpp"
 #include "config.hpp"
 
-#include <BS_thread_pool.hpp>
 #include <algorithm>
 #include <cfloat>
 #include <chrono>
@@ -10,6 +9,11 @@
 #include <raymath.h>
 #include <utility>
 #include <vector>
+
+#ifdef THREADPOOL
+#define BS_THREAD_POOL_NATIVE_EXTENSIONS
+#include <BS_thread_pool.hpp>
+#endif
 
 #ifdef TRACY
 #include "tracy.hpp"
@@ -116,9 +120,11 @@ auto MassSpringSystem::CalculateSpringForces() -> void {
   }
 }
 
+#ifdef THREADPOOL
 auto MassSpringSystem::SetThreadName(std::size_t idx) -> void {
   BS::this_thread::set_os_thread_name(std::format("bh-worker-{}", idx));
 }
+#endif
 
 auto MassSpringSystem::BuildOctree() -> void {
 #ifdef TRACY
@@ -170,14 +176,14 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
   };
 
 // Calculate forces using Barnes-Hut
-#ifdef WEB
-  for (int i = 0; i < mass_pointers.size(); ++i) {
-    solve_octree(i);
-  }
-#else
+#ifdef THREADPOOL
   BS::multi_future<void> loop_future =
       threads.submit_loop(0, masses.size(), solve_octree, 256);
   loop_future.wait();
+#else
+  for (std::size_t i = 0; i < masses.size(); ++i) {
+    solve_octree(i);
+  }
 #endif
 }
 
@@ -193,7 +199,9 @@ auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
 
 auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
     -> void {
+#ifdef THREADPOOL
   BS::this_thread::set_os_thread_name("physics");
+#endif
 
   MassSpringSystem mass_springs;
 

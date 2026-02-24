@@ -204,14 +204,12 @@ inline auto state_new_century_wc(const State &state) -> bool {
 static std::vector<StateGenerator> generators{
     state_simple_1r,  state_simple_2r,  state_simple_3r,  state_complex_1r,
     state_complex_2r, state_complex_3r, state_complex_4f, state_complex_5r,
-    state_complex_6r, state_klotski,    state_century,    state_super_century,
-    state_new_century};
+    state_complex_6r, state_klotski,    state_century,    state_super_century};
 
 static std::vector<WinCondition> win_conditions{
     state_simple_1r_wc,  state_simple_2r_wc,  state_simple_3r_wc,
     state_complex_1r_wc, state_complex_2r_wc, state_complex_3r_wc,
     state_complex_4f_wc, state_complex_5r_wc, state_complex_6r_wc,
-    state_klotski_wc,    state_century_wc,    state_super_century_wc,
-    state_new_century_wc};
+    state_klotski_wc,    state_century_wc,    state_super_century_wc};
 
 #endif

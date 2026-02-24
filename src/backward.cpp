@@ -33,6 +33,10 @@
 // - g++/clang++ -lunwind
 // #define BACKWARD_HAS_LIBUNWIND 1
 
+#include "config.hpp"
+
+#ifdef BACKWARD
+
 #include "backward.hpp"
 
 namespace backward {
@@ -40,3 +44,5 @@ namespace backward {
 backward::SignalHandling sh;
 
 } // namespace backward
+
+#endif

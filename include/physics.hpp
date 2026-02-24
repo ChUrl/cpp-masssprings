@@ -7,6 +7,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
+#include <iostream>
 #include <mutex>
 #include <queue>
 #include <raylib.h>
@@ -15,7 +16,7 @@
 #include <variant>
 #include <vector>
 
-#ifndef WEB
+#ifdef THREADPOOL
 #define BS_THREAD_POOL_NATIVE_EXTENSIONS
 #include <BS_thread_pool.hpp>
 #endif
@@ -62,7 +63,7 @@ class MassSpringSystem {
 private:
   Octree octree;
 
-#ifndef WEB
+#ifdef THREADPOOL
   BS::thread_pool<BS::tp::none> threads;
 #endif
 
@@ -73,11 +74,14 @@ public:
 
 public:
   MassSpringSystem()
-      : threads(std::thread::hardware_concurrency() - 1, SetThreadName) {
+#ifdef THREADPOOL
+      : threads(std::thread::hardware_concurrency() - 1, SetThreadName)
+#endif
+  {
     std::cout << "Using Barnes-Hut + octree repulsion force calculation."
               << std::endl;
 
-#ifndef WEB
+#ifdef THREADPOOL
     std::cout << "Thread-Pool: " << threads.get_thread_count() << " threads."
               << std::endl;
 #endif
@@ -89,7 +93,9 @@ public:
   MassSpringSystem &operator=(MassSpringSystem &&move) = delete;
 
 private:
+#ifdef THREADPOOL
   static auto SetThreadName(std::size_t idx) -> void;
+#endif
 
   auto BuildOctree() -> void;
 

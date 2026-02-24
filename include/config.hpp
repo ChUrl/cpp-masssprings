@@ -3,8 +3,9 @@
 
 #include <raylib.h>
 
-// #define WEB        // Disables multithreading
-// #define TRACY      // Enable tracy profiling support
+#define THREADPOOL // Enable physics threadpool
+#define TRACY      // Enable tracy profiling support
+#define BACKWARD   // Enable pretty stack traces
 
 // Window
 constexpr int INITIAL_WIDTH = 800;
