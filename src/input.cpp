@@ -89,6 +89,15 @@ auto InputHandler::HandleMouse() -> void {
       block_add_y = -1;
       has_block_add_xy = false;
     }
+  } else if (IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+    if (hov_x >= 0 && hov_x < state.current_state.width && hov_y >= 0 &&
+        hov_y < state.current_state.height) {
+      if (state.current_state.SetGoal(hov_x, hov_y)) {
+        // We can't just call state.FindWinningStates() because the
+        // state is entirely different if it has a different win condition.
+        state.ClearGraph();
+      }
+    }
   }
 }
 

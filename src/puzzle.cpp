@@ -54,7 +54,7 @@ auto Block::Collides(const Block &other) const -> bool {
 auto State::Hash() const -> int { return std::hash<std::string>{}(state); }
 
 auto State::HasWinCondition() const -> bool {
-  return target_x == 9 || target_y == 9;
+  return target_x != 9 && target_y != 9;
 }
 
 auto State::IsWon() const -> bool {
@@ -69,6 +69,26 @@ auto State::IsWon() const -> bool {
   }
 
   return false;
+}
+
+auto State::SetGoal(int x, int y) -> bool {
+  if (x < 0 || x >= width || y < 0 || y >= height ||
+      !GetTargetBlock().IsValid()) {
+    return false;
+  }
+
+  if (target_x == x && target_y == y) {
+    target_x = 9;
+    target_y = 9;
+  } else {
+    target_x = x;
+    target_y = y;
+  }
+
+  state.replace(3, 1, std::format("{}", target_x));
+  state.replace(4, 1, std::format("{}", target_y));
+
+  return true;
 }
 
 auto State::AddColumn() const -> State {
@@ -144,6 +164,16 @@ auto State::GetBlock(int x, int y) const -> Block {
 
 auto State::GetBlockAt(int x, int y) const -> std::string {
   return state.substr(GetIndex(x, y), 2);
+}
+
+auto State::GetTargetBlock() const -> Block {
+  for (Block b : *this) {
+    if (b.target) {
+      return b;
+    }
+  }
+
+  return Block::Invalid();
 }
 
 auto State::GetIndex(int x, int y) const -> int {

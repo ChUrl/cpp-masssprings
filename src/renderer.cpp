@@ -132,13 +132,13 @@ auto Renderer::DrawMassSprings(
         const Vector3 &winning_mass = masses.at(winning_index);
         if (input.mark_solutions) {
           DrawCube(winning_mass, 2 * VERTEX_SIZE, 2 * VERTEX_SIZE,
-                   2 * VERTEX_SIZE, BLUE);
+                   2 * VERTEX_SIZE, TARGET_BLOCK_COLOR);
         }
 
         std::size_t current_index = state.CurrentMassIndex();
         if (input.connect_solutions && masses.size() > current_index) {
           const Vector3 &current_mass = masses.at(current_index);
-          DrawLine3D(winning_mass, current_mass, PURPLE);
+          DrawLine3D(winning_mass, current_mass, ORANGE);
         }
       }
     }
@@ -168,7 +168,7 @@ auto Renderer::DrawMassSprings(
   if (masses.size() > current_index) {
     const Vector3 &current_mass = masses.at(current_index);
     DrawCube(current_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
-             RED);
+             BLUE);
   }
 
   // DrawCubeWires(current_mass.position, REPULSION_RANGE, REPULSION_RANGE,
@@ -265,6 +265,23 @@ auto Renderer::DrawKlotski() -> void {
         y_offset + BOARD_PADDING + input.block_add_y * BLOCK_PADDING * 2 +
             BLOCK_PADDING + input.block_add_y * block_size + block_size / 2,
         block_size / 10.0, Fade(BLACK, 0.5));
+  }
+
+  // Draw board goal position
+  const Block target = state.current_state.GetTargetBlock();
+  if (target.IsValid() && state.current_state.HasWinCondition()) {
+    int target_x = state.current_state.target_x;
+    int target_y = state.current_state.target_y;
+    DrawRectangleLinesEx(
+        Rectangle(x_offset + BOARD_PADDING + target_x * BLOCK_PADDING * 2 +
+                      BLOCK_PADDING + target_x * block_size,
+                  y_offset + BOARD_PADDING + target_y * BLOCK_PADDING * 2 +
+                      BLOCK_PADDING + target_y * block_size,
+                  target.width * block_size + target.width * 2 * BLOCK_PADDING -
+                      2 * BLOCK_PADDING,
+                  target.height * block_size +
+                      target.height * 2 * BLOCK_PADDING - 2 * BLOCK_PADDING),
+        2.0, TARGET_BLOCK_COLOR);
   }
 
   DrawLine(GetScreenWidth() / 2 - 1, 0, GetScreenWidth() / 2 - 1,

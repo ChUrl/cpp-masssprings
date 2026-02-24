@@ -226,6 +226,8 @@ public:
 
   auto IsWon() const -> bool;
 
+  auto SetGoal(int x, int y) -> bool;
+
   auto AddColumn() const -> State;
 
   auto RemoveColumn() const -> State;
@@ -239,6 +241,8 @@ public:
   auto GetBlock(int x, int y) const -> Block;
 
   auto GetBlockAt(int x, int y) const -> std::string;
+
+  auto GetTargetBlock() const -> Block;
 
   auto GetIndex(int x, int y) const -> int;
 
