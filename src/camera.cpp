@@ -1,9 +1,13 @@
 #include "camera.hpp"
 #include "config.hpp"
-#include "tracy.hpp"
 
 #include <raylib.h>
 #include <raymath.h>
+
+#ifdef TRACY
+#include "tracy.hpp"
+#include <tracy/Tracy.hpp>
+#endif
 
 auto OrbitCamera3D::HandleCameraInput() -> Vector2 {
   Vector2 mouse = GetMousePosition();

@@ -1,6 +1,7 @@
 #ifndef __INPUT_HPP_
 #define __INPUT_HPP_
 
+#include "config.hpp"
 #include "state.hpp"
 
 class InputHandler {

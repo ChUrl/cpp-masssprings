@@ -1,10 +1,14 @@
 #include "octree.hpp"
 #include "config.hpp"
-#include "tracy.hpp"
 #include "util.hpp"
 
 #include <iostream>
 #include <raymath.h>
+
+#ifdef TRACY
+#include "tracy.hpp"
+#include <tracy/Tracy.hpp>
+#endif
 
 auto OctreeNode::ChildCount() const -> int {
   int child_count = 0;

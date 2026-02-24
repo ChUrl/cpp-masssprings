@@ -1,8 +1,13 @@
 #include "state.hpp"
+#include "config.hpp"
 #include "presets.hpp"
-#include "tracy.hpp"
 
 #include <raymath.h>
+
+#ifdef TRACY
+#include "tracy.hpp"
+#include <tracy/Tracy.hpp>
+#endif
 
 auto StateManager::LoadPreset(int preset) -> void {
   current_preset = preset;

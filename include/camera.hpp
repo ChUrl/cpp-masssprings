@@ -1,10 +1,10 @@
 #ifndef __CAMERA_HPP_
 #define __CAMERA_HPP_
 
+#include "config.hpp"
+
 #include <raylib.h>
 #include <raymath.h>
-
-#include "config.hpp"
 
 class OrbitCamera3D {
   friend class Renderer;

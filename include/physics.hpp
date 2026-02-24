@@ -1,6 +1,9 @@
 #ifndef __PHYSICS_HPP_
 #define __PHYSICS_HPP_
 
+#include "config.hpp"
+#include "octree.hpp"
+
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
@@ -9,15 +12,16 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <thread>
-#include <tracy/Tracy.hpp>
 #include <variant>
 #include <vector>
-
-#include "octree.hpp"
 
 #ifndef WEB
 #define BS_THREAD_POOL_NATIVE_EXTENSIONS
 #include <BS_thread_pool.hpp>
+#endif
+
+#ifdef TRACY
+#include <tracy/Tracy.hpp>
 #endif
 
 class Mass {
@@ -116,10 +120,18 @@ class ThreadedPhysics {
   using Command = std::variant<AddMass, AddSpring, ClearGraph>;
 
   struct PhysicsState {
+#ifdef TRACY
     TracyLockable(std::mutex, command_mtx);
+#else
+    std::mutex command_mtx;
+#endif
     std::queue<Command> pending_commands;
 
+#ifdef TRACY
     TracyLockable(std::mutex, data_mtx);
+#else
+    std::mutex data_mtx;
+#endif
     std::condition_variable_any data_ready_cnd;
     std::condition_variable_any data_consumed_cnd;
     unsigned int ups = 0;

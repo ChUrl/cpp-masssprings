@@ -1,6 +1,8 @@
 #ifndef __PUZZLE_HPP_
 #define __PUZZLE_HPP_
 
+#include "config.hpp"
+
 #include <array>
 #include <cstddef>
 #include <format>

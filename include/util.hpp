@@ -1,6 +1,8 @@
 #ifndef __UTIL_HPP_
 #define __UTIL_HPP_
 
+#include "config.hpp"
+
 #include <iostream>
 #include <raylib.h>
 #include <raymath.h>

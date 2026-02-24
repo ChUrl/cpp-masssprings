@@ -1,6 +1,8 @@
 #ifndef __OCTREE_HPP_
 #define __OCTREE_HPP_
 
+#include "config.hpp"
+
 #include <raylib.h>
 #include <raymath.h>
 #include <vector>

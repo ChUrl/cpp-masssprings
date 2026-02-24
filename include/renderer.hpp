@@ -1,13 +1,13 @@
 #ifndef __RENDERER_HPP_
 #define __RENDERER_HPP_
 
-#include <raylib.h>
-#include <raymath.h>
-
 #include "camera.hpp"
 #include "config.hpp"
 #include "input.hpp"
 #include "state.hpp"
+
+#include <raylib.h>
+#include <raymath.h>
 
 class Renderer {
 private:

@@ -1,6 +1,7 @@
 #ifndef __STATE_HPP_
 #define __STATE_HPP_
 
+#include "config.hpp"
 #include "physics.hpp"
 #include "presets.hpp"
 #include "puzzle.hpp"

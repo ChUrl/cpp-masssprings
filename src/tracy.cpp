@@ -1,5 +1,8 @@
-#include "tracy.hpp"
+#include "config.hpp"
 
+#ifdef TRACY
+
+#include "tracy.hpp"
 #include <tracy/Tracy.hpp>
 
 void *operator new(std::size_t count) {
@@ -15,3 +18,5 @@ void operator delete(void *ptr, std::size_t count) noexcept {
   TracyFreeS(ptr, 20);
   free(ptr);
 }
+
+#endif

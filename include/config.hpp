@@ -4,6 +4,7 @@
 #include <raylib.h>
 
 // #define WEB        // Disables multithreading
+// #define TRACY      // Enable tracy profiling support
 
 // Window
 constexpr int INITIAL_WIDTH = 800;

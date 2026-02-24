@@ -1,7 +1,12 @@
 #include "puzzle.hpp"
-#include "tracy.hpp"
+#include "config.hpp"
 
 #include <unordered_set>
+
+#ifdef TRACY
+#include "tracy.hpp"
+#include <tracy/Tracy.hpp>
+#endif
 
 auto Block::Hash() const -> int {
   std::string s = std::format("{},{},{},{}", x, y, width, height);
@@ -267,6 +272,10 @@ auto State::GetNextStates() const -> std::vector<State> {
 auto State::Closure() const
     -> std::pair<std::vector<State>,
                  std::vector<std::pair<std::size_t, std::size_t>>> {
+#ifdef TRACY
+  ZoneScoped;
+#endif
+
   std::vector<State> states;
   std::vector<std::pair<std::size_t, std::size_t>> links;
 

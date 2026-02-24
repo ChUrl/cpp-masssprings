@@ -1,10 +1,11 @@
 #ifndef __PRESETS_HPP_
 #define __PRESETS_HPP_
 
+#include "config.hpp"
+#include "puzzle.hpp"
+
 #include <functional>
 #include <vector>
-
-#include "puzzle.hpp"
 
 using StateGenerator = std::function<State(void)>;
 

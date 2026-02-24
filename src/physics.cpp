@@ -1,19 +1,20 @@
 #include "physics.hpp"
 #include "config.hpp"
-#include "tracy.hpp"
 
 #include <BS_thread_pool.hpp>
 #include <algorithm>
 #include <cfloat>
 #include <chrono>
 #include <cstddef>
-#include <mutex>
-#include <ratio>
 #include <raylib.h>
 #include <raymath.h>
-#include <tracy/Tracy.hpp>
 #include <utility>
 #include <vector>
+
+#ifdef TRACY
+#include "tracy.hpp"
+#include <tracy/Tracy.hpp>
+#endif
 
 auto Mass::ClearForce() -> void { force = Vector3Zero(); }
 
@@ -94,7 +95,9 @@ auto MassSpringSystem::Clear() -> void {
 }
 
 auto MassSpringSystem::ClearForces() -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   for (auto &mass : masses) {
     mass.ClearForce();
@@ -102,7 +105,9 @@ auto MassSpringSystem::ClearForces() -> void {
 }
 
 auto MassSpringSystem::CalculateSpringForces() -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   for (const auto spring : springs) {
     Mass &a = masses.at(spring.a);
@@ -116,7 +121,9 @@ auto MassSpringSystem::SetThreadName(std::size_t idx) -> void {
 }
 
 auto MassSpringSystem::BuildOctree() -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   octree.nodes.clear();
   octree.nodes.reserve(masses.size() * 2);
@@ -151,7 +158,9 @@ auto MassSpringSystem::BuildOctree() -> void {
 }
 
 auto MassSpringSystem::CalculateRepulsionForces() -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   BuildOctree();
 
@@ -173,7 +182,9 @@ auto MassSpringSystem::CalculateRepulsionForces() -> void {
 }
 
 auto MassSpringSystem::VerletUpdate(float delta_time) -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   for (auto &mass : masses) {
     mass.VerletUpdate(delta_time);
@@ -198,7 +209,9 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
   unsigned int updates = 0;
 
   while (state.running.load()) {
+#ifdef TRACY
     FrameMarkStart("PhysicsThread");
+#endif
 
     // Time tracking
     std::chrono::time_point now = std::chrono::high_resolution_clock::now();
@@ -209,7 +222,11 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
 
     // Handle queued commands
     {
+#ifdef TRACY
       std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+#else
+      std::lock_guard<std::mutex> lock(state.command_mtx);
+#endif
       while (!state.pending_commands.empty()) {
         Command &cmd = state.pending_commands.front();
         cmd.visit(visitor);
@@ -234,9 +251,15 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
     }
 
     // Publish the positions for the renderer (copy)
+#ifdef TRACY
     FrameMarkStart("PhysicsThreadProduceLock");
+#endif
     {
+#ifdef TRACY
       std::unique_lock<LockableBase(std::mutex)> lock(state.data_mtx);
+#else
+      std::unique_lock<std::mutex> lock(state.data_mtx);
+#endif
       state.data_consumed_cnd.wait(
           lock, [&] { return state.data_consumed || !state.running.load(); });
       if (!state.running.load()) {
@@ -268,29 +291,43 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
     }
     // Notify the rendering thread that new data is available
     state.data_ready_cnd.notify_all();
+#ifdef TRACY
     FrameMarkEnd("PhysicsThreadProduceLock");
 
     FrameMarkEnd("PhysicsThread");
+#endif
   }
 }
 
 auto ThreadedPhysics::AddMassCmd() -> void {
   {
+#ifdef TRACY
     std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+#else
+    std::lock_guard<std::mutex> lock(state.command_mtx);
+#endif
     state.pending_commands.push(AddMass{});
   }
 }
 
 auto ThreadedPhysics::AddSpringCmd(std::size_t a, std::size_t b) -> void {
   {
+#ifdef TRACY
     std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+#else
+    std::lock_guard<std::mutex> lock(state.command_mtx);
+#endif
     state.pending_commands.push(AddSpring{a, b});
   }
 }
 
 auto ThreadedPhysics::ClearCmd() -> void {
   {
+#ifdef TRACY
     std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+#else
+    std::lock_guard<std::mutex> lock(state.command_mtx);
+#endif
     state.pending_commands.push(ClearGraph{});
   }
 }
@@ -299,7 +336,11 @@ auto ThreadedPhysics::AddMassSpringsCmd(
     std::size_t num_masses,
     const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void {
   {
+#ifdef TRACY
     std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+#else
+    std::lock_guard<std::mutex> lock(state.command_mtx);
+#endif
     for (std::size_t i = 0; i < num_masses; ++i) {
       state.pending_commands.push(AddMass{});
     }

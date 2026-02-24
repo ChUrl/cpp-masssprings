@@ -1,14 +1,17 @@
 #include "renderer.hpp"
 #include "config.hpp"
 #include "puzzle.hpp"
-#include "tracy.hpp"
 
 #include <algorithm>
 #include <format>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
+
+#ifdef TRACY
+#include "tracy.hpp"
 #include <tracy/Tracy.hpp>
+#endif
 
 #ifdef BATCHING
 #include <cstring>
@@ -59,11 +62,15 @@ auto Renderer::ReallocateGraphInstancingIfNecessary(std::size_t size) -> void {
 auto Renderer::DrawMassSprings(
     const std::vector<Vector3> &masses,
     const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   // Prepare cube instancing
   {
+#ifdef TRACY
     ZoneNamedN(prepare_masses, "PrepareMasses", true);
+#endif
     if (masses.size() < DRAW_VERTICES_LIMIT) {
       if (transforms == nullptr) {
         AllocateGraphInstancing(masses.size());
@@ -85,7 +92,9 @@ auto Renderer::DrawMassSprings(
 
   // Draw springs (batched)
   {
+#ifdef TRACY
     ZoneNamedN(draw_springs, "DrawSprings", true);
+#endif
     rlBegin(RL_LINES);
     for (const auto &[from, to] : springs) {
       if (masses.size() > from && masses.size() > to) {
@@ -101,7 +110,9 @@ auto Renderer::DrawMassSprings(
 
   // Draw masses (instanced)
   {
+#ifdef TRACY
     ZoneNamedN(draw_masses, "DrawMasses", true);
+#endif
     if (masses.size() < DRAW_VERTICES_LIMIT) {
       // NOTE: I don't know if drawing all this inside a shader would make it
       //       much faster... The amount of data sent to the GPU would be
@@ -171,7 +182,9 @@ auto Renderer::DrawMassSprings(
 }
 
 auto Renderer::DrawKlotski() -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   BeginTextureMode(klotski_target);
   ClearBackground(RAYWHITE);
@@ -262,7 +275,9 @@ auto Renderer::DrawKlotski() -> void {
 auto Renderer::DrawMenu(
     const std::vector<Vector3> &masses,
     const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   BeginTextureMode(menu_target);
   ClearBackground(RAYWHITE);
