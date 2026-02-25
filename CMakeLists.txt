@@ -21,7 +21,7 @@ if(USE_TRACY)
     option(TRACY_ON_DEMAND "" ON)
 
     # Enable tracy macros in the application. Uses a LOT of memory.
-    add_compile_definitions(TRACY)
+    # add_compile_definitions(TRACY)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wno-unused-parameter -Wunreachable-code")
