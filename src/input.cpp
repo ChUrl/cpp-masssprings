@@ -1,6 +1,5 @@
 #include "input.hpp"
 #include "config.hpp"
-#include "distance.hpp"
 
 #include <algorithm>
 #include <raylib.h>
@@ -154,6 +153,8 @@ auto InputHandler::HandleKeys() -> void {
     mark_path = !mark_path;
   } else if (IsKeyPressed(KEY_SPACE)) {
     state.NextPath();
+  } else if (IsKeyPressed(KEY_V)) {
+    state.GoToWorst();
   } else if (IsKeyPressed(KEY_F)) {
     state.current_state.ToggleRestricted();
     state.ClearGraph();

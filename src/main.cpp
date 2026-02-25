@@ -3,7 +3,6 @@
 #include <raymath.h>
 
 #include "config.hpp"
-#include "distance.hpp"
 #include "input.hpp"
 #include "physics.hpp"
 #include "renderer.hpp"
@@ -16,8 +15,7 @@
 
 // TODO: Graph interaction
 //       - Click states to display them in the board
-//       - Find shortest path to any winning state and mark it in the graph
-//       - Also mark the next move along the path on the board
+// TODO: Add a move history and backspace to go back
 
 auto main(int argc, char *argv[]) -> int {
   std::string preset_file;

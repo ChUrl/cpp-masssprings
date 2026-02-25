@@ -351,7 +351,8 @@ auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
                        input.mark_path, input.mark_solutions,
                        input.connect_solutions),
            DARKPURPLE);
-  draw_btn(2, 3, std::format("Move along Path (Space)"), DARKPURPLE);
+  draw_btn(2, 3, std::format("Path forward (Space) / To worst (V)"),
+           DARKPURPLE);
 
   DrawLine(0, MENU_HEIGHT - 1, GetScreenWidth(), MENU_HEIGHT - 1, BLACK);
   EndTextureMode();

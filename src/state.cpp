@@ -193,8 +193,30 @@ auto StateManager::FindTargetPath() -> void {
   }
 
   winning_path = GetPath(target_distances, CurrentMassIndex());
-  // std::cout << "Nearest target is " << winning_path.size() << " moves away."
-  //           << std::endl;
+  std::cout << "Nearest target is " << winning_path.size() << " moves away."
+            << std::endl;
+}
+
+auto StateManager::FindWorstState() -> State {
+  if (target_distances.Empty()) {
+    return current_state;
+  }
+
+  int max = 0;
+  int index = 0;
+  for (std::size_t i = 0; i < target_distances.distances.size(); ++i) {
+    if (target_distances.distances[i] > max) {
+      max = target_distances.distances[i];
+      index = i;
+    }
+  }
+
+  return masses.at(index);
+}
+
+auto StateManager::GoToWorst() -> void {
+  current_state = FindWorstState();
+  FindTargetPath();
 }
 
 auto StateManager::CurrentMassIndex() const -> std::size_t {

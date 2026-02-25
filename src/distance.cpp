@@ -2,7 +2,6 @@
 #include "config.hpp"
 
 #include <cstddef>
-#include <iostream>
 #include <queue>
 
 #ifdef TRACY

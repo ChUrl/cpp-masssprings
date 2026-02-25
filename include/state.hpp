@@ -82,6 +82,10 @@ public:
 
   auto FindTargetPath() -> void;
 
+  auto FindWorstState() -> State;
+
+  auto GoToWorst() -> void;
+
   auto CurrentMassIndex() const -> std::size_t;
 };
 
