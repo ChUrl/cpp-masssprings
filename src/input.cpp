@@ -155,6 +155,10 @@ auto InputHandler::HandleKeys() -> void {
     state.NextPath();
   } else if (IsKeyPressed(KEY_V)) {
     state.GoToWorst();
+  } else if (IsKeyPressed(KEY_B)) {
+    state.GoToNearestTarget();
+  } else if (IsKeyPressed(KEY_BACKSPACE)) {
+    state.PopHistory();
   } else if (IsKeyPressed(KEY_F)) {
     state.current_state.ToggleRestricted();
     state.ClearGraph();

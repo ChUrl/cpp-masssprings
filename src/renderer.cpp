@@ -267,13 +267,20 @@ auto Renderer::DrawKlotski() -> void {
   }
 
   // Draw editing starting position
-  if (input.block_add_x >= 0 && input.block_add_y >= 0) {
-    DrawCircle(
+  if (input.block_add_x >= 0 && input.block_add_y >= 0 &&
+      input.hov_x >= input.block_add_x && input.hov_y >= input.block_add_y) {
+    int block_width = input.hov_x - input.block_add_x + 1;
+    int block_height = input.hov_y - input.block_add_y + 1;
+    DrawRectangle(
         x_offset + BOARD_PADDING + input.block_add_x * BLOCK_PADDING * 2 +
-            BLOCK_PADDING + input.block_add_x * block_size + block_size / 2,
+            BLOCK_PADDING + input.block_add_x * block_size,
         y_offset + BOARD_PADDING + input.block_add_y * BLOCK_PADDING * 2 +
-            BLOCK_PADDING + input.block_add_y * block_size + block_size / 2,
-        block_size / 10.0, Fade(BLACK, 0.5));
+            BLOCK_PADDING + input.block_add_y * block_size,
+        block_width * block_size + block_width * 2 * BLOCK_PADDING -
+            2 * BLOCK_PADDING,
+        block_height * block_size + block_height * 2 * BLOCK_PADDING -
+            2 * BLOCK_PADDING,
+        Fade(BLOCK_COLOR, 0.5));
   }
 
   // Draw board goal position
@@ -316,42 +323,52 @@ auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
   auto draw_btn = [&](int x, int y, std::string text, Color color) {
     int posx = MENU_PAD + x * (MENU_PAD + btn_width);
     int posy = MENU_PAD + y * (MENU_PAD + btn_height);
-    DrawRectangle(posx, posy, btn_width, btn_height, Fade(color, 0.6));
+    DrawRectangle(posx, posy, btn_width, btn_height, Fade(color, 0.7));
     DrawRectangleLines(posx, posy, btn_width, btn_height, color);
     DrawText(text.data(), posx + BUTTON_PAD, posy + BUTTON_PAD,
              btn_height - 2.0 * BUTTON_PAD, WHITE);
   };
 
+  // Left column
   draw_btn(0, 0,
-           std::format("States: {}, Transitions: {}, Winning: {}",
+           std::format("States: {} / Transitions: {} / Winning: {}",
                        masses.size(), state.springs.size(),
                        state.winning_states.size()),
+           ORANGE);
+  draw_btn(0, 1,
+           std::format("Preset (M/N): {}, {} (F)", state.current_preset,
+                       state.current_state.restricted ? "Restricted" : "Free"),
+           ORANGE);
+  draw_btn(0, 2, std::format("Pan (LMB) / Rotate (RMB) / Zoom (Wheel)"),
            DARKGREEN);
   draw_btn(
-      0, 1,
-      std::format("Camera Distance (SHIFT for Fast Zoom): {}", camera.distance),
-      DARKGREEN);
-  draw_btn(
-      0, 2,
+      0, 3,
       std::format("Lock Camera to Current State (L): {}", camera.target_lock),
       DARKGREEN);
 
-  draw_btn(1, 0, std::format("Reset State (R)"), DARKBLUE);
+  // Center column
+  draw_btn(1, 0, std::format("Select (LMB) / Move (W, A, S, D) / Target (T)"),
+           DARKBLUE);
   draw_btn(1, 1, std::format("Add/Remove Col/Row (Arrow Keys)"), DARKBLUE);
-  draw_btn(1, 2, std::format("Print Board State to Console (P)"), DARKBLUE);
+  draw_btn(1, 2, std::format("Add/Remove Block (LMB/RMB), Set Goal (MMB)"),
+           DARKBLUE);
+  draw_btn(1, 3, std::format("Print State (P) / Reset State (R)"), DARKBLUE);
 
-  draw_btn(2, 0,
-           std::format("Preset (M/N): {}, {} (F)", state.current_preset,
-                       state.current_state.restricted ? "Restricted" : "Free"),
+  // Right column
+  draw_btn(2, 0, std::format("Populate Graph (G), Clear Graph (C)"),
            DARKPURPLE);
-  draw_btn(2, 1, std::format("Populate Graph (G), Clear Graph (C)"),
-           DARKPURPLE);
-  draw_btn(2, 2,
-           std::format("Path (U): {} / Mark (I): {} / Connect (O): {}",
+  draw_btn(2, 1,
+           std::format("Path (U): {} / Goals (I): {} / Connect (O): {}",
                        input.mark_path, input.mark_solutions,
                        input.connect_solutions),
            DARKPURPLE);
-  draw_btn(2, 3, std::format("Path forward (Space) / To worst (V)"),
+  draw_btn(2, 2, std::format("Best move (Space) / Move back (Backspace)"),
+           DARKPURPLE);
+  draw_btn(2, 3,
+           std::format("Worst (V) / Nearest target (B) / Moves remaining: {}",
+                       state.winning_path.size() > 0
+                           ? state.winning_path.size() - 1
+                           : 0),
            DARKPURPLE);
 
   DrawLine(0, MENU_HEIGHT - 1, GetScreenWidth(), MENU_HEIGHT - 1, BLACK);

@@ -50,7 +50,6 @@ auto main(int argc, char *argv[]) -> int {
 #endif
 
     // Input update
-    state.previous_state = state.current_state;
     input.HandleInput();
     state.UpdateGraph(); // Add state added after user input
 

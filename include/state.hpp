@@ -7,6 +7,7 @@
 #include "puzzle.hpp"
 
 #include <raymath.h>
+#include <stack>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -20,6 +21,7 @@ public:
   std::unordered_map<State, std::size_t> states;
   std::unordered_set<State> winning_states;
   std::unordered_set<State> visited_states;
+  std::stack<State> history;
 
   // Other stuff maps from mass to state :/
   std::unordered_map<std::size_t, State> masses;
@@ -85,6 +87,10 @@ public:
   auto FindWorstState() -> State;
 
   auto GoToWorst() -> void;
+
+  auto GoToNearestTarget() -> void;
+
+  auto PopHistory() -> void;
 
   auto CurrentMassIndex() const -> std::size_t;
 };

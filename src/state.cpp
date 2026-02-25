@@ -133,7 +133,17 @@ auto StateManager::UpdateGraph() -> void {
   }
 
   visited_states.insert(current_state);
+
+  if (history.size() > 0 && history.top() == current_state) {
+    // We don't pop the stack when moving backwards to indicate if we need to
+    // push or pop here
+    history.pop();
+  } else {
+    history.push(previous_state);
+  }
+
   FindTargetPath();
+  previous_state = current_state;
 }
 
 auto StateManager::ClearGraph() -> void {
@@ -143,6 +153,7 @@ auto StateManager::ClearGraph() -> void {
   masses.clear();
   winning_path.clear();
   springs.clear();
+  history = std::stack<State>();
   target_distances.Clear();
   physics.ClearCmd();
 
@@ -193,8 +204,8 @@ auto StateManager::FindTargetPath() -> void {
   }
 
   winning_path = GetPath(target_distances, CurrentMassIndex());
-  std::cout << "Nearest target is " << winning_path.size() << " moves away."
-            << std::endl;
+  // std::cout << "Nearest target is " << winning_path.size() << " moves away."
+  //           << std::endl;
 }
 
 auto StateManager::FindWorstState() -> State {
@@ -205,8 +216,8 @@ auto StateManager::FindWorstState() -> State {
   int max = 0;
   int index = 0;
   for (std::size_t i = 0; i < target_distances.distances.size(); ++i) {
-    if (target_distances.distances[i] > max) {
-      max = target_distances.distances[i];
+    if (target_distances.distances.at(i) > max) {
+      max = target_distances.distances.at(i);
       index = i;
     }
   }
@@ -214,9 +225,24 @@ auto StateManager::FindWorstState() -> State {
   return masses.at(index);
 }
 
-auto StateManager::GoToWorst() -> void {
-  current_state = FindWorstState();
-  FindTargetPath();
+auto StateManager::GoToWorst() -> void { current_state = FindWorstState(); }
+
+auto StateManager::GoToNearestTarget() -> void {
+  if (target_distances.Empty()) {
+    return;
+  }
+
+  current_state =
+      masses.at(target_distances.nearest_targets.at(CurrentMassIndex()));
+}
+
+auto StateManager::PopHistory() -> void {
+  if (history.size() == 0) {
+    return;
+  }
+
+  current_state = history.top();
+  // history.pop(); // Done in UpdateGraph();
 }
 
 auto StateManager::CurrentMassIndex() const -> std::size_t {
