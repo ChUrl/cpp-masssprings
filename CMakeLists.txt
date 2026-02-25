@@ -4,26 +4,6 @@ project(MassSprings)
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(raylib REQUIRED)
-find_package(Backward REQUIRED)
-
-# Need to enable/disable this based on a variable for nix build
-if(USE_TRACY)
-    include(FetchContent)
-    FetchContent_Declare(tracy
-        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG v0.11.1
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-    )
-    FetchContent_MakeAvailable(tracy)
-    option(TRACY_ENABLE "" ON)
-    option(TRACY_ON_DEMAND "" ON)
-
-    # Enable tracy macros in the application. Uses a LOT of memory.
-    add_compile_definitions(TRACY)
-endif()
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wno-unused-parameter -Wunreachable-code")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O2 -ggdb") # -fsanitize=address already fails on InitWindow(), -fsanitize=undefined, -fsanitize=leak
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -march=native")
@@ -35,9 +15,12 @@ message("-- CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message("-- CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 message("-- CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 
-include_directories(include)
+find_package(raylib REQUIRED)
+find_package(Backward REQUIRED)
 
-add_executable(masssprings
+# Headers + Sources
+include_directories(include)
+set(SOURCES
     src/main.cpp
     src/camera.cpp
     src/renderer.cpp
@@ -51,19 +34,39 @@ add_executable(masssprings
     src/distance.cpp
 )
 
+# Main target
+add_executable(masssprings ${SOURCES})
 target_include_directories(masssprings PUBLIC ${RAYLIB_CPP_INCLUDE_DIR})
+target_link_libraries(masssprings PUBLIC raylib Backward::Backward)
 
+# Tracy target
 if(USE_TRACY)
-    target_link_libraries(masssprings PUBLIC raylib Backward::Backward TracyClient)
-else()
-    target_link_libraries(masssprings PUBLIC raylib Backward::Backward)
+    include(FetchContent)
+    FetchContent_Declare(tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG v0.11.1
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(tracy)
+    option(TRACY_ENABLE "" ON)
+    option(TRACY_ON_DEMAND "" ON)
+
+    add_executable(masssprings_tracy ${SOURCES})
+    target_include_directories(masssprings_tracy PUBLIC ${RAYLIB_CPP_INCLUDE_DIR})
+    target_compile_definitions(masssprings_tracy PRIVATE TRACY)
+    target_link_libraries(masssprings_tracy PUBLIC raylib Backward::Backward TracyClient)
 endif()
 
+# LTO
 include(CheckIPOSupported)
 check_ipo_supported(RESULT supported OUTPUT error)
 if(supported)
     message(STATUS "IPO / LTO enabled")
     set_property(TARGET masssprings PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    if(USE_TRACY)
+        set_property(TARGET masssprings_tracy PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
 else()
     message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
