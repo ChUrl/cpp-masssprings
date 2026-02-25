@@ -86,7 +86,9 @@ auto StateManager::NextPath() -> void {
 }
 
 auto StateManager::FillGraph() -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   ClearGraph();
 
@@ -178,7 +180,9 @@ auto StateManager::FindWinningStates() -> void {
 }
 
 auto StateManager::FindTargetDistances() -> void {
+#ifdef TRACY
   ZoneScoped;
+#endif
 
   if (springs.size() == 0 || winning_states.size() == 0) {
     return;

@@ -1,0 +1,66 @@
+{
+   glib_malloc
+   Memcheck:Leak
+   ...
+   obj:*/libglib-2.0.so*
+}
+{
+   gtk_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libgtk-3.so*
+}
+{
+   mesa_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libGLX*
+}
+{
+   glfw_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libglfw.so*
+}
+{
+   wayland_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libwayland*.so*
+}
+{
+   dbus_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libdbus*.so*
+}
+{
+   egl_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libEGL*.so*
+}
+{
+   x11_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libX11*
+}
+{
+   fontconfig_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libfontconfig.so*
+}
+{
+   pango_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libpango*.so*
+}
+{
+   nvidia_leaks
+   Memcheck:Leak
+   ...
+   obj:*/libnvidia*.so*
+}

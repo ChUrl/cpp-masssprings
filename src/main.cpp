@@ -13,9 +13,9 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-// TODO: Graph interaction
-//       - Click states to display them in the board
-// TODO: Add a move history and backspace to go back
+// TODO: Click states to display them in the board
+
+// NOTE: Tracy uses a huge amount of memory. For longer testing disable Tracy.
 
 auto main(int argc, char *argv[]) -> int {
   std::string preset_file;

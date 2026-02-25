@@ -287,6 +287,7 @@ rec {
                 abbr -a release "${buildRelease} && ./cmake-build-release/masssprings"
                 abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"
                 abbr -a runtracy "tracy -a 127.0.0.1 &; ${buildRelease} && sudo -E ./cmake-build-release/masssprings"
+                abbr -a runvalgrind "${buildDebug} && valgrind --leak-check=full --show-reachable=no --show-leak-kinds=definite,indirect,possible --track-origins=no --suppressions=valgrind.supp --log-file=valgrind.log ./cmake-build-debug/masssprings && cat valgrind.log"
               '';
             in
               builtins.concatStringsSep "\n" [
