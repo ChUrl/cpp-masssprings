@@ -16,6 +16,7 @@ public:
   ThreadedPhysics &physics;
 
   std::vector<State> presets;
+  std::vector<std::string> comments;
 
   // Some stuff is faster to map from state to mass (e.g. in the renderer)
   std::unordered_map<State, std::size_t> states;

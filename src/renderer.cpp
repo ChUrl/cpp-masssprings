@@ -322,11 +322,24 @@ auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
 
   auto draw_btn = [&](int x, int y, std::string text, Color color) {
     int posx = MENU_PAD + x * (MENU_PAD + btn_width);
-    int posy = MENU_PAD + y * (MENU_PAD + btn_height);
+    int posy = MENU_PAD + (y + 1) * (MENU_PAD + btn_height);
     DrawRectangle(posx, posy, btn_width, btn_height, Fade(color, 0.7));
     DrawRectangleLines(posx, posy, btn_width, btn_height, color);
     DrawText(text.data(), posx + BUTTON_PAD, posy + BUTTON_PAD,
              btn_height - 2.0 * BUTTON_PAD, WHITE);
+  };
+
+  auto draw_subtitle = [&](std::string text, Color color) {
+    int posx = MENU_PAD;
+    int posy = MENU_PAD;
+    DrawRectangle(posx, posy,
+                  btn_width * MENU_COLS + MENU_PAD * (MENU_COLS - 1),
+                  btn_height, Fade(color, 0.7));
+    DrawRectangleLines(posx, posy,
+                       btn_width * MENU_COLS + MENU_PAD * (MENU_COLS - 1),
+                       btn_height, color);
+    DrawText(text.data(), posx + BUTTON_PAD, posy + BUTTON_PAD,
+             btn_height = 2.0 * BUTTON_PAD, WHITE);
   };
 
   // Left column
@@ -336,7 +349,7 @@ auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
                        state.winning_states.size()),
            ORANGE);
   draw_btn(0, 1,
-           std::format("Preset (M/N): {}, {} (F)", state.current_preset,
+           std::format("Preset (M/N) / {} (F)",
                        state.current_state.restricted ? "Restricted" : "Free"),
            ORANGE);
   draw_btn(0, 2, std::format("Pan (LMB) / Rotate (RMB) / Zoom (Wheel)"),
@@ -350,26 +363,30 @@ auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
   draw_btn(1, 0, std::format("Select (LMB) / Move (W, A, S, D) / Target (T)"),
            DARKBLUE);
   draw_btn(1, 1, std::format("Add/Remove Col/Row (Arrow Keys)"), DARKBLUE);
-  draw_btn(1, 2, std::format("Add/Remove Block (LMB/RMB), Set Goal (MMB)"),
+  draw_btn(1, 2, std::format("Add/Remove Block (LMB/RMB) / Set Goal (MMB)"),
            DARKBLUE);
   draw_btn(1, 3, std::format("Print State (P) / Reset State (R)"), DARKBLUE);
 
   // Right column
-  draw_btn(2, 0, std::format("Populate Graph (G), Clear Graph (C)"),
+  draw_btn(2, 0, std::format("Populate Graph (G) / Clear Graph (C)"),
            DARKPURPLE);
   draw_btn(2, 1,
-           std::format("Path (U): {} / Goals (I): {} / Connect (O): {}",
+           std::format("Path (U): {} / Goals (I): {} / Lines (O): {}",
                        input.mark_path, input.mark_solutions,
                        input.connect_solutions),
            DARKPURPLE);
   draw_btn(2, 2, std::format("Best move (Space) / Move back (Backspace)"),
            DARKPURPLE);
   draw_btn(2, 3,
-           std::format("Worst (V) / Nearest target (B) / Moves remaining: {}",
+           std::format("Worst (V) / Target (B) / Distance: {}",
                        state.winning_path.size() > 0
                            ? state.winning_path.size() - 1
                            : 0),
            DARKPURPLE);
+
+  draw_subtitle(std::format("Puzzle {}: {}", state.current_preset + 1,
+                            state.comments.at(state.current_preset)),
+                BLACK);
 
   DrawLine(0, MENU_HEIGHT - 1, GetScreenWidth(), MENU_HEIGHT - 1, BLACK);
   EndTextureMode();

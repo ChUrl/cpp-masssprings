@@ -20,25 +20,29 @@ auto StateManager::ParsePresetFile(const std::string &preset_file) -> void {
   }
 
   std::string line;
-  std::vector<std::string> lines;
+  std::vector<std::string> comment_lines;
+  std::vector<std::string> preset_lines;
   while (std::getline(file, line)) {
     if (line.starts_with("F") || line.starts_with("R")) {
-      lines.push_back(line);
+      preset_lines.push_back(line);
+    } else if (line.starts_with("#")) {
+      comment_lines.push_back(line);
     }
   }
 
-  if (lines.size() == 0) {
+  if (preset_lines.size() == 0 || comment_lines.size() != preset_lines.size()) {
     std::cout << "Preset file \"" << preset_file << "\" couldn't be loaded."
               << std::endl;
     return;
   }
 
   presets.clear();
-  for (const auto &preset : lines) {
+  for (const auto &preset : preset_lines) {
     presets.emplace_back(preset);
   }
+  comments = comment_lines;
 
-  std::cout << "Loaded " << lines.size() << " presets." << std::endl;
+  std::cout << "Loaded " << preset_lines.size() << " presets." << std::endl;
 }
 
 auto StateManager::LoadPreset(int preset) -> void {
