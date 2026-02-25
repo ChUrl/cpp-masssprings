@@ -1,5 +1,6 @@
 #include "state.hpp"
 #include "config.hpp"
+#include "distance.hpp"
 
 #include <fstream>
 #include <ios>
@@ -50,7 +51,6 @@ auto StateManager::LoadPreset(int preset) -> void {
 auto StateManager::ResetState() -> void {
   current_state = presets.at(current_preset);
   previous_state = current_state;
-  FindTargetPath();
   if (edited) {
     // We also need to clear the graph in case the state has been edited
     // because the graph could contain states that are impossible to reach
