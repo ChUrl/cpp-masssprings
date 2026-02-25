@@ -241,6 +241,12 @@ auto Renderer::DrawKlotski() -> void {
       } else {
         c = TARGET_BLOCK_COLOR;
       }
+    } else if (block.immovable) {
+      if (block.Covers(input.sel_x, input.sel_y)) {
+        c = HL_WALL_COLOR;
+      } else {
+        c = WALL_COLOR;
+      }
     }
     DrawRectangle(x_offset + BOARD_PADDING + block.x * BLOCK_PADDING * 2 +
                       BLOCK_PADDING + block.x * block_size,
@@ -360,7 +366,7 @@ auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
       DARKGREEN);
 
   // Center column
-  draw_btn(1, 0, std::format("Select (LMB) / Move (W, A, S, D) / Target (T)"),
+  draw_btn(1, 0, std::format("Select (LMB) / Move (WASD) / Target/Wall (T/Y)"),
            DARKBLUE);
   draw_btn(1, 1, std::format("Add/Remove Col/Row (Arrow Keys)"), DARKBLUE);
   draw_btn(1, 2, std::format("Add/Remove Block (LMB/RMB) / Set Goal (MMB)"),

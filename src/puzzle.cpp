@@ -14,7 +14,7 @@ auto Block::Hash() const -> int {
 }
 
 auto Block::Invalid() -> Block {
-  Block block = Block(0, 0, 1, 1, false);
+  Block block = Block(0, 0, 1, 1, false, false);
   block.width = 0;
   block.height = 0;
   return block;
@@ -27,12 +27,20 @@ auto Block::ToString() const -> std::string {
     return std::format("{}{}",
                        static_cast<char>(width + static_cast<int>('a') - 1),
                        static_cast<char>(height + static_cast<int>('a') - 1));
+  } else if (immovable) {
+    return std::format("{}{}",
+                       static_cast<char>(width + static_cast<int>('A') - 1),
+                       static_cast<char>(height + static_cast<int>('A') - 1));
   } else {
     return std::format("{}{}", width, height);
   }
 }
 
 auto Block::GetPrincipalDirs() const -> int {
+  if (immovable) {
+    return 0;
+  }
+
   if (width > height) {
     return Direction::EAS | Direction::WES;
   } else if (height > width) {
@@ -194,7 +202,7 @@ auto State::RemoveBlock(int x, int y) -> bool {
 
 auto State::ToggleTarget(int x, int y) -> bool {
   Block block = GetBlock(x, y);
-  if (!block.IsValid()) {
+  if (!block.IsValid() || block.immovable) {
     return false;
   }
 
@@ -217,6 +225,20 @@ auto State::ToggleTarget(int x, int y) -> bool {
   return true;
 }
 
+auto State::ToggleWall(int x, int y) -> bool {
+  Block block = GetBlock(x, y);
+  if (!block.IsValid() || block.target) {
+    return false;
+  }
+
+  // Add the new target
+  block.immovable = !block.immovable;
+  int index = GetIndex(block.x, block.y);
+  state.replace(index, 2, block.ToString());
+
+  return true;
+}
+
 auto State::ToggleRestricted() -> void {
   restricted = !restricted;
   state.replace(0, 1, restricted ? "R" : "F");
@@ -224,7 +246,7 @@ auto State::ToggleRestricted() -> void {
 
 auto State::MoveBlockAt(int x, int y, Direction dir) -> bool {
   Block block = GetBlock(x, y);
-  if (!block.IsValid()) {
+  if (!block.IsValid() || block.immovable) {
     return false;
   }
 
@@ -284,6 +306,10 @@ auto State::GetNextStates() const -> std::vector<State> {
     int dirs = restricted ? b.GetPrincipalDirs()
                           : Direction::NOR | Direction::EAS | Direction::SOU |
                                 Direction::WES;
+
+    if (b.immovable) {
+      continue;
+    }
 
     if (dirs & Direction::NOR) {
       State north = *this;

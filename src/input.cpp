@@ -167,6 +167,10 @@ auto InputHandler::HandleKeys() -> void {
     state.current_state.ToggleTarget(sel_x, sel_y);
     state.ClearGraph();
     state.edited = true;
+  } else if (IsKeyPressed(KEY_Y)) {
+    state.current_state.ToggleWall(sel_x, sel_y);
+    state.ClearGraph();
+    state.edited = true;
   } else if (IsKeyPressed(KEY_LEFT) && state.current_state.width > 1) {
     state.current_state = state.current_state.RemoveColumn();
     state.ClearGraph();

@@ -21,8 +21,11 @@ enum Direction {
 // A block is represented as a 2-digit string "wh", where w is the block width
 // and h the block height.
 // The target block (to remove from the board) is represented as a 2-letter
-// string "xy", where x is the block width and y the block height and
+// lower-case string "xy", where x is the block width and y the block height and
 // width/height are represented by [abcdefghi] (~= [123456789]).
+// Immovable blocks are represented as a 2-letter upper-case string "XY", where
+// X is the block width and Y the block height and width/height are represented
+// by [ABCDEFGHI] (~= [123456789]).
 class Block {
 public:
   int x;
@@ -30,15 +33,20 @@ public:
   int width;
   int height;
   bool target;
+  bool immovable;
 
 public:
-  Block(int _x, int _y, int _width, int _height, bool _target)
-      : x(_x), y(_y), width(_width), height(_height), target(_target) {
+  Block(int _x, int _y, int _width, int _height, bool _target, bool _immovable)
+      : x(_x), y(_y), width(_width), height(_height), target(_target),
+        immovable(_immovable) {
     if (_x < 0 || _x + _width >= 10 || _y < 0 || _y + _height >= 10) {
       std::cerr << "Block must fit on a 9x9 board!" << std::endl;
       exit(1);
     }
   }
+
+  Block(int _x, int _y, int _width, int _height, bool _target)
+      : Block(_x, _y, _width, _height, _target, false) {}
 
   Block(int _x, int _y, std::string block) : x(_x), y(_y) {
     if (block == "..") {
@@ -50,13 +58,24 @@ public:
       return;
     }
 
-    const std::array<char, 9> chars{'a', 'b', 'c', 'd', 'e',
-                                    'f', 'g', 'h', 'i'};
+    const std::array<char, 9> target_chars{'a', 'b', 'c', 'd', 'e',
+                                           'f', 'g', 'h', 'i'};
 
     target = false;
-    for (const char c : chars) {
+    for (const char c : target_chars) {
       if (block.contains(c)) {
         target = true;
+        break;
+      }
+    }
+
+    const std::array<char, 9> immovable_chars{'A', 'B', 'C', 'D', 'E',
+                                              'F', 'G', 'H', 'I'};
+
+    immovable = false;
+    for (const char c : immovable_chars) {
+      if (block.contains(c)) {
+        immovable = true;
         break;
       }
     }
@@ -64,6 +83,9 @@ public:
     if (target) {
       width = static_cast<int>(block.at(0)) - static_cast<int>('a') + 1;
       height = static_cast<int>(block.at(1)) - static_cast<int>('a') + 1;
+    } else if (immovable) {
+      width = static_cast<int>(block.at(0)) - static_cast<int>('A') + 1;
+      height = static_cast<int>(block.at(1)) - static_cast<int>('A') + 1;
     } else {
       width = std::stoi(block.substr(0, 1));
       height = std::stoi(block.substr(1, 1));
@@ -81,7 +103,7 @@ public:
 
   bool operator==(const Block &other) {
     return x == other.x && y == other.y && width && other.width &&
-           target == other.target;
+           target == other.target && immovable == other.immovable;
   }
 
   bool operator!=(const Block &other) { return !(*this == other); }
@@ -103,12 +125,13 @@ public:
 };
 
 // A state is represented by a string "MWHXYblocks", where M is "R"
-// (restricted) or "F" (free), W is the board width, H is the board height, X is
-// the target block x goal, Y is the target block y goal and blocks is an
-// enumeration of each of the board's cells, with each cell being a 2-letter or
-// 2-digit block representation (a 3x3 board would have a string representation
-// with length 5 + 3*3 * 2). The board's cells are enumerated from top-left to
-// bottom-right with each block's pivot being its top-left corner.
+// (restricted) or "F" (free), W is the board width, H is the board height, X
+// is the target block x goal, Y is the target block y goal and blocks is an
+// enumeration of each of the board's cells, with each cell being a 2-letter
+// or 2-digit block representation (a 3x3 board would have a string
+// representation with length 5 + 3*3 * 2). The board's cells are enumerated
+// from top-left to bottom-right with each block's pivot being its top-left
+// corner.
 class State {
 public:
   static constexpr int prefix = 5;
@@ -249,6 +272,8 @@ public:
   auto RemoveBlock(int x, int y) -> bool;
 
   auto ToggleTarget(int x, int y) -> bool;
+
+  auto ToggleWall(int x, int y) -> bool;
 
   auto ToggleRestricted() -> void;
 

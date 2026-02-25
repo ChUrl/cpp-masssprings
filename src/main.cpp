@@ -14,7 +14,6 @@
 #endif
 
 // TODO: Click states in the graph to display them in the board
-// TODO: Add walls (unmoveable blocks)
 
 // NOTE: Tracy uses a huge amount of memory. For longer testing disable Tracy.
 

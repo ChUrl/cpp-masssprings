@@ -58,5 +58,7 @@ constexpr Color BLOCK_COLOR = DARKGREEN;
 constexpr Color HL_BLOCK_COLOR = GREEN;
 constexpr Color TARGET_BLOCK_COLOR = RED;
 constexpr Color HL_TARGET_BLOCK_COLOR = ORANGE;
+constexpr Color WALL_COLOR = BLACK;
+constexpr Color HL_WALL_COLOR = DARKGRAY;
 
 #endif
