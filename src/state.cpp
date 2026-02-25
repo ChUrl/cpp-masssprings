@@ -68,6 +68,8 @@ auto StateManager::NextPreset() -> void {
 }
 
 auto StateManager::FillGraph() -> void {
+  ZoneScoped;
+
   ClearGraph();
 
   std::pair<std::vector<State>,
@@ -78,8 +80,14 @@ auto StateManager::FillGraph() -> void {
   physics.AddMassSpringsCmd(closure.first.size(), closure.second);
   for (const State &state : closure.first) {
     states.insert(std::make_pair(state, states.size()));
+    masses.insert(std::make_pair(masses.size(), state));
+  }
+  for (const auto &[from, to] : closure.second) {
+    springs.emplace_back(from, to);
   }
   FindWinningStates();
+  FindTargetDistances();
+  FindTargetPath();
 }
 
 auto StateManager::UpdateGraph() -> void {
@@ -89,23 +97,34 @@ auto StateManager::UpdateGraph() -> void {
 
   if (!states.contains(current_state)) {
     states.insert(std::make_pair(current_state, states.size()));
+    masses.insert(std::make_pair(masses.size(), current_state));
+    springs.emplace_back(states.at(current_state), states.at(previous_state));
     physics.AddMassCmd();
     physics.AddSpringCmd(states.at(current_state), states.at(previous_state));
+
+    if (current_state.IsWon()) {
+      winning_states.insert(current_state);
+    }
+    FindTargetDistances();
   }
 
   visited_states.insert(current_state);
-  if (current_state.IsWon()) {
-    winning_states.insert(current_state);
-  }
+  FindTargetPath();
 }
 
 auto StateManager::ClearGraph() -> void {
   states.clear();
   winning_states.clear();
   visited_states.clear();
+  masses.clear();
+  winning_path.clear();
+  springs.clear();
+  target_distances.Clear();
   physics.ClearCmd();
 
+  // Re-add the default stuff to the graph
   states.insert(std::make_pair(current_state, states.size()));
+  masses.insert(std::make_pair(masses.size(), current_state));
   visited_states.insert(current_state);
   physics.AddMassCmd();
 
@@ -121,6 +140,37 @@ auto StateManager::FindWinningStates() -> void {
       winning_states.insert(state);
     }
   }
+}
+
+auto StateManager::FindTargetDistances() -> void {
+  ZoneScoped;
+
+  if (springs.size() == 0 || winning_states.size() == 0) {
+    return;
+  }
+
+  // Find target indices
+  std::vector<std::size_t> targets;
+  targets.reserve(winning_states.size());
+  for (const auto &_state : winning_states) {
+    targets.push_back(states.at(_state));
+  }
+
+  target_distances = CalculateDistances(states.size(), springs, targets);
+
+  std::cout << "Calculated " << target_distances.distances.size()
+            << " distances to " << targets.size() << " targets." << std::endl;
+}
+
+auto StateManager::FindTargetPath() -> void {
+  if (target_distances.Empty()) {
+    return;
+  }
+
+  winning_path = GetPath(target_distances, CurrentMassIndex());
+
+  std::cout << "Nearest target is " << winning_path.size() << " moves away."
+            << std::endl;
 }
 
 auto StateManager::CurrentMassIndex() const -> std::size_t {

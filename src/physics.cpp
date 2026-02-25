@@ -288,12 +288,6 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
         state.masses.emplace_back(mass.position);
       }
 
-      state.springs.clear();
-      state.springs.reserve(mass_springs.springs.size());
-      for (const auto &spring : mass_springs.springs) {
-        state.springs.emplace_back(spring.a, spring.b);
-      }
-
       state.data_ready = true;
       state.data_consumed = false;
     }

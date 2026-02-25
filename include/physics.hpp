@@ -141,11 +141,9 @@ class ThreadedPhysics {
     std::condition_variable_any data_ready_cnd;
     std::condition_variable_any data_consumed_cnd;
     unsigned int ups = 0;
+    std::vector<Vector3> masses; // Read by renderer
     bool data_ready = false;
     bool data_consumed = true;
-    std::vector<Vector3> masses; // Read by renderer
-    std::vector<std::pair<std::size_t, std::size_t>>
-        springs; // Read by renderer
 
     std::atomic<bool> running{true};
   };

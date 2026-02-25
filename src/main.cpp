@@ -3,6 +3,7 @@
 #include <raymath.h>
 
 #include "config.hpp"
+#include "distance.hpp"
 #include "input.hpp"
 #include "physics.hpp"
 #include "renderer.hpp"
@@ -13,12 +14,6 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-// TODO: Klotski state file loading
-//       - File should contain a single state per line, multiple lines possible
-//       - If a file is loaded, the presets should be replaced with the states
-//         from the file
-//       - Automatically determine the winning condition based on a configured
-//         board exit
 // TODO: Graph interaction
 //       - Click states to display them in the board
 //       - Find shortest path to any winning state and mark it in the graph
@@ -48,8 +43,7 @@ auto main(int argc, char *argv[]) -> int {
   Renderer renderer(camera, state, input);
 
   unsigned int ups;
-  std::vector<Vector3> masses;                              // Read from physics
-  std::vector<std::pair<std::size_t, std::size_t>> springs; // Read from physics
+  std::vector<Vector3> masses; // Read from physics
 
   // Game loop
   while (!WindowShouldClose()) {
@@ -78,7 +72,6 @@ auto main(int argc, char *argv[]) -> int {
       // Only copy data if any has been produced
       if (physics.state.data_ready) {
         masses = physics.state.masses;
-        springs = physics.state.springs;
 
         physics.state.data_ready = false;
         physics.state.data_consumed = true;
@@ -101,9 +94,9 @@ auto main(int argc, char *argv[]) -> int {
 
     // Rendering
     renderer.UpdateTextureSizes();
-    renderer.DrawMassSprings(masses, springs);
+    renderer.DrawMassSprings(masses);
     renderer.DrawKlotski();
-    renderer.DrawMenu(masses, springs);
+    renderer.DrawMenu(masses);
     renderer.DrawTextures(ups);
 #ifdef TRACY
     FrameMark;

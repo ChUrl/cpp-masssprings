@@ -67,15 +67,11 @@ private:
 public:
   auto UpdateTextureSizes() -> void;
 
-  auto DrawMassSprings(
-      const std::vector<Vector3> &masses,
-      const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void;
+  auto DrawMassSprings(const std::vector<Vector3> &masses) -> void;
 
   auto DrawKlotski() -> void;
 
-  auto DrawMenu(const std::vector<Vector3> &masses,
-                const std::vector<std::pair<std::size_t, std::size_t>> &springs)
-      -> void;
+  auto DrawMenu(const std::vector<Vector3> &masses) -> void;
 
   auto DrawTextures(float ups) -> void;
 };

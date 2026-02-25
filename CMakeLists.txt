@@ -48,6 +48,7 @@ add_executable(masssprings
     src/input.cpp
     src/tracy.cpp
     src/backward.cpp
+    src/distance.cpp
 )
 
 target_include_directories(masssprings PUBLIC ${RAYLIB_CPP_INCLUDE_DIR})

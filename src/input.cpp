@@ -1,5 +1,6 @@
 #include "input.hpp"
 #include "config.hpp"
+#include "distance.hpp"
 
 #include <algorithm>
 #include <raylib.h>

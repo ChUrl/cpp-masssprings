@@ -59,9 +59,7 @@ auto Renderer::ReallocateGraphInstancingIfNecessary(std::size_t size) -> void {
   }
 }
 
-auto Renderer::DrawMassSprings(
-    const std::vector<Vector3> &masses,
-    const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void {
+auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
 #ifdef TRACY
   ZoneScoped;
 #endif
@@ -96,7 +94,7 @@ auto Renderer::DrawMassSprings(
     ZoneNamedN(draw_springs, "DrawSprings", true);
 #endif
     rlBegin(RL_LINES);
-    for (const auto &[from, to] : springs) {
+    for (const auto &[from, to] : state.springs) {
       if (masses.size() > from && masses.size() > to) {
         const Vector3 &a = masses.at(from);
         const Vector3 &b = masses.at(to);
@@ -289,9 +287,7 @@ auto Renderer::DrawKlotski() -> void {
   EndTextureMode();
 }
 
-auto Renderer::DrawMenu(
-    const std::vector<Vector3> &masses,
-    const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void {
+auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
 #ifdef TRACY
   ZoneScoped;
 #endif
@@ -317,7 +313,7 @@ auto Renderer::DrawMenu(
 
   draw_btn(0, 0,
            std::format("States: {}, Transitions: {}, Winning: {}",
-                       masses.size(), springs.size(),
+                       masses.size(), state.springs.size(),
                        state.winning_states.size()),
            DARKGREEN);
   draw_btn(
