@@ -21,12 +21,12 @@ if(USE_TRACY)
     option(TRACY_ON_DEMAND "" ON)
 
     # Enable tracy macros in the application. Uses a LOT of memory.
-    # add_compile_definitions(TRACY)
+    add_compile_definitions(TRACY)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wno-unused-parameter -Wunreachable-code")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O3 -ggdb -fsanitize=undefined") # -fsanitize=address already fails on InitWindow()
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O2 -ggdb") # -fsanitize=address already fails on InitWindow(), -fsanitize=undefined, -fsanitize=leak
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -march=native")
 
 message("-- CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 message("-- CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")

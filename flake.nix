@@ -247,7 +247,7 @@ rec {
                   echo "Running cmake"
                   cmake -G "Unix Makefiles" \
                         -DCMAKE_BUILD_TYPE="${type}" \
-                        -DUSE_TRACY=On \
+                        -DUSE_TRACY=Off \
                         ..
 
                   echo "Linking compile_commands.json"
