@@ -50,6 +50,7 @@ auto StateManager::LoadPreset(int preset) -> void {
 auto StateManager::ResetState() -> void {
   current_state = presets.at(current_preset);
   previous_state = current_state;
+  FindTargetPath();
   if (edited) {
     // We also need to clear the graph in case the state has been edited
     // because the graph could contain states that are impossible to reach
@@ -67,6 +68,23 @@ auto StateManager::NextPreset() -> void {
   LoadPreset((current_preset + 1) % presets.size());
 }
 
+auto StateManager::NextPath() -> void {
+  if (target_distances.Empty()) {
+    return;
+  }
+
+  // Already there
+  if (target_distances.distances[CurrentMassIndex()] == 0) {
+    return;
+  }
+
+  std::size_t parent = target_distances.parents[CurrentMassIndex()];
+  // std::cout << "Parent of node " << CurrentMassIndex() << " is " << parent
+  //           << std::endl;
+  current_state = masses.at(parent);
+  FindTargetPath();
+}
+
 auto StateManager::FillGraph() -> void {
   ZoneScoped;
 
@@ -80,7 +98,7 @@ auto StateManager::FillGraph() -> void {
   physics.AddMassSpringsCmd(closure.first.size(), closure.second);
   for (const State &state : closure.first) {
     states.insert(std::make_pair(state, states.size()));
-    masses.insert(std::make_pair(masses.size(), state));
+    masses.insert(std::make_pair(states.size() - 1, state));
   }
   for (const auto &[from, to] : closure.second) {
     springs.emplace_back(from, to);
@@ -88,6 +106,12 @@ auto StateManager::FillGraph() -> void {
   FindWinningStates();
   FindTargetDistances();
   FindTargetPath();
+
+  // Sanity check. Both values need to be equal
+  // for (const auto &[mass, state] : masses) {
+  //   std::cout << "Masses: " << mass << ", States: " << states.at(state)
+  //             << std::endl;
+  // }
 }
 
 auto StateManager::UpdateGraph() -> void {
@@ -97,7 +121,7 @@ auto StateManager::UpdateGraph() -> void {
 
   if (!states.contains(current_state)) {
     states.insert(std::make_pair(current_state, states.size()));
-    masses.insert(std::make_pair(masses.size(), current_state));
+    masses.insert(std::make_pair(states.size() - 1, current_state));
     springs.emplace_back(states.at(current_state), states.at(previous_state));
     physics.AddMassCmd();
     physics.AddSpringCmd(states.at(current_state), states.at(previous_state));
@@ -124,7 +148,7 @@ auto StateManager::ClearGraph() -> void {
 
   // Re-add the default stuff to the graph
   states.insert(std::make_pair(current_state, states.size()));
-  masses.insert(std::make_pair(masses.size(), current_state));
+  masses.insert(std::make_pair(states.size() - 1, current_state));
   visited_states.insert(current_state);
   physics.AddMassCmd();
 
@@ -158,8 +182,9 @@ auto StateManager::FindTargetDistances() -> void {
 
   target_distances = CalculateDistances(states.size(), springs, targets);
 
-  std::cout << "Calculated " << target_distances.distances.size()
-            << " distances to " << targets.size() << " targets." << std::endl;
+  // std::cout << "Calculated " << target_distances.distances.size()
+  //           << " distances to " << targets.size() << " targets." <<
+  //           std::endl;
 }
 
 auto StateManager::FindTargetPath() -> void {
@@ -168,9 +193,8 @@ auto StateManager::FindTargetPath() -> void {
   }
 
   winning_path = GetPath(target_distances, CurrentMassIndex());
-
-  std::cout << "Nearest target is " << winning_path.size() << " moves away."
-            << std::endl;
+  // std::cout << "Nearest target is " << winning_path.size() << " moves away."
+  //           << std::endl;
 }
 
 auto StateManager::CurrentMassIndex() const -> std::size_t {

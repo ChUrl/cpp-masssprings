@@ -68,6 +68,8 @@ public:
 
   auto NextPreset() -> void;
 
+  auto NextPath() -> void;
+
   auto FillGraph() -> void;
 
   auto UpdateGraph() -> void;

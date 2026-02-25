@@ -153,6 +153,17 @@ auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
     }
   }
 
+  // Mark winning path
+  if (input.mark_path) {
+    for (const std::size_t &_state : state.winning_path) {
+      if (masses.size() > _state) {
+        const Vector3 &path_mass = masses.at(_state);
+        DrawCube(path_mass, VERTEX_SIZE * 1.75, VERTEX_SIZE * 1.75,
+                 VERTEX_SIZE * 1.75, YELLOW);
+      }
+    }
+  }
+
   // Mark starting state
   std::size_t starting_index = state.states.at(state.starting_state);
   if (masses.size() > starting_index) {
@@ -308,7 +319,7 @@ auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
     DrawRectangle(posx, posy, btn_width, btn_height, Fade(color, 0.6));
     DrawRectangleLines(posx, posy, btn_width, btn_height, color);
     DrawText(text.data(), posx + BUTTON_PAD, posy + BUTTON_PAD,
-             btn_height - 2 * BUTTON_PAD, WHITE);
+             btn_height - 2.0 * BUTTON_PAD, WHITE);
   };
 
   draw_btn(0, 0,
@@ -336,9 +347,11 @@ auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
   draw_btn(2, 1, std::format("Populate Graph (G), Clear Graph (C)"),
            DARKPURPLE);
   draw_btn(2, 2,
-           std::format("Mark (I): {} / Connect (O): {}", input.mark_solutions,
+           std::format("Path (U): {} / Mark (I): {} / Connect (O): {}",
+                       input.mark_path, input.mark_solutions,
                        input.connect_solutions),
            DARKPURPLE);
+  draw_btn(2, 3, std::format("Move along Path (Space)"), DARKPURPLE);
 
   DrawLine(0, MENU_HEIGHT - 1, GetScreenWidth(), MENU_HEIGHT - 1, BLACK);
   EndTextureMode();

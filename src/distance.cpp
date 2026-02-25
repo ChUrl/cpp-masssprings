@@ -56,17 +56,12 @@ auto CalculateDistances(
     queue.pop();
 
     for (std::size_t neighbor : adjacency[current]) {
-      // std::cout << "Visiting edge (" << current << "->" << neighbor << ")."
-      //           << std::endl;
       if (distances[neighbor] == -1) {
         // If distance is -1 we haven't visited the node yet
         distances[neighbor] = distances[current] + 1;
         parents[neighbor] = current;
         nearest_targets[neighbor] = nearest_targets[current];
-        // std::cout << "- Distance: " << distances[neighbor]
-        //           << ", Parent: " << parents[neighbor]
-        //           << ", Nearest Target: " << nearest_targets[neighbor] << "."
-        //           << std::endl;
+
         queue.push(neighbor);
       }
     }

@@ -16,8 +16,8 @@ constexpr int MENU_HEIGHT = 200;
 
 // Menu
 constexpr int MENU_PAD = 5;
-constexpr int BUTTON_PAD = 20;
-constexpr int MENU_ROWS = 3;
+constexpr int BUTTON_PAD = 12;
+constexpr int MENU_ROWS = 4;
 constexpr int MENU_COLS = 3;
 
 // Camera Controls

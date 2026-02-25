@@ -103,19 +103,19 @@ auto InputHandler::HandleMouse() -> void {
 }
 
 auto InputHandler::HandleKeys() -> void {
-  if (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_K)) {
+  if (IsKeyPressed(KEY_W)) {
     if (state.current_state.MoveBlockAt(sel_x, sel_y, Direction::NOR)) {
       sel_y--;
     }
-  } else if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_H)) {
+  } else if (IsKeyPressed(KEY_A)) {
     if (state.current_state.MoveBlockAt(sel_x, sel_y, Direction::WES)) {
       sel_x--;
     }
-  } else if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_J)) {
+  } else if (IsKeyPressed(KEY_S)) {
     if (state.current_state.MoveBlockAt(sel_x, sel_y, Direction::SOU)) {
       sel_y++;
     }
-  } else if (IsKeyPressed(KEY_D) || IsKeyPressed(KEY_L)) {
+  } else if (IsKeyPressed(KEY_D)) {
     if (state.current_state.MoveBlockAt(sel_x, sel_y, Direction::EAS)) {
       sel_x++;
     }
@@ -150,6 +150,10 @@ auto InputHandler::HandleKeys() -> void {
     mark_solutions = !mark_solutions;
   } else if (IsKeyPressed(KEY_O)) {
     connect_solutions = !connect_solutions;
+  } else if (IsKeyPressed(KEY_U)) {
+    mark_path = !mark_path;
+  } else if (IsKeyPressed(KEY_SPACE)) {
+    state.NextPath();
   } else if (IsKeyPressed(KEY_F)) {
     state.current_state.ToggleRestricted();
     state.ClearGraph();
