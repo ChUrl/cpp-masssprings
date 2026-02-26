@@ -1,0 +1,53 @@
+diff --git a/src/raygui.h b/src/raygui.h
+index 03e4879..6986498 100644
+--- a/src/raygui.h
++++ b/src/raygui.h
+@@ -787,8 +787,8 @@ RAYGUIAPI int GuiCheckBox(Rectangle bounds, const char *text, bool *checked);
+ RAYGUIAPI int GuiComboBox(Rectangle bounds, const char *text, int *active);                            // Combo Box control
+ 
+ RAYGUIAPI int GuiDropdownBox(Rectangle bounds, const char *text, int *active, bool editMode);          // Dropdown Box control
+-RAYGUIAPI int GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode); // Spinner control
+-RAYGUIAPI int GuiValueBox(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode); // Value Box control, updates input text with numbers
++RAYGUIAPI int GuiSpinner(Rectangle bounds, const char *text, const char *prefix, int *value, int minValue, int maxValue, bool editMode); // Spinner control
++RAYGUIAPI int GuiValueBox(Rectangle bounds, const char *text, const char *prefix, int *value, int minValue, int maxValue, bool editMode); // Value Box control, updates input text with numbers
+ RAYGUIAPI int GuiValueBoxFloat(Rectangle bounds, const char *text, char *textValue, float *value, bool editMode); // Value box control for float values
+ RAYGUIAPI int GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode);                   // Text Box control, updates input text
+ 
+@@ -2989,7 +2989,7 @@ bool GuiTextBoxMulti(Rectangle bounds, char *text, int textSize, bool editMode)
+ */
+ 
+ // Spinner control, returns selected value
+-int GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode)
++int GuiSpinner(Rectangle bounds, const char *text, const char *prefix, int *value, int minValue, int maxValue, bool editMode)
+ {
+     int result = 1;
+     GuiState state = guiState;
+@@ -3045,7 +3045,7 @@ int GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int
+ 
+     // Draw control
+     //--------------------------------------------------------------------
+-    result = GuiValueBox(valueBoxBounds, NULL, &tempValue, minValue, maxValue, editMode);
++    result = GuiValueBox(valueBoxBounds, NULL, prefix, &tempValue, minValue, maxValue, editMode);
+ 
+     // Draw value selector custom buttons
+     // NOTE: BORDER_WIDTH and TEXT_ALIGNMENT forced values
+@@ -3067,17 +3067,17 @@ int GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int
+ 
+ // Value Box control, updates input text with numbers
+ // NOTE: Requires static variables: frameCounter
+-int GuiValueBox(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode)
++int GuiValueBox(Rectangle bounds, const char *text, const char *prefix, int *value, int minValue, int maxValue, bool editMode)
+ {
+     #if !defined(RAYGUI_VALUEBOX_MAX_CHARS)
+         #define RAYGUI_VALUEBOX_MAX_CHARS  32
+     #endif
+ 
+     int result = 0;
+     GuiState state = guiState;
+ 
+     char textValue[RAYGUI_VALUEBOX_MAX_CHARS + 1] = { 0 };
+-    snprintf(textValue, RAYGUI_VALUEBOX_MAX_CHARS + 1, "%i", *value);
++    snprintf(textValue, RAYGUI_VALUEBOX_MAX_CHARS + 1, "%s%i", prefix, *value);
+ 
+     Rectangle textBounds = { 0 };
+     if (text != NULL)
