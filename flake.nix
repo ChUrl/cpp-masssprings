@@ -25,23 +25,6 @@ rec {
         # Define custom dependencies
         # ===========================================================================================
 
-        # 64 bit C/C++ compilers that don't collide (use the same libc)
-        # bintools = pkgs.wrapBintoolsWith {
-        #   bintools = pkgs.bintools.bintools; # Unwrapped bintools
-        #   libc = pkgs.glibc;
-        # };
-        # gcc = lib.hiPrio (pkgs.wrapCCWith {
-        #   cc = pkgs.gcc.cc; # Unwrapped gcc
-        #   libc = pkgs.glibc;
-        #   bintools = bintools;
-        # });
-        # clang = pkgs.wrapCCWith {
-        #   cc = pkgs.clang.cc; # Unwrapped clang
-        #   libc = pkgs.glibc;
-        #   bintools = bintools;
-        # };
-
-        # Raylib CPP wrapper
         # raylib-cpp = stdenv.mkDerivation {
         #   pname = "raylib-cpp";
         #   version = "5.5.0-unstable-2025-11-12";
@@ -78,24 +61,16 @@ rec {
         #   ];
         # };
 
-        # octree = stdenv.mkDerivation {
-        #   pname = "octree";
-        #   version = "2.5-unstable-2025-12-18";
-        #
-        #   src = pkgs.fetchFromGitHub {
-        #     owner = "attcs";
-        #     repo = "octree";
-        #     rev = "5058b3090c8b88e405fe2bfddd6c1c872f2b79d2";
-        #     hash = "sha256-a/aDGQ7cj1GbCjts2s9VEaxyFnL6PF+xJOsSxm9o+4M=";
-        #   };
-        #
-        #   # Header-only library
-        #   dontBuild = true;
-        #   installPhase = ''
-        #     mkdir -p $out/include
-        #     mv ./*.h $out/include/
-        #   '';
-        # };
+        raygui = pkgs.raygui.overrideAttrs (finalAttrs: prevAttrs: {
+          version = "4.0-unstable-2026-02-24";
+
+          src = pkgs.fetchFromGitHub {
+            owner = "raysan5";
+            repo = "raygui";
+            rev = "5788707b6b7000343c14653b1ad3b971ca0597e4";
+            hash = "sha256-wKylPeNw7wO5xuTfnp1OYETQ78EPlr4NU9erbmIFgjE=";
+          };
+        });
 
         thread-pool = stdenv.mkDerivation {
           pname = "thread-pool";
@@ -156,6 +131,7 @@ rec {
           # boost
           # sfml
           raylib
+          raygui
           # octree # this one doesn't store center of mass per node - which I need :(
           tracy-wayland
           thread-pool
