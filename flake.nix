@@ -61,7 +61,20 @@ rec {
         #   ];
         # };
 
-        raygui = pkgs.raygui.overrideAttrs (finalAttrs: prevAttrs: {
+        # raygui = pkgs.raygui.overrideAttrs (finalAttrs: prevAttrs: {
+        #   version = "4.0-unstable-2026-02-24";
+        #
+        #   src = pkgs.fetchFromGitHub {
+        #     owner = "raysan5";
+        #     repo = "raygui";
+        #     rev = "5788707b6b7000343c14653b1ad3b971ca0597e4";
+        #     hash = "sha256-wKylPeNw7wO5xuTfnp1OYETQ78EPlr4NU9erbmIFgjE=";
+        #   };
+        #
+        # });
+
+        raygui = stdenv.mkDerivation (finalAttrs: {
+          pname = "raygui";
           version = "4.0-unstable-2026-02-24";
 
           src = pkgs.fetchFromGitHub {
@@ -70,6 +83,30 @@ rec {
             rev = "5788707b6b7000343c14653b1ad3b971ca0597e4";
             hash = "sha256-wKylPeNw7wO5xuTfnp1OYETQ78EPlr4NU9erbmIFgjE=";
           };
+
+          patches = [./raygui.patch];
+
+          dontBuild = true;
+          installPhase = ''
+            runHook preInstall
+
+            mkdir -p $out/{include,lib/pkgconfig}
+
+            install -Dm644 src/raygui.h $out/include/raygui.h
+
+            cat <<EOF > $out/lib/pkgconfig/raygui.pc
+            prefix=$out
+            includedir=$out/include
+
+            Name: raygui
+            Description: Simple and easy-to-use immediate-mode gui library
+            URL: https://github.com/raysan5/raygui
+            Version: ${finalAttrs.version}
+            Cflags: -I"{includedir}"
+            EOF
+
+            runHook postInstall
+          '';
         });
 
         thread-pool = stdenv.mkDerivation {
