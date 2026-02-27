@@ -81,13 +81,13 @@ auto StateManager::ResetState() -> void {
   }
   visited_states[current_state]++;
   total_moves = 0;
-  if (edited) {
+  if (edited || !states.contains(current_state)) {
     // We also need to clear the graph in case the state has been edited
     // because the graph could contain states that are impossible to reach
     // now.
     ClearGraph();
-    edited = false;
   }
+  edited = false;
 }
 
 auto StateManager::PreviousPreset() -> void {

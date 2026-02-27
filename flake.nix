@@ -25,54 +25,6 @@ rec {
         # Define custom dependencies
         # ===========================================================================================
 
-        # raylib-cpp = stdenv.mkDerivation {
-        #   pname = "raylib-cpp";
-        #   version = "5.5.0-unstable-2025-11-12";
-        #
-        #   src = pkgs.fetchFromGitHub {
-        #     owner = "RobLoach";
-        #     repo = "raylib-cpp";
-        #     rev = "21b0d0f57a09a7f741d20b7157f440ae87f02c76";
-        #     hash = "sha256-P9x6Zc5t648gR7oYXe38PEX/a4oh4PfuVCnjT0vC10k=";
-        #   };
-        #
-        #   # autoPatchelfHook is needed for appendRunpaths
-        #   nativeBuildInputs = with pkgs; [
-        #     cmake
-        #     # autoPatchelfHook
-        #   ];
-        #
-        #   buildInputs = with pkgs; [
-        #     raylib
-        #     glfw
-        #     SDL2
-        #   ];
-        #
-        #   propagatedBuildInputs = with pkgs; [
-        #     libGLU
-        #     libx11
-        #   ];
-        #
-        #   cmakeFlags = [
-        #     "-DBUILD_RAYLIB_CPP_EXAMPLES=OFF"
-        #     "-DBUILD_TESTING=OFF"
-        #     # Point CMake to the nixpkgs raylib so it doesn't try to fetch its own
-        #     "-Draylib_DIR=${pkgs.raylib}/lib/cmake/raylib"
-        #   ];
-        # };
-
-        # raygui = pkgs.raygui.overrideAttrs (finalAttrs: prevAttrs: {
-        #   version = "4.0-unstable-2026-02-24";
-        #
-        #   src = pkgs.fetchFromGitHub {
-        #     owner = "raysan5";
-        #     repo = "raygui";
-        #     rev = "5788707b6b7000343c14653b1ad3b971ca0597e4";
-        #     hash = "sha256-wKylPeNw7wO5xuTfnp1OYETQ78EPlr4NU9erbmIFgjE=";
-        #   };
-        #
-        # });
-
         raygui = stdenv.mkDerivation (finalAttrs: {
           pname = "raygui";
           version = "4.0-unstable-2026-02-24";
@@ -298,6 +250,8 @@ rec {
                 abbr -a build-release "${buildRelease}"
                 abbr -a debug "${buildDebug} && ./cmake-build-debug/masssprings"
                 abbr -a release "${buildRelease} && ./cmake-build-release/masssprings"
+                abbr -a debug-clean "${cmakeDebug} && ${buildDebug} && ./cmake-build-debug/masssprings"
+                abbr -a release-clean "${cmakeRelease} && ${buildRelease} && ./cmake-build-release/masssprings"
                 abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"
                 abbr -a runtracy "tracy -a 127.0.0.1 &; ${buildRelease} && sudo -E ./cmake-build-release/masssprings_tracy"
                 abbr -a runvalgrind "${buildDebug} && valgrind --leak-check=full --show-reachable=no --show-leak-kinds=definite,indirect,possible --track-origins=no --suppressions=valgrind.supp --log-file=valgrind.log ./cmake-build-debug/masssprings && cat valgrind.log"
