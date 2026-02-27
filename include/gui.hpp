@@ -173,17 +173,11 @@ private:
 
 public:
   auto GetBackgroundColor() const -> Color;
-
   auto HelpPopup() -> void;
-
   auto DrawSavePresetPopup() -> void;
-
   auto DrawMainMenu() -> void;
-
   auto DrawPuzzleBoard() -> void;
-
   auto DrawGraphOverlay(int fps, int ups) -> void;
-
   auto Update() -> void;
 };
 

@@ -115,7 +115,8 @@ auto InputHandler::CameraRotate() -> void {
 auto InputHandler::CameraStopRotate() -> void { camera_rotating = false; }
 
 auto InputHandler::CameraZoom() -> void {
-  if (!MouseInGraphPane() || IsKeyDown(KEY_LEFT_CONTROL)) {
+  if (!MouseInGraphPane() || IsKeyDown(KEY_LEFT_CONTROL) ||
+      camera.projection == CAMERA_ORTHOGRAPHIC) {
     return;
   }
 

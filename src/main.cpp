@@ -16,6 +16,15 @@
 #endif
 
 // TODO: Click states in the graph to display them in the board
+// TODO: Add some popups
+//       - Next move, goto target, goto worst: Notify that the graph needs to be
+//         populated
+//       - Clear graph: Notify that this will clear the visited states and move
+//         history
+//       - Reset state: Notify that this will reset the move count
+//       Remove the keybindings, as it's simpler to show the popups from the
+//       button?
+// TODO: Set selection to 0, 0 when resetting the state
 
 // NOTE: Tracy uses a huge amount of memory. For longer testing disable Tracy.
 
