@@ -1,8 +1,6 @@
 #include "input.hpp"
 #include "config.hpp"
 
-#include <algorithm>
-#include <print>
 #include <raylib.h>
 
 #ifdef TRACY
@@ -269,16 +267,18 @@ auto InputHandler::MoveBlockWes() -> void {
 }
 
 auto InputHandler::PrintState() const -> void {
-  std::println("State: \"{}\"", state.current_state.state);
+  std::cout << std::format("State: \"{}\"", state.current_state.state)
+            << std::endl;
   Block sel = state.current_state.GetBlock(sel_x, sel_y);
   int idx = state.current_state.GetIndex(sel.x, sel.y) - State::prefix;
   if (sel.IsValid()) {
-    std::println("Sel:   \"{}{}{}{}\"",
-                 state.current_state.state.substr(0, State::prefix),
-                 std::string(idx, '.'), sel.ToString(),
-                 std::string(state.current_state.state.length() - idx -
-                                 State::prefix - 2,
-                             '.'));
+    std::cout << std::format("Sel:   \"{}{}{}{}\"",
+                             state.current_state.state.substr(0, State::prefix),
+                             std::string(idx, '.'), sel.ToString(),
+                             std::string(state.current_state.state.length() -
+                                             idx - State::prefix - 2,
+                                         '.'))
+              << std::endl;
   }
 }
 

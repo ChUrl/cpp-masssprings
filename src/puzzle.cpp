@@ -1,7 +1,6 @@
 #include "puzzle.hpp"
 #include "config.hpp"
 
-#include <print>
 #include <unordered_set>
 
 #ifdef TRACY
@@ -389,8 +388,9 @@ auto State::Closure() const
     }
   } while (remaining_states.size() > 0);
 
-  std::println("State space has size {} with {} transitions.", states.size(),
-               links.size());
+  std::cout << std::format("State space has size {} with {} transitions.",
+                           states.size(), links.size())
+            << std::endl;
 
   return std::make_pair(states, links);
 }

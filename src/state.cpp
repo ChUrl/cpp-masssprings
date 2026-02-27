@@ -4,7 +4,6 @@
 
 #include <fstream>
 #include <ios>
-#include <print>
 #include <raymath.h>
 
 #ifdef TRACY
@@ -17,7 +16,9 @@ auto StateManager::ParsePresetFile(const std::string &_preset_file) -> bool {
 
   std::ifstream file(preset_file);
   if (!file) {
-    std::println("Preset file \"{}\" couldn't be loaded.", preset_file);
+    std::cout << std::format("Preset file \"{}\" couldn't be loaded.",
+                             preset_file)
+              << std::endl;
     return false;
   }
 
@@ -33,7 +34,9 @@ auto StateManager::ParsePresetFile(const std::string &_preset_file) -> bool {
   }
 
   if (preset_lines.size() == 0 || comment_lines.size() != preset_lines.size()) {
-    std::println("Preset file \"{}\" couldn't be loaded.", preset_file);
+    std::cout << std::format("Preset file \"{}\" couldn't be loaded.",
+                             preset_file)
+              << std::endl;
     return false;
   }
 
@@ -43,24 +46,29 @@ auto StateManager::ParsePresetFile(const std::string &_preset_file) -> bool {
   }
   comments = comment_lines;
 
-  std::println("Loaded {} presets from \"{}\".", preset_lines.size(),
-               preset_file);
+  std::cout << std::format("Loaded {} presets from \"{}\".",
+                           preset_lines.size(), preset_file)
+            << std::endl;
 
   return true;
 }
 
 auto StateManager::AppendPresetFile(const std::string preset_name) -> void {
-  std::println("Saving preset \"{}\" to \"{}\"", preset_name, preset_file);
+  std::cout << std::format("Saving preset \"{}\" to \"{}\"", preset_name,
+                           preset_file)
+            << std::endl;
 
   std::ofstream file(preset_file, std::ios_base::app | std::ios_base::out);
   if (!file) {
-    std::println("Preset file \"{}\" couldn't be loaded.", preset_file);
+    std::cout << std::format("Preset file \"{}\" couldn't be loaded.",
+                             preset_file)
+              << std::endl;
     return;
   }
 
   file << "\n# " << preset_name << "\n" << current_state.state << std::flush;
 
-  std::println("Refreshing presets...");
+  std::cout << std::format("Refreshing presets...") << std::endl;
   if (ParsePresetFile(preset_file)) {
     LoadPreset(presets.size() - 1);
   }
@@ -139,7 +147,8 @@ auto StateManager::FillGraph() -> void {
 
   // Sanity check. Both values need to be equal
   // for (const auto &[mass, state] : masses) {
-  //   std::println("Masses: {}, States: {}", mass, states.at(state));
+  //   std::cout << std::format("Masses: {}, States: {}", mass,
+  //   states.at(state)) << std::endl;
   // }
 }
 
@@ -226,8 +235,8 @@ auto StateManager::FindTargetDistances() -> void {
 
   target_distances = CalculateDistances(states.size(), springs, targets);
 
-  // std::println("Calculated {} distances to {} targets.",
-  //              target_distances.distances.size(), targets.size());
+  // std::cout << std::format("Calculated {} distances to {} targets.",
+  // target_distances.distances.size(), targets.size()) << std::endl;
 }
 
 auto StateManager::FindTargetPath() -> void {
@@ -236,7 +245,8 @@ auto StateManager::FindTargetPath() -> void {
   }
 
   winning_path = GetPath(target_distances, CurrentMassIndex());
-  // std::println("Nearest target is {} moves away.", winning_path.size());
+  // std::cout << std::format("Nearest target is {} moves away.",
+  // winning_path.size()) << std::endl;
 }
 
 auto StateManager::FindWorstState() -> State {

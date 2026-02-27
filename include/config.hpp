@@ -4,9 +4,9 @@
 #include <raylib.h>
 
 #define THREADPOOL // Enable physics threadpool
-#define BACKWARD   // Enable pretty stack traces
 
 // Gets set by CMake
+// #define BACKWARD   // Enable pretty stack traces
 // #define TRACY      // Enable tracy profiling support
 
 // Window

@@ -8,7 +8,6 @@
 #include <condition_variable>
 #include <cstddef>
 #include <mutex>
-#include <print>
 #include <queue>
 #include <raylib.h>
 #include <raymath.h>
@@ -17,8 +16,16 @@
 #include <vector>
 
 #ifdef THREADPOOL
+#if defined(_WIN32)
+#define NOGDI  // All GDI defines and routines
+#define NOUSER // All USER defines and routines
+#endif
 #define BS_THREAD_POOL_NATIVE_EXTENSIONS
 #include <BS_thread_pool.hpp>
+#if defined(_WIN32) // raylib uses these names as function parameters
+#undef near
+#undef far
+#endif
 #endif
 
 #ifdef TRACY
@@ -78,10 +85,16 @@ public:
       : threads(std::thread::hardware_concurrency() - 1, SetThreadName)
 #endif
   {
-    std::println("Using Barnes-Hut + Octree repulsion force calculation.");
+    std::cout << std::format(
+                     "Using Barnes-Hut + Octree repulsion force calculation.")
+              << std::endl;
 
 #ifdef THREADPOOL
-    std::println("Thread-pool: {} threads.", threads.get_thread_count());
+    std::cout << std::format("Thread-pool: {} threads.",
+                             threads.get_thread_count())
+              << std::endl;
+#else
+    std::cout << std::format("Thread-pool: Disabled.") << std::endl;
 #endif
   };
 

@@ -44,7 +44,7 @@ auto Grid::Bounds() const -> Rectangle {
 
 auto Grid::Bounds(int _x, int _y, int _width, int _height) const -> Rectangle {
   if (_x < 0 || _x + _width > columns || _y < 0 || _y + _height > rows) {
-    std::println("Grid bounds are outside range.");
+    std::cout << std::format("Grid bounds are outside range.") << std::endl;
     exit(1);
   }
 
@@ -71,7 +71,7 @@ auto Grid::SquareBounds(int _x, int _y, int _width, int _height) const
   // filled
 
   if (_x < 0 || _x + _width > columns || _y < 0 || _y + _height > rows) {
-    std::println("Grid bounds are outside range.");
+    std::cout << std::format("Grid bounds are outside range.") << std::endl;
     exit(1);
   }
 

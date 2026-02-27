@@ -36,6 +36,18 @@ auto main(int argc, char *argv[]) -> int {
     preset_file = argv[1];
   }
 
+#ifdef BACKWARD
+  std::cout << std::format("Backward stack-traces enabled.") << std::endl;
+#else
+  std::cout << std::format("Backward stack-traces disabled.") << std::endl;
+#endif
+
+#ifdef TRACY
+  std::cout << std::format("Tracy adapter enabled.") << std::endl;
+#else
+  std::cout << std::format("Tracy adapter disabled.") << std::endl;
+#endif
+
   // RayLib window setup
   SetTraceLogLevel(LOG_ERROR);
   SetConfigFlags(FLAG_VSYNC_HINT);

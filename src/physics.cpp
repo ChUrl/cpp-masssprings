@@ -10,11 +10,6 @@
 #include <utility>
 #include <vector>
 
-#ifdef THREADPOOL
-#define BS_THREAD_POOL_NATIVE_EXTENSIONS
-#include <BS_thread_pool.hpp>
-#endif
-
 #ifdef TRACY
 #include "tracy.hpp"
 #include <tracy/Tracy.hpp>
