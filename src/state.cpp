@@ -88,6 +88,7 @@ auto StateManager::ResetState() -> void {
     visits = 0;
   }
   visited_states[current_state]++;
+  history = std::stack<State>();
   total_moves = 0;
   if (edited || !states.contains(current_state)) {
     // We also need to clear the graph in case the state has been edited
@@ -193,7 +194,7 @@ auto StateManager::ClearGraph() -> void {
   masses.clear();
   winning_path.clear();
   springs.clear();
-  history = std::stack<State>();
+  // history = std::stack<State>();
   target_distances.Clear();
   physics.ClearCmd();
 

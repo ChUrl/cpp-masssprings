@@ -46,8 +46,8 @@ constexpr float SPRING_CONSTANT = 5.0;       // Mass spring system
 constexpr float DAMPENING_CONSTANT = 1.0;    // Mass spring system
 constexpr float REST_LENGTH = 3.0;           // Mass spring system
 constexpr float VERLET_DAMPENING = 0.05;     // [0, 1]
-constexpr float BH_FORCE = 2.0;              // Barnes-Hut [1.0, 3.0]
-constexpr float THETA = 0.9;                 // Barnes-Hut [0.5, 1.0]
+constexpr float BH_FORCE = 2.5;              // Barnes-Hut [1.0, 3.0]
+constexpr float THETA = 0.8;                 // Barnes-Hut [0.5, 1.0]
 constexpr float SOFTENING = 0.01;            // Barnes-Hut [0.01, 1.0]
 
 // Graph Drawing

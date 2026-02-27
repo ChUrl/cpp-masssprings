@@ -103,59 +103,59 @@ auto Gui::Init() const -> void {
 }
 
 auto Gui::ApplyColor(Style &style, Color color) const -> void {
-  style.base_color_normal = ColorToInt(Fade(color, 0.5));
+  style.base_color_normal = ColorToInt(Fade(color, 0.8));
   style.base_color_focused = ColorToInt(Fade(color, 0.3));
   style.base_color_pressed = ColorToInt(Fade(color, 0.8));
-  style.base_color_disabled = style.base_color_normal;
+  style.base_color_disabled = ColorToInt(Fade(color, 0.5));
 
   style.border_color_normal = ColorToInt(Fade(color, 1.0));
   style.border_color_focused = ColorToInt(Fade(color, 0.7));
   style.border_color_pressed = ColorToInt(Fade(color, 1.0));
-  style.border_color_disabled = style.base_color_normal;
+  style.border_color_disabled = ColorToInt(Fade(GRAY, 0.5));
 
-  style.text_color_normal = ColorToInt(Fade(BLACK, 0.7));
-  style.text_color_focused = ColorToInt(Fade(BLACK, 0.7));
-  style.text_color_pressed = ColorToInt(Fade(BLACK, 0.7));
-  style.text_color_disabled = style.text_color_normal;
+  style.text_color_normal = ColorToInt(Fade(BLACK, 1.0));
+  style.text_color_focused = ColorToInt(Fade(BLACK, 1.0));
+  style.text_color_pressed = ColorToInt(Fade(BLACK, 1.0));
+  style.text_color_disabled = ColorToInt(Fade(BLACK, 0.5));
 }
 
 auto Gui::ApplyBlockColor(Style &style, Color color) const -> void {
   style.base_color_normal = ColorToInt(Fade(color, 0.5));
   style.base_color_focused = ColorToInt(Fade(color, 0.3));
   style.base_color_pressed = ColorToInt(Fade(color, 0.8));
-  style.base_color_disabled = style.base_color_normal;
+  style.base_color_disabled = ColorToInt(Fade(color, 0.5));
 
   style.border_color_normal = ColorToInt(Fade(color, 1.0));
   style.border_color_focused = ColorToInt(Fade(color, 0.7));
   style.border_color_pressed = ColorToInt(Fade(color, 1.0));
-  style.border_color_disabled = style.base_color_normal;
+  style.border_color_disabled = ColorToInt(Fade(GRAY, 0.5));
 }
 
 auto Gui::ApplyTextColor(Style &style, Color color) const -> void {
   style.text_color_normal = ColorToInt(Fade(color, 1.0));
   style.text_color_focused = ColorToInt(Fade(color, 1.0));
   style.text_color_pressed = ColorToInt(Fade(color, 1.0));
-  style.text_color_disabled = ColorToInt(Fade(BLACK, 0.7));
+  style.text_color_disabled = ColorToInt(Fade(BLACK, 0.5));
 }
 
 auto Gui::GetDefaultStyle() const -> DefaultStyle {
   // Could've iterated over the values but then it wouldn't be as nice to
   // access...
-  return {GuiGetStyle(DEFAULT, BORDER_COLOR_NORMAL),
-          GuiGetStyle(DEFAULT, BASE_COLOR_NORMAL),
-          GuiGetStyle(DEFAULT, TEXT_COLOR_NORMAL),
+  return {{GuiGetStyle(DEFAULT, BORDER_COLOR_NORMAL),
+           GuiGetStyle(DEFAULT, BASE_COLOR_NORMAL),
+           GuiGetStyle(DEFAULT, TEXT_COLOR_NORMAL),
 
-          GuiGetStyle(DEFAULT, BORDER_COLOR_FOCUSED),
-          GuiGetStyle(DEFAULT, BASE_COLOR_FOCUSED),
-          GuiGetStyle(DEFAULT, TEXT_COLOR_FOCUSED),
+           GuiGetStyle(DEFAULT, BORDER_COLOR_FOCUSED),
+           GuiGetStyle(DEFAULT, BASE_COLOR_FOCUSED),
+           GuiGetStyle(DEFAULT, TEXT_COLOR_FOCUSED),
 
-          GuiGetStyle(DEFAULT, BORDER_COLOR_PRESSED),
-          GuiGetStyle(DEFAULT, BASE_COLOR_PRESSED),
-          GuiGetStyle(DEFAULT, TEXT_COLOR_PRESSED),
+           GuiGetStyle(DEFAULT, BORDER_COLOR_PRESSED),
+           GuiGetStyle(DEFAULT, BASE_COLOR_PRESSED),
+           GuiGetStyle(DEFAULT, TEXT_COLOR_PRESSED),
 
-          GuiGetStyle(DEFAULT, BORDER_COLOR_DISABLED),
-          GuiGetStyle(DEFAULT, BASE_COLOR_DISABLED),
-          GuiGetStyle(DEFAULT, TEXT_COLOR_DISABLED),
+           GuiGetStyle(DEFAULT, BORDER_COLOR_DISABLED),
+           GuiGetStyle(DEFAULT, BASE_COLOR_DISABLED),
+           GuiGetStyle(DEFAULT, TEXT_COLOR_DISABLED)},
 
           GuiGetStyle(DEFAULT, BACKGROUND_COLOR),
           GuiGetStyle(DEFAULT, LINE_COLOR),
@@ -195,21 +195,21 @@ auto Gui::SetDefaultStyle(const DefaultStyle &style) const -> void {
 }
 
 auto Gui::GetComponentStyle(int component) const -> ComponentStyle {
-  return {GuiGetStyle(component, BORDER_COLOR_NORMAL),
-          GuiGetStyle(component, BASE_COLOR_NORMAL),
-          GuiGetStyle(component, TEXT_COLOR_NORMAL),
+  return {{GuiGetStyle(component, BORDER_COLOR_NORMAL),
+           GuiGetStyle(component, BASE_COLOR_NORMAL),
+           GuiGetStyle(component, TEXT_COLOR_NORMAL),
 
-          GuiGetStyle(component, BORDER_COLOR_FOCUSED),
-          GuiGetStyle(component, BASE_COLOR_FOCUSED),
-          GuiGetStyle(component, TEXT_COLOR_FOCUSED),
+           GuiGetStyle(component, BORDER_COLOR_FOCUSED),
+           GuiGetStyle(component, BASE_COLOR_FOCUSED),
+           GuiGetStyle(component, TEXT_COLOR_FOCUSED),
 
-          GuiGetStyle(component, BORDER_COLOR_PRESSED),
-          GuiGetStyle(component, BASE_COLOR_PRESSED),
-          GuiGetStyle(component, TEXT_COLOR_PRESSED),
+           GuiGetStyle(component, BORDER_COLOR_PRESSED),
+           GuiGetStyle(component, BASE_COLOR_PRESSED),
+           GuiGetStyle(component, TEXT_COLOR_PRESSED),
 
-          GuiGetStyle(component, BORDER_COLOR_DISABLED),
-          GuiGetStyle(component, BASE_COLOR_DISABLED),
-          GuiGetStyle(component, TEXT_COLOR_DISABLED),
+           GuiGetStyle(component, BORDER_COLOR_DISABLED),
+           GuiGetStyle(component, BASE_COLOR_DISABLED),
+           GuiGetStyle(component, TEXT_COLOR_DISABLED)},
 
           GuiGetStyle(component, BORDER_WIDTH),
           GuiGetStyle(component, TEXT_PADDING),
@@ -453,7 +453,7 @@ auto Gui::DrawMenuHeader(Color color) const -> void {
   DrawMenuButton(1, 0, 1, 1,
                  std::format("Puzzle: \"{}\"",
                              state.comments.at(state.current_preset).substr(2)),
-                 color, false);
+                 color);
 
   int editing = input.editing;
   DrawMenuToggleSlider(2, 0, 1, 1, "Puzzle Mode (Tab)", "Edit Mode (Tab)",
@@ -467,18 +467,18 @@ auto Gui::DrawGraphInfo(Color color) const -> void {
   DrawMenuButton(0, 1, 1, 1,
                  std::format("Found {} States ({} Winning)",
                              state.states.size(), state.winning_states.size()),
-                 color, false);
+                 color);
 
   DrawMenuButton(1, 1, 1, 1,
                  std::format("Found {} Transitions", state.springs.size()),
-                 color, false);
+                 color);
 
   DrawMenuButton(2, 1, 1, 1,
                  std::format("{} Moves to Nearest Solution",
                              state.winning_path.size() > 0
                                  ? state.winning_path.size() - 1
                                  : 0),
-                 color, false);
+                 color);
 }
 
 auto Gui::DrawGraphControls(Color color) const -> void {
@@ -545,21 +545,25 @@ auto Gui::DrawPuzzleControls(Color color) const -> void {
   DrawMenuButton(0, 4, 1, 1,
                  std::format("{} Moves ({}{} Time at this State)",
                              state.total_moves, visits, nth(visits)),
-                 color, false);
+                 color);
 
-  if (DrawMenuButton(1, 4, 1, 1, "Make Optimal Move (Space)", color)) {
+  if (DrawMenuButton(1, 4, 1, 1, "Make Optimal Move (Space)", color,
+                     !state.target_distances.Empty())) {
     input.MakeOptimalMove();
   }
 
-  if (DrawMenuButton(2, 4, 1, 1, "Undo Last Move (Backspace)", color)) {
+  if (DrawMenuButton(2, 4, 1, 1, "Undo Last Move (Backspace)", color,
+                     state.history.size() > 0)) {
     input.UndoLastMove();
   }
 
-  if (DrawMenuButton(0, 5, 1, 1, "Go to Nearest Solution (B)", color)) {
+  if (DrawMenuButton(0, 5, 1, 1, "Go to Nearest Solution (B)", color,
+                     !state.target_distances.Empty())) {
     input.GoToNearestTarget();
   }
 
-  if (DrawMenuButton(1, 5, 1, 1, "Go to Worst State (V)", color)) {
+  if (DrawMenuButton(1, 5, 1, 1, "Go to Worst State (V)", color,
+                     !state.target_distances.Empty())) {
     input.GoToWorstState();
   }
 
@@ -611,8 +615,8 @@ auto Gui::DrawEditControls(Color color) const -> void {
 
 auto Gui::DrawMenuFooter(Color color) -> void {
   DrawMenuButton(0, 6, 2, 1,
-                 std::format("State: \"{}\"", state.current_state.state), color,
-                 false);
+                 std::format("State: \"{}\"", state.current_state.state),
+                 color);
 
   if (DrawMenuButton(2, 6, 1, 1, "Save as Preset", color)) {
     save_window = true;
