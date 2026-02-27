@@ -310,6 +310,8 @@ auto InputHandler::ResetState() -> void {
   }
 
   state.ResetState();
+  sel_x = 0;
+  sel_y = 0;
 }
 
 auto InputHandler::FillGraph() -> void { state.FillGraph(); }

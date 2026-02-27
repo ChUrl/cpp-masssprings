@@ -16,7 +16,8 @@
 #endif
 
 // TODO: Click states in the graph to display them in the board
-// TODO: Add some popups
+
+// TODO: Add some popups (my split between input.cpp/gui.cpp makes this ugly)
 //       - Next move, goto target, goto worst: Notify that the graph needs to be
 //         populated
 //       - Clear graph: Notify that this will clear the visited states and move
@@ -24,7 +25,20 @@
 //       - Reset state: Notify that this will reset the move count
 //       Remove the keybindings, as it's simpler to show the popups from the
 //       button?
-// TODO: Set selection to 0, 0 when resetting the state
+
+// TODO: Reduce memory usage
+//       - State.cpp stores a lot of duplicates, do I need all of them?
+//       - The memory model of the puzzle board is terrible (bitboards?)
+
+// TODO: Improve solver
+//       - Move discovery is terrible
+//         - Instead of trying each direction for each block, determine the
+//           possible moves more efficiently (requires a different memory model)
+//       - Implement state discovery/enumeration
+//         - Find all possible initial board states (single one for each
+//           possible statespace). Currently wer're just finding all states
+//           given the initial state
+//         - Would allow to generate random puzzles with a certain move count
 
 // NOTE: Tracy uses a huge amount of memory. For longer testing disable Tracy.
 
