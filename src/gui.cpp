@@ -482,39 +482,47 @@ auto Gui::DrawGraphInfo(Color color) const -> void {
 }
 
 auto Gui::DrawGraphControls(Color color) const -> void {
-  if (DrawMenuButton(1, 2, 1, 1, "Populate Graph (G)", color)) {
+  if (DrawMenuButton(0, 2, 1, 1, "Populate Graph (G)", color)) {
     input.FillGraph();
   }
 
-  int mark_path = input.mark_path;
-  DrawMenuToggleSlider(2, 2, 1, 1, "Path Hidden (U)", "Path Shown (U)",
-                       &mark_path, color);
-  if (mark_path != input.mark_path) {
-    input.ToggleMarkPath();
-  }
+  // int mark_path = input.mark_path;
+  // DrawMenuToggleSlider(2, 2, 1, 1, "Path Hidden (U)", "Path Shown (U)",
+  //                      &mark_path, color);
+  // if (mark_path != input.mark_path) {
+  //   input.ToggleMarkPath();
+  // }
 
-  if (DrawMenuButton(1, 3, 1, 1, "Clear Graph (C)", color)) {
+  if (DrawMenuButton(1, 2, 1, 1, "Clear Graph (C)", color)) {
     input.ClearGraph();
   }
 
   int mark_solutions = input.mark_solutions;
-  DrawMenuToggleSlider(2, 3, 1, 1, "Solutions Hidden (I)",
-                       "Solutions Shown (I)", &mark_solutions, color);
+  DrawMenuToggleSlider(2, 2, 1, 1, "Solution Hidden (I)", "Solution Shown (I)",
+                       &mark_solutions, color);
   if (mark_solutions != input.mark_solutions) {
     input.ToggleMarkSolutions();
   }
+  input.mark_path = input.mark_solutions;
 }
 
 auto Gui::DrawCameraControls(Color color) const -> void {
   int lock_camera = input.camera_lock;
-  DrawMenuToggleSlider(0, 2, 1, 1, "Free Camera (L)", "Locked Camera (L)",
+  DrawMenuToggleSlider(0, 3, 1, 1, "Free Camera (L)", "Locked Camera (L)",
                        &lock_camera, color);
   if (lock_camera != input.camera_lock) {
     input.ToggleCameraLock();
   }
 
+  int lock_camera_mass_center = input.camera_mass_center_lock;
+  DrawMenuToggleSlider(1, 3, 1, 1, "Current Block (Y)", "Graph Center (Y)",
+                       &lock_camera_mass_center, color, input.camera_lock);
+  if (lock_camera_mass_center != input.camera_mass_center_lock) {
+    input.ToggleCameraMassCenterLock();
+  }
+
   int projection = camera.projection == CAMERA_ORTHOGRAPHIC;
-  DrawMenuToggleSlider(0, 3, 1, 1, "Perspective (Alt)", "Orthographic (Alt)",
+  DrawMenuToggleSlider(2, 3, 1, 1, "Perspective (Alt)", "Orthographic (Alt)",
                        &projection, color);
   if (projection != (camera.projection == CAMERA_ORTHOGRAPHIC)) {
     input.ToggleCameraProjection();

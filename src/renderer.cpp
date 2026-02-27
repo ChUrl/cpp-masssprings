@@ -129,13 +129,13 @@ auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
         const Vector3 &winning_mass = masses.at(winning_index);
         if (input.mark_solutions) {
           DrawCube(winning_mass, 2 * VERTEX_SIZE, 2 * VERTEX_SIZE,
-                   2 * VERTEX_SIZE, TARGET_BLOCK_COLOR);
+                   2 * VERTEX_SIZE, VERTEX_TARGET_COLOR);
         }
 
         std::size_t current_index = state.CurrentMassIndex();
         if (input.connect_solutions && masses.size() > current_index) {
           const Vector3 &current_mass = masses.at(current_index);
-          DrawLine3D(winning_mass, current_mass, ORANGE);
+          DrawLine3D(winning_mass, current_mass, Fade(TARGET_BLOCK_COLOR, 0.5));
         }
       }
     }
@@ -148,7 +148,7 @@ auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
     if (masses.size() > visited_index) {
       const Vector3 &visited_mass = masses.at(visited_index);
       DrawCube(visited_mass, VERTEX_SIZE * 1.5, VERTEX_SIZE * 1.5,
-               VERTEX_SIZE * 1.5, PURPLE);
+               VERTEX_SIZE * 1.5, VERTEX_VISITED_COLOR);
     }
   }
 
@@ -158,7 +158,7 @@ auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
       if (masses.size() > _state) {
         const Vector3 &path_mass = masses.at(_state);
         DrawCube(path_mass, VERTEX_SIZE * 1.75, VERTEX_SIZE * 1.75,
-                 VERTEX_SIZE * 1.75, YELLOW);
+                 VERTEX_SIZE * 1.75, VERTEX_PATH_COLOR);
       }
     }
   }
@@ -168,7 +168,7 @@ auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
   if (masses.size() > starting_index) {
     const Vector3 &starting_mass = masses.at(starting_index);
     DrawCube(starting_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
-             ORANGE);
+             VERTEX_START_COLOR);
   }
 
   // Mark current state
@@ -176,7 +176,7 @@ auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
   if (masses.size() > current_index) {
     const Vector3 &current_mass = masses.at(current_index);
     DrawCube(current_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
-             BLUE);
+             VERTEX_CURRENT_COLOR);
   }
 
   EndMode3D();

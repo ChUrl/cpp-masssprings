@@ -16,6 +16,8 @@
 #endif
 
 // TODO: Click states in the graph to display them in the board
+// TODO: Move selection accordingly when undoing moves (need to diff two states
+//       and get the moved blocks)
 
 // TODO: Add some popups (my split between input.cpp/gui.cpp makes this ugly)
 //       - Next move, goto target, goto worst: Notify that the graph needs to be
@@ -83,8 +85,9 @@ auto main(int argc, char *argv[]) -> int {
   unsigned int loop_iterations = 0;
 
   unsigned int fps = 0;
-  unsigned int ups = 0;        // Read from physics
-  std::vector<Vector3> masses; // Read from physics
+  unsigned int ups = 0;                // Read from physics
+  Vector3 mass_center = Vector3Zero(); // Read from physics
+  std::vector<Vector3> masses;         // Read from physics
 
   // Game loop
   while (!WindowShouldClose()) {
@@ -114,6 +117,7 @@ auto main(int argc, char *argv[]) -> int {
 #endif
 
       ups = physics.state.ups;
+      mass_center = physics.state.mass_center;
 
       // Only copy data if any has been produced
       if (physics.state.data_ready) {
@@ -135,7 +139,8 @@ auto main(int argc, char *argv[]) -> int {
     std::size_t current_index = state.CurrentMassIndex();
     if (masses.size() > current_index) {
       const Mass &current_mass = masses.at(current_index);
-      camera.Update(current_mass.position, input.camera_lock);
+      camera.Update(current_mass.position, mass_center, input.camera_lock,
+                    input.camera_mass_center_lock);
     }
 
     // Rendering

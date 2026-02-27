@@ -24,7 +24,8 @@ public:
 
   auto Pan(Vector2 last_mouse, Vector2 mouse) -> void;
 
-  auto Update(const Vector3 &current_target, bool lock) -> void;
+  auto Update(const Vector3 &current_target, const Vector3 &mass_center,
+              bool lock, bool mass_center_lock) -> void;
 };
 
 #endif

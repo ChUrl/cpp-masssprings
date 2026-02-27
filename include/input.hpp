@@ -54,6 +54,7 @@ public:
 
   // Camera
   bool camera_lock = true;
+  bool camera_mass_center_lock = false;
   bool camera_panning = false;
   bool camera_rotating = false;
 
@@ -102,6 +103,7 @@ public:
 
   // Key actions
   auto ToggleCameraLock() -> void;
+  auto ToggleCameraMassCenterLock() -> void;
   auto ToggleCameraProjection() -> void;
   auto MoveBlockNor() -> void;
   auto MoveBlockWes() -> void;

@@ -43,7 +43,7 @@ auto InputHandler::InitHandlers() -> void {
   RegisterKeyPressedHandler(KEY_C, &InputHandler::ClearGraph);
   RegisterKeyPressedHandler(KEY_I, &InputHandler::ToggleMarkSolutions);
   RegisterKeyPressedHandler(KEY_O, &InputHandler::ToggleConnectSolutions);
-  RegisterKeyPressedHandler(KEY_U, &InputHandler::ToggleMarkPath);
+  // RegisterKeyPressedHandler(KEY_U, &InputHandler::ToggleMarkPath);
   RegisterKeyPressedHandler(KEY_SPACE, &InputHandler::MakeOptimalMove);
   RegisterKeyPressedHandler(KEY_V, &InputHandler::GoToWorstState);
   RegisterKeyPressedHandler(KEY_B, &InputHandler::GoToNearestTarget);
@@ -60,6 +60,7 @@ auto InputHandler::InitHandlers() -> void {
   RegisterKeyPressedHandler(KEY_LEFT_ALT,
                             &InputHandler::ToggleCameraProjection);
   RegisterKeyPressedHandler(KEY_X, &InputHandler::ClearGoal);
+  RegisterKeyPressedHandler(KEY_Y, &InputHandler::ToggleCameraMassCenterLock);
 }
 
 auto InputHandler::MouseInMenuPane() -> bool { return mouse.y < MENU_HEIGHT; }
@@ -143,6 +144,15 @@ auto InputHandler::ToggleCameraLock() -> void {
   }
 
   camera_lock = !camera_lock;
+}
+
+auto InputHandler::ToggleCameraMassCenterLock() -> void {
+  if (!camera_mass_center_lock) {
+    camera_lock = true;
+    camera_panning = false;
+  }
+
+  camera_mass_center_lock = !camera_mass_center_lock;
 }
 
 auto InputHandler::ToggleCameraProjection() -> void {

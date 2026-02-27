@@ -23,12 +23,14 @@ constexpr const char *FONT = "fonts/SpaceMono.ttf";
 constexpr int FONT_SIZE = 26;
 
 // Camera Controls
-constexpr float CAMERA_FOV = 120.0;
+constexpr float CAMERA_FOV = 90.0;
+constexpr float FOV_SPEED = 1.0;
+constexpr float MIN_FOV = 10.0;
+constexpr float MAX_FOV = 180.0;
 constexpr float CAMERA_DISTANCE = 20.0;
+constexpr float ZOOM_SPEED = 2.5;
 constexpr float MIN_CAMERA_DISTANCE = 2.0;
 constexpr float MAX_CAMERA_DISTANCE = 2000.0;
-constexpr float ZOOM_SPEED = 2.5;
-constexpr float FOV_SPEED = 1.0;
 constexpr float ZOOM_MULTIPLIER = 4.0;
 constexpr float PAN_SPEED = 2.0;
 constexpr float PAN_MULTIPLIER = 10.0;
@@ -42,16 +44,21 @@ constexpr float SIM_SPEED = 4.0;             // How large each update should be
 constexpr float MASS = 1.0;                  // Mass spring system
 constexpr float SPRING_CONSTANT = 5.0;       // Mass spring system
 constexpr float DAMPENING_CONSTANT = 1.0;    // Mass spring system
-constexpr float REST_LENGTH = 2.0;           // Mass spring system
+constexpr float REST_LENGTH = 3.0;           // Mass spring system
 constexpr float VERLET_DAMPENING = 0.05;     // [0, 1]
 constexpr float BH_FORCE = 2.0;              // Barnes-Hut [1.0, 3.0]
 constexpr float THETA = 0.9;                 // Barnes-Hut [0.5, 1.0]
 constexpr float SOFTENING = 0.01;            // Barnes-Hut [0.01, 1.0]
 
 // Graph Drawing
+constexpr Color EDGE_COLOR = DARKBLUE;
 constexpr float VERTEX_SIZE = 0.5;
-constexpr Color VERTEX_COLOR = GREEN;
-constexpr Color EDGE_COLOR = DARKGREEN;
+static const Color VERTEX_COLOR = Fade(BLUE, 0.5);
+constexpr Color VERTEX_VISITED_COLOR = DARKBLUE;
+constexpr Color VERTEX_PATH_COLOR = GREEN;
+constexpr Color VERTEX_TARGET_COLOR = RED;
+constexpr Color VERTEX_START_COLOR = ORANGE;
+constexpr Color VERTEX_CURRENT_COLOR = PURPLE;
 constexpr int DRAW_VERTICES_LIMIT = 1000000;
 
 // Klotski Drawing
@@ -62,6 +69,5 @@ constexpr Color BOARD_COLOR_FREE = RAYWHITE;
 constexpr Color BLOCK_COLOR = DARKBLUE;
 constexpr Color TARGET_BLOCK_COLOR = RED;
 constexpr Color WALL_COLOR = BLACK;
-constexpr Color GOAL_COLOR = ORANGE;
 
 #endif

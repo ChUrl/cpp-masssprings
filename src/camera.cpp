@@ -41,12 +41,21 @@ auto OrbitCamera3D::Pan(Vector2 last_mouse, Vector2 mouse) -> void {
   target = Vector3Add(target, offset);
 }
 
-auto OrbitCamera3D::Update(const Vector3 &current_target, bool lock) -> void {
+auto OrbitCamera3D::Update(const Vector3 &current_target,
+                           const Vector3 &mass_center, bool lock,
+                           bool mass_center_lock) -> void {
   if (lock) {
-    target = Vector3MoveTowards(
-        target, current_target,
-        CAMERA_SMOOTH_SPEED * GetFrameTime() *
-            Vector3Length(Vector3Subtract(target, current_target)));
+    if (mass_center_lock) {
+      target = Vector3MoveTowards(
+          target, mass_center,
+          CAMERA_SMOOTH_SPEED * GetFrameTime() *
+              Vector3Length(Vector3Subtract(target, mass_center)));
+    } else {
+      target = Vector3MoveTowards(
+          target, current_target,
+          CAMERA_SMOOTH_SPEED * GetFrameTime() *
+              Vector3Length(Vector3Subtract(target, current_target)));
+    }
   }
 
   distance = Clamp(distance, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);
@@ -60,7 +69,7 @@ auto OrbitCamera3D::Update(const Vector3 &current_target, bool lock) -> void {
   float y = sin(angle_y) * actual_distance;
   float z = cos(angle_y) * cos(angle_x) * actual_distance;
 
-  fov = Clamp(fov, 25.0, 155.0);
+  fov = Clamp(fov, MIN_FOV, MAX_FOV);
 
   camera.position = Vector3Add(target, Vector3(x, y, z));
   camera.target = target;

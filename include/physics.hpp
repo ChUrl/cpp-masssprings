@@ -68,13 +68,13 @@ public:
 
 class MassSpringSystem {
 private:
-  Octree octree;
-
 #ifdef THREADPOOL
   BS::thread_pool<BS::tp::none> threads;
 #endif
 
 public:
+  Octree octree;
+
   // This is the main ownership of all the states/masses/springs.
   std::vector<Mass> masses;
   std::vector<Spring> springs;
@@ -151,6 +151,7 @@ class ThreadedPhysics {
 #endif
     std::condition_variable_any data_ready_cnd;
     std::condition_variable_any data_consumed_cnd;
+    Vector3 mass_center = Vector3Zero();
     unsigned int ups = 0;
     std::vector<Vector3> masses; // Read by renderer
     bool data_ready = false;

@@ -276,6 +276,11 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
         loop_iterations = 0;
         ups_accumulator = std::chrono::duration<double>(0);
       }
+      if (mass_springs.octree.nodes.size() > 0) {
+        state.mass_center = mass_springs.octree.nodes.at(0).mass_center;
+      } else {
+        state.mass_center = Vector3Zero();
+      }
 
       state.masses.clear();
       state.masses.reserve(mass_springs.masses.size());
