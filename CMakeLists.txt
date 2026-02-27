@@ -15,7 +15,33 @@ message("-- CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message("-- CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 message("-- CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 
+# Libraries
 find_package(raylib REQUIRED)
+set(LIBS raylib)
+set(FLAGS "")
+
+if(NOT DEFINED DISABLE_BACKWARD)
+    find_package(Backward REQUIRED)
+
+    list(APPEND LIBS Backward::Backward)
+    list(APPEND FLAGS BACKWARD)
+endif()
+
+if(NOT DEFINED DISABLE_TRACY)
+    include(FetchContent)
+    FetchContent_Declare(tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG v0.11.1
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(tracy)
+    option(TRACY_ENABLE "" ON)
+    option(TRACY_ON_DEMAND "" ON)
+
+    list(APPEND LIBS TracyClient)
+    list(APPEND FLAGS TRACY)
+endif()
 
 # Headers + Sources
 include_directories(include)
@@ -36,38 +62,9 @@ set(SOURCES
 
 # Main target
 add_executable(masssprings ${SOURCES})
-target_include_directories(masssprings PUBLIC ${RAYLIB_CPP_INCLUDE_DIR})
-if(NOT DEFINED DISABLE_BACKWARD)
-    find_package(Backward REQUIRED)
-    target_link_libraries(masssprings PUBLIC raylib Backward::Backward)
-    target_compile_definitions(masssprings PUBLIC BACKWARD)
-else()
-    target_link_libraries(masssprings PUBLIC raylib)
-endif()
-
-# Tracy target
-if(NOT DEFINED DISABLE_TRACY)
-    include(FetchContent)
-    FetchContent_Declare(tracy
-        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG v0.11.1
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-    )
-    FetchContent_MakeAvailable(tracy)
-    option(TRACY_ENABLE "" ON)
-    option(TRACY_ON_DEMAND "" ON)
-
-    add_executable(masssprings_tracy ${SOURCES})
-    target_include_directories(masssprings_tracy PUBLIC ${RAYLIB_CPP_INCLUDE_DIR})
-    target_compile_definitions(masssprings_tracy PRIVATE TRACY)
-    if(NOT DEFINED DISABLE_BACKWARD)
-        target_link_libraries(masssprings_tracy PUBLIC raylib Backward::Backward TracyClient)
-        target_compile_definitions(masssprings_tracy PUBLIC BACKWARD)
-    else()
-        target_link_libraries(masssprings_tracy PUBLIC raylib TracyClient)
-    endif()
-endif()
+target_include_directories(masssprings PRIVATE ${RAYLIB_CPP_INCLUDE_DIR})
+target_link_libraries(masssprings PRIVATE ${LIBS})
+target_compile_definitions(masssprings PRIVATE ${FLAGS})
 
 # LTO
 if (NOT WIN32)
