@@ -3,7 +3,6 @@
 #include "puzzle.hpp"
 
 #include <algorithm>
-#include <format>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
@@ -143,7 +142,7 @@ auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
   }
 
   // Mark visited states
-  for (const State &_state : state.visited_states) {
+  for (const auto &[_state, visits] : state.visited_states) {
     std::size_t visited_index = state.states.at(_state);
 
     if (masses.size() > visited_index) {
@@ -180,13 +179,7 @@ auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
              BLUE);
   }
 
-  // DrawCubeWires(current_mass.position, REPULSION_RANGE, REPULSION_RANGE,
-  //               REPULSION_RANGE, BLACK);
-  // DrawGrid(100, 1.0);
-  // DrawSphere(camera.target, VERTEX_SIZE, ORANGE);
   EndMode3D();
-
-  DrawLine(0, 0, 0, GetScreenHeight() - MENU_HEIGHT, BLACK);
   EndTextureMode();
 }
 
@@ -198,116 +191,8 @@ auto Renderer::DrawKlotski() -> void {
   BeginTextureMode(klotski_target);
   ClearBackground(RAYWHITE);
 
-  // Draw Board
-  const int board_width = GetScreenWidth() / 2 - 2 * BOARD_PADDING;
-  const int board_height = GetScreenHeight() - MENU_HEIGHT - 2 * BOARD_PADDING;
-  int block_size = std::min(board_width / state.current_state.width,
-                            board_height / state.current_state.height) -
-                   2 * BLOCK_PADDING;
-  int x_offset = (board_width - (block_size + 2 * BLOCK_PADDING) *
-                                    state.current_state.width) /
-                 2.0;
-  int y_offset = (board_height - (block_size + 2 * BLOCK_PADDING) *
-                                     state.current_state.height) /
-                 2.0;
+  gui.DrawPuzzleBoard();
 
-  DrawRectangle(0, 0, GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT,
-                RAYWHITE);
-  DrawRectangle(x_offset, y_offset,
-                board_width - 2 * x_offset + 2 * BOARD_PADDING,
-                board_height - 2 * y_offset + 2 * BOARD_PADDING,
-                state.current_state.IsWon()
-                    ? GREEN
-                    : (state.current_state.restricted ? DARKGRAY : LIGHTGRAY));
-  for (int x = 0; x < state.current_state.width; ++x) {
-    for (int y = 0; y < state.current_state.height; ++y) {
-      DrawRectangle(x_offset + BOARD_PADDING + x * BLOCK_PADDING * 2 +
-                        BLOCK_PADDING + x * block_size,
-                    y_offset + BOARD_PADDING + y * BLOCK_PADDING * 2 +
-                        BLOCK_PADDING + y * block_size,
-                    block_size, block_size, WHITE);
-    }
-  }
-
-  // Draw Blocks
-  for (Block block : state.current_state) {
-    Color c = BLOCK_COLOR;
-    if (block.Covers(input.sel_x, input.sel_y)) {
-      c = HL_BLOCK_COLOR;
-    }
-    if (block.target) {
-      if (block.Covers(input.sel_x, input.sel_y)) {
-        c = HL_TARGET_BLOCK_COLOR;
-      } else {
-        c = TARGET_BLOCK_COLOR;
-      }
-    } else if (block.immovable) {
-      if (block.Covers(input.sel_x, input.sel_y)) {
-        c = HL_WALL_COLOR;
-      } else {
-        c = WALL_COLOR;
-      }
-    }
-    DrawRectangle(x_offset + BOARD_PADDING + block.x * BLOCK_PADDING * 2 +
-                      BLOCK_PADDING + block.x * block_size,
-                  y_offset + BOARD_PADDING + block.y * BLOCK_PADDING * 2 +
-                      BLOCK_PADDING + block.y * block_size,
-                  block.width * block_size + block.width * 2 * BLOCK_PADDING -
-                      2 * BLOCK_PADDING,
-                  block.height * block_size + block.height * 2 * BLOCK_PADDING -
-                      2 * BLOCK_PADDING,
-                  c);
-
-    if (block.Covers(input.hov_x, input.hov_y)) {
-      DrawRectangleLinesEx(
-          Rectangle(x_offset + BOARD_PADDING + block.x * BLOCK_PADDING * 2 +
-                        BLOCK_PADDING + block.x * block_size,
-                    y_offset + BOARD_PADDING + block.y * BLOCK_PADDING * 2 +
-                        BLOCK_PADDING + block.y * block_size,
-                    block.width * block_size + block.width * 2 * BLOCK_PADDING -
-                        2 * BLOCK_PADDING,
-                    block.height * block_size +
-                        block.height * 2 * BLOCK_PADDING - 2 * BLOCK_PADDING),
-          2.0, BLACK);
-    }
-  }
-
-  // Draw editing starting position
-  if (input.block_add_x >= 0 && input.block_add_y >= 0 &&
-      input.hov_x >= input.block_add_x && input.hov_y >= input.block_add_y) {
-    int block_width = input.hov_x - input.block_add_x + 1;
-    int block_height = input.hov_y - input.block_add_y + 1;
-    DrawRectangle(
-        x_offset + BOARD_PADDING + input.block_add_x * BLOCK_PADDING * 2 +
-            BLOCK_PADDING + input.block_add_x * block_size,
-        y_offset + BOARD_PADDING + input.block_add_y * BLOCK_PADDING * 2 +
-            BLOCK_PADDING + input.block_add_y * block_size,
-        block_width * block_size + block_width * 2 * BLOCK_PADDING -
-            2 * BLOCK_PADDING,
-        block_height * block_size + block_height * 2 * BLOCK_PADDING -
-            2 * BLOCK_PADDING,
-        Fade(BLOCK_COLOR, 0.5));
-  }
-
-  // Draw board goal position
-  const Block target = state.current_state.GetTargetBlock();
-  if (target.IsValid() && state.current_state.HasWinCondition()) {
-    int target_x = state.current_state.target_x;
-    int target_y = state.current_state.target_y;
-    DrawRectangleLinesEx(
-        Rectangle(x_offset + BOARD_PADDING + target_x * BLOCK_PADDING * 2 +
-                      BLOCK_PADDING + target_x * block_size,
-                  y_offset + BOARD_PADDING + target_y * BLOCK_PADDING * 2 +
-                      BLOCK_PADDING + target_y * block_size,
-                  target.width * block_size + target.width * 2 * BLOCK_PADDING -
-                      2 * BLOCK_PADDING,
-                  target.height * block_size +
-                      target.height * 2 * BLOCK_PADDING - 2 * BLOCK_PADDING),
-        2.0, TARGET_BLOCK_COLOR);
-  }
-
-  DrawLine(GetScreenWidth() / 2 - 1, 0, GetScreenWidth() / 2 - 1,
-           GetScreenHeight() - MENU_HEIGHT, BLACK);
   EndTextureMode();
 }
 
@@ -319,87 +204,14 @@ auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
   BeginTextureMode(menu_target);
   ClearBackground(RAYWHITE);
 
-  float btn_width =
-      static_cast<float>(GetScreenWidth() - (MENU_COLS * MENU_PAD + MENU_PAD)) /
-      MENU_COLS;
-  float btn_height =
-      static_cast<float>(MENU_HEIGHT - (MENU_ROWS * MENU_PAD + MENU_PAD)) /
-      MENU_ROWS;
+  gui.DrawMainMenu();
 
-  auto draw_btn = [&](int x, int y, std::string text, Color color) {
-    int posx = MENU_PAD + x * (MENU_PAD + btn_width);
-    int posy = MENU_PAD + (y + 1) * (MENU_PAD + btn_height);
-    DrawRectangle(posx, posy, btn_width, btn_height, Fade(color, 0.7));
-    DrawRectangleLines(posx, posy, btn_width, btn_height, color);
-    DrawText(text.data(), posx + BUTTON_PAD, posy + BUTTON_PAD,
-             btn_height - 2.0 * BUTTON_PAD, WHITE);
-  };
-
-  auto draw_subtitle = [&](std::string text, Color color) {
-    int posx = MENU_PAD;
-    int posy = MENU_PAD;
-    DrawRectangle(posx, posy,
-                  btn_width * MENU_COLS + MENU_PAD * (MENU_COLS - 1),
-                  btn_height, Fade(color, 0.7));
-    DrawRectangleLines(posx, posy,
-                       btn_width * MENU_COLS + MENU_PAD * (MENU_COLS - 1),
-                       btn_height, color);
-    DrawText(text.data(), posx + BUTTON_PAD, posy + BUTTON_PAD,
-             btn_height = 2.0 * BUTTON_PAD, WHITE);
-  };
-
-  // Left column
-  draw_btn(0, 0,
-           std::format("States: {} / Transitions: {} / Winning: {}",
-                       masses.size(), state.springs.size(),
-                       state.winning_states.size()),
-           ORANGE);
-  draw_btn(0, 1,
-           std::format("Preset (M/N) / {} (F)",
-                       state.current_state.restricted ? "Restricted" : "Free"),
-           ORANGE);
-  draw_btn(0, 2, std::format("Pan (LMB) / Rotate (RMB) / Zoom (Wheel)"),
-           DARKGREEN);
-  draw_btn(
-      0, 3,
-      std::format("Lock Camera to Current State (L): {}", camera.target_lock),
-      DARKGREEN);
-
-  // Center column
-  draw_btn(1, 0, std::format("Select (LMB) / Move (WASD) / Target/Wall (T/Y)"),
-           DARKBLUE);
-  draw_btn(1, 1, std::format("Add/Remove Col/Row (Arrow Keys)"), DARKBLUE);
-  draw_btn(1, 2, std::format("Add/Remove Block (LMB/RMB) / Set Goal (MMB)"),
-           DARKBLUE);
-  draw_btn(1, 3, std::format("Print State (P) / Reset State (R)"), DARKBLUE);
-
-  // Right column
-  draw_btn(2, 0, std::format("Populate Graph (G) / Clear Graph (C)"),
-           DARKPURPLE);
-  draw_btn(2, 1,
-           std::format("Path (U): {} / Goals (I): {} / Lines (O): {}",
-                       input.mark_path, input.mark_solutions,
-                       input.connect_solutions),
-           DARKPURPLE);
-  draw_btn(2, 2, std::format("Best move (Space) / Move back (Backspace)"),
-           DARKPURPLE);
-  draw_btn(2, 3,
-           std::format("Worst (V) / Target (B) / Distance: {}",
-                       state.winning_path.size() > 0
-                           ? state.winning_path.size() - 1
-                           : 0),
-           DARKPURPLE);
-
-  draw_subtitle(std::format("Puzzle {}: {}", state.current_preset + 1,
-                            state.comments.at(state.current_preset)),
-                BLACK);
-
-  DrawLine(0, MENU_HEIGHT - 1, GetScreenWidth(), MENU_HEIGHT - 1, BLACK);
   EndTextureMode();
 }
 
-auto Renderer::DrawTextures(float ups) -> void {
+auto Renderer::DrawTextures(int fps, int ups) -> void {
   BeginDrawing();
+
   DrawTextureRec(menu_target.texture,
                  Rectangle(0, 0, menu_target.texture.width,
                            -1 * menu_target.texture.height),
@@ -413,8 +225,20 @@ auto Renderer::DrawTextures(float ups) -> void {
                            -1 * render_target.texture.height),
                  Vector2(GetScreenWidth() / 2.0, MENU_HEIGHT), WHITE);
 
-  DrawFPS(GetScreenWidth() / 2 + 10, MENU_HEIGHT + 10);
-  DrawText(TextFormat("%.0f UPS", ups), GetScreenWidth() / 2 + 120,
-           MENU_HEIGHT + 10, 20, ORANGE);
+  // Draw borders
+  DrawRectangleLinesEx(Rectangle(0, 0, GetScreenWidth(), MENU_HEIGHT), 1.0,
+                       BLACK);
+  DrawRectangleLinesEx(Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0,
+                                 GetScreenHeight() - MENU_HEIGHT),
+                       1.0, BLACK);
+  DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0, MENU_HEIGHT,
+                                 GetScreenWidth() / 2.0,
+                                 GetScreenHeight() - MENU_HEIGHT),
+                       1.0, BLACK);
+
+  gui.DrawGraphOverlay(fps, ups);
+  gui.DrawSavePresetPopup();
+  gui.Update();
+
   EndDrawing();
 }

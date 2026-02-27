@@ -10,15 +10,17 @@
 // #define TRACY      // Enable tracy profiling support
 
 // Window
-constexpr int INITIAL_WIDTH = 800;
-constexpr int INITIAL_HEIGHT = 800;
-constexpr int MENU_HEIGHT = 250;
+constexpr int INITIAL_WIDTH = 600;
+constexpr int INITIAL_HEIGHT = 600;
+constexpr int MENU_HEIGHT = 350;
 
 // Menu
 constexpr int MENU_PAD = 5;
 constexpr int BUTTON_PAD = 12;
-constexpr int MENU_ROWS = 5;
+constexpr int MENU_ROWS = 7;
 constexpr int MENU_COLS = 3;
+constexpr const char *FONT = "fonts/SpaceMono.ttf";
+constexpr int FONT_SIZE = 26;
 
 // Camera Controls
 constexpr float CAMERA_FOV = 120.0;
@@ -26,6 +28,7 @@ constexpr float CAMERA_DISTANCE = 20.0;
 constexpr float MIN_CAMERA_DISTANCE = 2.0;
 constexpr float MAX_CAMERA_DISTANCE = 2000.0;
 constexpr float ZOOM_SPEED = 2.5;
+constexpr float FOV_SPEED = 1.0;
 constexpr float ZOOM_MULTIPLIER = 4.0;
 constexpr float PAN_SPEED = 2.0;
 constexpr float PAN_MULTIPLIER = 10.0;
@@ -52,13 +55,13 @@ constexpr Color EDGE_COLOR = DARKGREEN;
 constexpr int DRAW_VERTICES_LIMIT = 1000000;
 
 // Klotski Drawing
-constexpr int BOARD_PADDING = 5;
-constexpr int BLOCK_PADDING = 5;
-constexpr Color BLOCK_COLOR = DARKGREEN;
-constexpr Color HL_BLOCK_COLOR = GREEN;
+constexpr int BOARD_PADDING = 10;
+constexpr Color BOARD_COLOR_WON = DARKGREEN;
+constexpr Color BOARD_COLOR_RESTRICTED = GRAY;
+constexpr Color BOARD_COLOR_FREE = RAYWHITE;
+constexpr Color BLOCK_COLOR = DARKBLUE;
 constexpr Color TARGET_BLOCK_COLOR = RED;
-constexpr Color HL_TARGET_BLOCK_COLOR = ORANGE;
 constexpr Color WALL_COLOR = BLACK;
-constexpr Color HL_WALL_COLOR = DARKGRAY;
+constexpr Color GOAL_COLOR = ORANGE;
 
 #endif

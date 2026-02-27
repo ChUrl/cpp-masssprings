@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <format>
 #include <functional>
-#include <iostream>
+#include <print>
 #include <string>
 #include <vector>
 
@@ -40,7 +40,7 @@ public:
       : x(_x), y(_y), width(_width), height(_height), target(_target),
         immovable(_immovable) {
     if (_x < 0 || _x + _width >= 10 || _y < 0 || _y + _height >= 10) {
-      std::cerr << "Block must fit on a 9x9 board!" << std::endl;
+      std::println("Block must fit in a 9x9 board!");
       exit(1);
     }
   }
@@ -92,11 +92,11 @@ public:
     }
 
     if (_x < 0 || _x + width >= 10 || _y < 0 || _y + height >= 10) {
-      std::cerr << "Block must fit on a 9x9 board!" << std::endl;
+      std::println("Block must fit in a 9x9 board!");
       exit(1);
     }
     if (block.length() != 2) {
-      std::cerr << "Block representation must have length [2]!" << std::endl;
+      std::println("Block representation must have length 2!");
       exit(1);
     }
   }
@@ -109,7 +109,7 @@ public:
   bool operator!=(const Block &other) { return !(*this == other); }
 
 public:
-  auto Hash() const -> int;
+  auto Hash() const -> std::size_t;
 
   static auto Invalid() -> Block;
 
@@ -186,13 +186,12 @@ public:
                           _height, _target_x, _target_y,
                           std::string(_width * _height * 2, '.'))) {
     if (_width < 1 || _width > 9 || _height < 1 || _height > 9) {
-      std::cerr << "State width/height must be in [1, 9]!" << std::endl;
+      std::println("State width/height must be in [1, 9]!");
       exit(1);
     }
     if (_target_x < 0 || _target_x >= 9 || _target_y < 0 || _target_y >= 9) {
       if (_target_x != 9 && _target_y != 9) {
-        std::cerr << "State target must be within the board bounds!"
-                  << std::endl;
+        std::println("State target  must be within the board bounds!");
         exit(1);
       }
     }
@@ -210,20 +209,19 @@ public:
         target_y(std::stoi(_state.substr(4, 1))),
         restricted(_state.substr(0, 1) == "R"), state(_state) {
     if (width < 1 || width > 9 || height < 1 || height > 9) {
-      std::cerr << "State width/height must be in [1, 9]!" << std::endl;
+      std::println("State width/height must be in [1, 9]!");
       exit(1);
     }
     if (target_x < 0 || target_x >= 9 || target_y < 0 || target_y >= 9) {
       if (target_x != 9 && target_y != 9) {
-        std::cerr << "State target must be within the board bounds!"
-                  << std::endl;
+        std::println("State target  must be within the board bounds!");
         exit(1);
       }
     }
     if (static_cast<int>(_state.length()) != width * height * 2 + prefix) {
-      std::cerr
-          << "State representation must have length [width * height * 2 + "
-          << prefix << "]!" << std::endl;
+      std::println(
+          "State representation must have length width * height * 2 + {}!",
+          prefix);
       exit(1);
     }
   }
@@ -243,13 +241,15 @@ public:
   BlockIterator end() const { return BlockIterator(*this, width * height); }
 
 public:
-  auto Hash() const -> int;
+  auto Hash() const -> std::size_t;
 
   auto HasWinCondition() const -> bool;
 
   auto IsWon() const -> bool;
 
   auto SetGoal(int x, int y) -> bool;
+
+  auto ClearGoal() -> void;
 
   auto AddColumn() const -> State;
 

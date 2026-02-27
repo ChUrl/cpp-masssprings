@@ -212,9 +212,9 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
   };
 
   std::chrono::time_point last = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> accumulator(0);
-  std::chrono::duration<double> update_accumulator(0);
-  unsigned int updates = 0;
+  std::chrono::duration<double> physics_accumulator(0);
+  std::chrono::duration<double> ups_accumulator(0);
+  unsigned int loop_iterations = 0;
 
   while (state.running.load()) {
 #ifdef TRACY
@@ -224,8 +224,8 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
     // Time tracking
     std::chrono::time_point now = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> deltatime = now - last;
-    accumulator += deltatime;
-    update_accumulator += deltatime;
+    physics_accumulator += deltatime;
+    ups_accumulator += deltatime;
     last = now;
 
     // Handle queued commands
@@ -248,14 +248,14 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
     }
 
     // Physics update
-    if (accumulator.count() > TIMESTEP) {
+    if (physics_accumulator.count() > TIMESTEP) {
       mass_springs.ClearForces();
       mass_springs.CalculateSpringForces();
       mass_springs.CalculateRepulsionForces();
       mass_springs.VerletUpdate(TIMESTEP * SIM_SPEED);
 
-      ++updates;
-      accumulator -= std::chrono::duration<double>(TIMESTEP);
+      ++loop_iterations;
+      physics_accumulator -= std::chrono::duration<double>(TIMESTEP);
     }
 
     // Publish the positions for the renderer (copy)
@@ -275,11 +275,11 @@ auto ThreadedPhysics::PhysicsThread(ThreadedPhysics::PhysicsState &state)
         break;
       }
 
-      if (update_accumulator.count() > 1.0) {
+      if (ups_accumulator.count() > 1.0) {
         // Update each second
-        state.ups = updates;
-        updates = 0;
-        update_accumulator = std::chrono::duration<double>(0);
+        state.ups = loop_iterations;
+        loop_iterations = 0;
+        ups_accumulator = std::chrono::duration<double>(0);
       }
 
       state.masses.clear();

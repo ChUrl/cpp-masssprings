@@ -49,8 +49,6 @@ public:
       -> void;
 
   auto CalculateForce(int node_idx, const Vector3 &pos) const -> Vector3;
-
-  auto Print() const -> void;
 };
 
 #endif

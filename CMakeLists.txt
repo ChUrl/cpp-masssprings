@@ -32,6 +32,7 @@ set(SOURCES
     src/tracy.cpp
     src/backward.cpp
     src/distance.cpp
+    src/gui.cpp
 )
 
 # Main target

@@ -7,8 +7,8 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
-#include <iostream>
 #include <mutex>
+#include <print>
 #include <queue>
 #include <raylib.h>
 #include <raymath.h>
@@ -78,12 +78,10 @@ public:
       : threads(std::thread::hardware_concurrency() - 1, SetThreadName)
 #endif
   {
-    std::cout << "Using Barnes-Hut + octree repulsion force calculation."
-              << std::endl;
+    std::println("Using Barnes-Hut + Octree repulsion force calculation.");
 
 #ifdef THREADPOOL
-    std::cout << "Thread-Pool: " << threads.get_thread_count() << " threads."
-              << std::endl;
+    std::println("Thread-pool: {} threads.", threads.get_thread_count());
 #endif
   };
 

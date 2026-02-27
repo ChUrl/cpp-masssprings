@@ -15,17 +15,17 @@ class StateManager {
 public:
   ThreadedPhysics &physics;
 
-  std::vector<State> presets;
-  std::vector<std::string> comments;
+  std::vector<State> presets = {State()};
+  std::vector<std::string> comments = {"Empty"};
 
   // Some stuff is faster to map from state to mass (e.g. in the renderer)
-  std::unordered_map<State, std::size_t> states;
+  std::unordered_map<State, std::size_t> states; // State to mass id
   std::unordered_set<State> winning_states;
-  std::unordered_set<State> visited_states;
+  std::unordered_map<State, int> visited_states; // How often we've been here
   std::stack<State> history;
 
   // Other stuff maps from mass to state :/
-  std::unordered_map<std::size_t, State> masses;
+  std::unordered_map<std::size_t, State> masses; // Mass id to state
   std::vector<std::size_t> winning_path;
 
   // Fuck it, duplicate the springs too, we don't even need to copy them from
@@ -36,7 +36,10 @@ public:
   // path on the same graph
   DistanceResult target_distances;
 
-  int current_preset;
+  std::string preset_file;
+
+  int total_moves = 0;
+  int current_preset = 0;
   State starting_state;
   State current_state;
   State previous_state;
@@ -45,8 +48,7 @@ public:
 
 public:
   StateManager(ThreadedPhysics &_physics, const std::string &preset_file)
-      : physics(_physics), presets({State()}), current_preset(0),
-        edited(false) {
+      : physics(_physics) {
     ParsePresetFile(preset_file);
     current_state = presets.at(current_preset);
     ClearGraph();
@@ -60,9 +62,11 @@ public:
   ~StateManager() {}
 
 private:
-  auto ParsePresetFile(const std::string &preset_file) -> void;
+  auto ParsePresetFile(const std::string &_preset_file) -> bool;
 
 public:
+  auto AppendPresetFile(const std::string preset_name) -> void;
+
   auto LoadPreset(int preset) -> void;
 
   auto ResetState() -> void;

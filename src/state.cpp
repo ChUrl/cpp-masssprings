@@ -4,6 +4,7 @@
 
 #include <fstream>
 #include <ios>
+#include <print>
 #include <raymath.h>
 
 #ifdef TRACY
@@ -11,12 +12,13 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-auto StateManager::ParsePresetFile(const std::string &preset_file) -> void {
+auto StateManager::ParsePresetFile(const std::string &_preset_file) -> bool {
+  preset_file = _preset_file;
+
   std::ifstream file(preset_file);
   if (!file) {
-    std::cout << "Preset file \"" << preset_file << "\" couldn't be loaded."
-              << std::endl;
-    return;
+    std::println("Preset file \"{}\" couldn't be loaded.", preset_file);
+    return false;
   }
 
   std::string line;
@@ -31,9 +33,8 @@ auto StateManager::ParsePresetFile(const std::string &preset_file) -> void {
   }
 
   if (preset_lines.size() == 0 || comment_lines.size() != preset_lines.size()) {
-    std::cout << "Preset file \"" << preset_file << "\" couldn't be loaded."
-              << std::endl;
-    return;
+    std::println("Preset file \"{}\" couldn't be loaded.", preset_file);
+    return false;
   }
 
   presets.clear();
@@ -42,7 +43,27 @@ auto StateManager::ParsePresetFile(const std::string &preset_file) -> void {
   }
   comments = comment_lines;
 
-  std::cout << "Loaded " << preset_lines.size() << " presets." << std::endl;
+  std::println("Loaded {} presets from \"{}\".", preset_lines.size(),
+               preset_file);
+
+  return true;
+}
+
+auto StateManager::AppendPresetFile(const std::string preset_name) -> void {
+  std::println("Saving preset \"{}\" to \"{}\"", preset_name, preset_file);
+
+  std::ofstream file(preset_file, std::ios_base::app | std::ios_base::out);
+  if (!file) {
+    std::println("Preset file \"{}\" couldn't be loaded.", preset_file);
+    return;
+  }
+
+  file << "\n# " << preset_name << "\n" << current_state.state << std::flush;
+
+  std::println("Refreshing presets...");
+  if (ParsePresetFile(preset_file)) {
+    LoadPreset(presets.size() - 1);
+  }
 }
 
 auto StateManager::LoadPreset(int preset) -> void {
@@ -55,6 +76,11 @@ auto StateManager::LoadPreset(int preset) -> void {
 auto StateManager::ResetState() -> void {
   current_state = presets.at(current_preset);
   previous_state = current_state;
+  for (auto &[state, visits] : visited_states) {
+    visits = 0;
+  }
+  visited_states[current_state]++;
+  total_moves = 0;
   if (edited) {
     // We also need to clear the graph in case the state has been edited
     // because the graph could contain states that are impossible to reach
@@ -83,8 +109,6 @@ auto StateManager::NextPath() -> void {
   }
 
   std::size_t parent = target_distances.parents[CurrentMassIndex()];
-  // std::cout << "Parent of node " << CurrentMassIndex() << " is " << parent
-  //           << std::endl;
   current_state = masses.at(parent);
   FindTargetPath();
 }
@@ -115,8 +139,7 @@ auto StateManager::FillGraph() -> void {
 
   // Sanity check. Both values need to be equal
   // for (const auto &[mass, state] : masses) {
-  //   std::cout << "Masses: " << mass << ", States: " << states.at(state)
-  //             << std::endl;
+  //   std::println("Masses: {}, States: {}", mass, states.at(state));
   // }
 }
 
@@ -138,7 +161,9 @@ auto StateManager::UpdateGraph() -> void {
     FindTargetDistances();
   }
 
-  visited_states.insert(current_state);
+  // Adds the element with 0 if it doesn't exist
+  visited_states[current_state]++;
+  total_moves++;
 
   if (history.size() > 0 && history.top() == current_state) {
     // We don't pop the stack when moving backwards to indicate if we need to
@@ -166,7 +191,7 @@ auto StateManager::ClearGraph() -> void {
   // Re-add the default stuff to the graph
   states.insert(std::make_pair(current_state, states.size()));
   masses.insert(std::make_pair(states.size() - 1, current_state));
-  visited_states.insert(current_state);
+  visited_states.insert(std::make_pair(current_state, 1));
   physics.AddMassCmd();
 
   // These states are no longer in the graph
@@ -201,9 +226,8 @@ auto StateManager::FindTargetDistances() -> void {
 
   target_distances = CalculateDistances(states.size(), springs, targets);
 
-  // std::cout << "Calculated " << target_distances.distances.size()
-  //           << " distances to " << targets.size() << " targets." <<
-  //           std::endl;
+  // std::println("Calculated {} distances to {} targets.",
+  //              target_distances.distances.size(), targets.size());
 }
 
 auto StateManager::FindTargetPath() -> void {
@@ -212,8 +236,7 @@ auto StateManager::FindTargetPath() -> void {
   }
 
   winning_path = GetPath(target_distances, CurrentMassIndex());
-  // std::cout << "Nearest target is " << winning_path.size() << " moves away."
-  //           << std::endl;
+  // std::println("Nearest target is {} moves away.", winning_path.size());
 }
 
 auto StateManager::FindWorstState() -> State {

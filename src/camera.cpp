@@ -9,78 +9,40 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-auto OrbitCamera3D::HandleCameraInput() -> Vector2 {
-  Vector2 mouse = GetMousePosition();
-  if (mouse.x >= GetScreenWidth() / 2.0 && mouse.y >= MENU_HEIGHT) {
-    if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-      rotating = true;
-      last_mouse = mouse;
-    } else if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-      panning = true;
-      target_lock = false;
-      last_mouse = mouse;
-    }
+auto OrbitCamera3D::Rotate(Vector2 last_mouse, Vector2 mouse) -> void {
+  Vector2 dx = Vector2Subtract(mouse, last_mouse);
 
-    // Zoom
-    float wheel = GetMouseWheelMove();
-    if (IsKeyDown(KEY_LEFT_SHIFT)) {
-      distance -= wheel * ZOOM_SPEED * ZOOM_MULTIPLIER;
-    } else {
-      distance -= wheel * ZOOM_SPEED;
-    }
-  }
+  angle_x -= dx.x * ROT_SPEED / 200.0;
+  angle_y += dx.y * ROT_SPEED / 200.0;
 
-  if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
-    rotating = false;
-  }
-  if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-    panning = false;
-  }
-
-  if (IsKeyPressed(KEY_L)) {
-    target_lock = !target_lock;
-  }
-  return mouse;
+  angle_y = Clamp(angle_y, -1.5, 1.5); // Prevent flipping
 }
 
-auto OrbitCamera3D::Update(const Vector3 &current_target) -> void {
-  Vector2 mouse = HandleCameraInput();
+auto OrbitCamera3D::Pan(Vector2 last_mouse, Vector2 mouse) -> void {
+  Vector2 dx = Vector2Subtract(mouse, last_mouse);
 
-  if (rotating) {
-    Vector2 dx = Vector2Subtract(mouse, last_mouse);
-    last_mouse = mouse;
-
-    angle_x -= dx.x * ROT_SPEED / 200.0;
-    angle_y += dx.y * ROT_SPEED / 200.0;
-
-    angle_y = Clamp(angle_y, -1.5, 1.5); // Prevent flipping
+  float speed;
+  if (IsKeyDown(KEY_LEFT_SHIFT)) {
+    speed = distance * PAN_SPEED / 1000.0 * PAN_MULTIPLIER;
+  } else {
+    speed = distance * PAN_SPEED / 1000.0;
   }
 
-  if (panning) {
-    Vector2 dx = Vector2Subtract(mouse, last_mouse);
-    last_mouse = mouse;
+  // The panning needs to happen in camera coordinates, otherwise rotating the
+  // camera breaks it
+  Vector3 forward =
+      Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+  Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
+  Vector3 up = Vector3Normalize(Vector3CrossProduct(right, forward));
 
-    float speed;
-    if (IsKeyDown(KEY_LEFT_SHIFT)) {
-      speed = distance * PAN_SPEED / 1000.0 * PAN_MULTIPLIER;
-    } else {
-      speed = distance * PAN_SPEED / 1000.0;
-    }
+  Vector3 offset = Vector3Add(Vector3Scale(right, -dx.x * speed),
+                              Vector3Scale(up, dx.y * speed));
 
-    // The panning needs to happen in camera coordinates, otherwise rotating the
-    // camera breaks it
-    Vector3 forward =
-        Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-    Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
-    Vector3 up = Vector3Normalize(Vector3CrossProduct(right, forward));
+  target = Vector3Add(target, offset);
+}
 
-    Vector3 offset = Vector3Add(Vector3Scale(right, -dx.x * speed),
-                                Vector3Scale(up, dx.y * speed));
-
-    target = Vector3Add(target, offset);
-  }
-
-  if (target_lock) {
+auto OrbitCamera3D::Update(const Vector3 &current_target, bool lock) -> void {
+  if (lock) {
     target = Vector3MoveTowards(
         target, current_target,
         CAMERA_SMOOTH_SPEED * GetFrameTime() *
@@ -88,12 +50,20 @@ auto OrbitCamera3D::Update(const Vector3 &current_target) -> void {
   }
 
   distance = Clamp(distance, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);
+  int actual_distance = distance;
+  if (projection == CAMERA_ORTHOGRAPHIC) {
+    actual_distance = MAX_CAMERA_DISTANCE;
+  }
 
   // Spherical coordinates
-  float x = cos(angle_y) * sin(angle_x) * distance;
-  float y = sin(angle_y) * distance;
-  float z = cos(angle_y) * cos(angle_x) * distance;
+  float x = cos(angle_y) * sin(angle_x) * actual_distance;
+  float y = sin(angle_y) * actual_distance;
+  float z = cos(angle_y) * cos(angle_x) * actual_distance;
+
+  fov = Clamp(fov, 25.0, 155.0);
 
   camera.position = Vector3Add(target, Vector3(x, y, z));
   camera.target = target;
+  camera.fovy = fov;
+  camera.projection = projection;
 }

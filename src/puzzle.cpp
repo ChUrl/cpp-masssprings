@@ -1,6 +1,7 @@
 #include "puzzle.hpp"
 #include "config.hpp"
 
+#include <print>
 #include <unordered_set>
 
 #ifdef TRACY
@@ -8,7 +9,7 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-auto Block::Hash() const -> int {
+auto Block::Hash() const -> std::size_t {
   std::string s = std::format("{},{},{},{}", x, y, width, height);
   return std::hash<std::string>{}(s);
 }
@@ -59,7 +60,9 @@ auto Block::Collides(const Block &other) const -> bool {
          y < other.y + other.height && y + height > other.y;
 }
 
-auto State::Hash() const -> int { return std::hash<std::string>{}(state); }
+auto State::Hash() const -> std::size_t {
+  return std::hash<std::string>{}(state);
+}
 
 auto State::HasWinCondition() const -> bool {
   return target_x != 9 && target_y != 9;
@@ -80,8 +83,9 @@ auto State::IsWon() const -> bool {
 }
 
 auto State::SetGoal(int x, int y) -> bool {
-  if (x < 0 || x >= width || y < 0 || y >= height ||
-      !GetTargetBlock().IsValid()) {
+  Block target_block = GetTargetBlock();
+  if (!target_block.IsValid() || x < 0 || x + target_block.width > width ||
+      y < 0 || y + target_block.height > height) {
     return false;
   }
 
@@ -97,6 +101,12 @@ auto State::SetGoal(int x, int y) -> bool {
   state.replace(4, 1, std::format("{}", target_y));
 
   return true;
+}
+
+auto State::ClearGoal() -> void {
+  target_x = 9;
+  target_y = 9;
+  state.replace(3, 2, "99");
 }
 
 auto State::AddColumn() const -> State {
@@ -379,8 +389,8 @@ auto State::Closure() const
     }
   } while (remaining_states.size() > 0);
 
-  std::cout << "Closure contains " << states.size() << " states with "
-            << links.size() << " links." << std::endl;
+  std::println("State space has size {} with {} transitions.", states.size(),
+               links.size());
 
   return std::make_pair(states, links);
 }

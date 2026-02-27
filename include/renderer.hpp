@@ -3,6 +3,7 @@
 
 #include "camera.hpp"
 #include "config.hpp"
+#include "gui.hpp"
 #include "input.hpp"
 #include "state.hpp"
 
@@ -13,6 +14,7 @@ class Renderer {
 private:
   const StateManager &state;
   const InputHandler &input;
+  Gui &gui;
 
   const OrbitCamera3D &camera;
   RenderTexture render_target;
@@ -21,16 +23,15 @@ private:
 
   // Instancing
   Material vertex_mat;
-  std::size_t transforms_size;
-  Matrix *transforms;
+  std::size_t transforms_size = 0;
+  Matrix *transforms = nullptr;
   Mesh cube_instance;
   Shader instancing_shader;
 
 public:
   Renderer(const OrbitCamera3D &_camera, const StateManager &_state,
-           const InputHandler &_input)
-      : state(_state), input(_input), camera(_camera), transforms_size(0),
-        transforms(nullptr) {
+           const InputHandler &_input, Gui &_gui)
+      : state(_state), input(_input), gui(_gui), camera(_camera) {
     render_target = LoadRenderTexture(GetScreenWidth() / 2.0,
                                       GetScreenHeight() - MENU_HEIGHT);
     klotski_target = LoadRenderTexture(GetScreenWidth() / 2.0,
@@ -73,7 +74,7 @@ public:
 
   auto DrawMenu(const std::vector<Vector3> &masses) -> void;
 
-  auto DrawTextures(float ups) -> void;
+  auto DrawTextures(int fps, int ups) -> void;
 };
 
 #endif

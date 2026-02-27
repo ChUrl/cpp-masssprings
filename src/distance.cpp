@@ -30,14 +30,6 @@ auto CalculateDistances(
     adjacency[from].push_back(to);
     adjacency[to].push_back(from);
   }
-  // for (size_t i = 0; i < adjacency.size(); ++i) {
-  //   std::cout << "Node " << i << "'s neighbors: ";
-  //   for (const auto &neighbor : adjacency[i]) {
-  //     std::cout << neighbor;
-  //   }
-  //   std::cout << "\n";
-  // }
-  // std::cout << std::endl;
 
   std::vector<int> distances(node_count, -1);
   std::vector<std::size_t> parents(node_count, -1);

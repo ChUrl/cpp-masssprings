@@ -1,8 +1,6 @@
 #include "octree.hpp"
 #include "config.hpp"
-#include "util.hpp"
 
-#include <iostream>
 #include <raymath.h>
 
 #ifdef TRACY
@@ -167,12 +165,4 @@ auto Octree::CalculateForce(int node_idx, const Vector3 &pos) const -> Vector3 {
   }
 
   return force;
-}
-
-auto Octree::Print() const -> void {
-  std::cout << "Octree Start ===========================" << std::endl;
-  for (const auto &node : nodes) {
-    std::cout << "Center: " << node.mass_center << ", Mass: " << node.mass_total
-              << ", Direct Children: " << node.ChildCount() << std::endl;
-  }
 }
