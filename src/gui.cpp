@@ -253,13 +253,13 @@ auto Gui::DrawButton(Rectangle bounds, const std::string &label, Color color,
   SetDefaultStyle(style_default);
   SetComponentStyle(BUTTON, style_button);
 
-  const int state = GuiGetState();
+  const int _state = GuiGetState();
   if (!enabled || WindowOpen()) {
     GuiSetState(STATE_DISABLED);
   }
   int pressed = GuiButton(bounds, label.data());
   if (!enabled || WindowOpen()) {
-    GuiSetState(state);
+    GuiSetState(_state);
   }
 
   // Restore original styling
@@ -296,14 +296,14 @@ auto Gui::DrawToggleSlider(Rectangle bounds, const std::string &off_label,
   SetComponentStyle(SLIDER, style_slider);
   SetComponentStyle(TOGGLE, style_toggle);
 
-  const int state = GuiGetState();
+  const int _state = GuiGetState();
   if (!enabled || WindowOpen()) {
     GuiSetState(STATE_DISABLED);
   }
   int pressed = GuiToggleSlider(
       bounds, std::format("{};{}", off_label, on_label).data(), active);
   if (!enabled || WindowOpen()) {
-    GuiSetState(state);
+    GuiSetState(_state);
   }
 
   // Restore original styling
@@ -343,13 +343,13 @@ auto Gui::DrawSpinner(Rectangle bounds, const std::string &label, int *value,
   SetComponentStyle(VALUEBOX, style_valuebox);
   SetComponentStyle(BUTTON, style_button);
 
-  const int state = GuiGetState();
+  const int _state = GuiGetState();
   if (!enabled || WindowOpen()) {
     GuiSetState(STATE_DISABLED);
   }
   int pressed = GuiSpinner(bounds, "", label.data(), value, min, max, false);
   if (!enabled || WindowOpen()) {
-    GuiSetState(state);
+    GuiSetState(_state);
   }
 
   // Restore original styling
@@ -382,13 +382,13 @@ auto Gui::DrawLabel(Rectangle bounds, const std::string &text, Color color,
   SetDefaultStyle(style_default);
   SetComponentStyle(LABEL, style_label);
 
-  const int state = GuiGetState();
+  const int _state = GuiGetState();
   if (!enabled || WindowOpen()) {
     GuiSetState(STATE_DISABLED);
   }
   int pressed = GuiLabel(bounds, text.data());
   if (!enabled || WindowOpen()) {
-    GuiSetState(state);
+    GuiSetState(_state);
   }
 
   // Restore original styling
@@ -516,7 +516,7 @@ auto Gui::DrawCameraControls(Color color) const -> void {
   int projection = camera.projection == CAMERA_ORTHOGRAPHIC;
   DrawMenuToggleSlider(0, 3, 1, 1, "Perspective (Alt)", "Orthographic (Alt)",
                        &projection, color);
-  if (projection != camera.projection == CAMERA_ORTHOGRAPHIC) {
+  if (projection != (camera.projection == CAMERA_ORTHOGRAPHIC)) {
     input.ToggleCameraProjection();
   }
 }

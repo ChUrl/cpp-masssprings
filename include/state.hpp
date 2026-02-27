@@ -47,9 +47,9 @@ public:
   bool edited = false;
 
 public:
-  StateManager(ThreadedPhysics &_physics, const std::string &preset_file)
+  StateManager(ThreadedPhysics &_physics, const std::string &_preset_file)
       : physics(_physics) {
-    ParsePresetFile(preset_file);
+    ParsePresetFile(_preset_file);
     current_state = presets.at(current_preset);
     ClearGraph();
   }
