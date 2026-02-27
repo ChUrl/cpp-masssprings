@@ -21,6 +21,14 @@ rec {
         };
         inherit (pkgs) lib stdenv;
 
+        windowsPkgs = import nixpkgs {
+          inherit system;
+          crossSystem = {
+            config = "x86_64-w64-mingw32";
+          };
+          config.allowUnfree = true;
+        };
+
         # ===========================================================================================
         # Define custom dependencies
         # ===========================================================================================
@@ -117,19 +125,14 @@ rec {
         # - Interpreters needed by patchShebangs for scripts which are installed, which can be the case for e.g. perl
         buildInputs = with pkgs; [
           # C/C++:
-          # boost
-          # sfml
           raylib
           raygui
-          # octree # this one doesn't store center of mass per node - which I need :(
-          tracy-wayland
           thread-pool
+
+          # Debugging
+          tracy-wayland
           backward-cpp
           libbfd
-          # llvmPackages.openmp # not required for compilation but for clangd to find the headers
-          # raylib-cpp
-          # tinyobjloader
-          # gperftools
         ];
         # ===========================================================================================
         # Define buildable + installable packages
@@ -145,18 +148,58 @@ rec {
             cmake
           ];
 
+          cmakeFlags = [
+            "-DDISABLE_TRACY=On"
+            "-DDISABLE_BACKWARD=On"
+          ];
+
           installPhase = ''
             mkdir -p $out/bin
             cp ./${pname} $out/bin/
             cp $src/default.puzzle $out/bin/
+            cp -r $src/fonts $out/bin/fonts
+            cp -r $src/shader $out/bin/shader
+          '';
+        };
+
+        windowsPackage = windowsPkgs.stdenv.mkDerivation rec {
+          pname = "masssprings";
+          version = "1.0.0";
+          src = ./.;
+
+          # nativeBuildInputs must be from the build-platform (not cross)
+          # so we use "pkgs" here, not "windowsPkgs"
+          nativeBuildInputs = with pkgs; [
+            cmake
+          ];
+
+          buildInputs = with windowsPkgs; [
+            raylib
+            raygui
+            thread-pool
+          ];
+
+          cmakeFlags = [
+            "-DCMAKE_SYSTEM_NAME=Windows"
+            "-DDISABLE_TRACY=On"
+            "-DDISABLE_BACKWARD=On"
+          ];
+
+          installPhase = ''
+            mkdir -p $out/bin
+            cp ./${pname}.exe $out/bin/
+            cp $src/default.puzzle $out/bin/
+            cp -r $src/fonts $out/bin/fonts
+            cp -r $src/shader $out/bin/shader
           '';
         };
       in rec {
-        # Provide package for "nix build"
-        defaultPackage = package;
-        defaultApp = flake-utils.lib.mkApp {
-          drv = defaultPackage;
+        # Provide packages for "nix build" and "nix run"
+        packages = {
+          default = package;
+          windows = windowsPackage;
         };
+        apps.default = flake-utils.lib.mkApp {drv = package;};
 
         # Provide environment for "nix develop"
         devShells = {
@@ -212,7 +255,6 @@ rec {
                   echo "Running cmake"
                   cmake -G "Unix Makefiles" \
                         -DCMAKE_BUILD_TYPE="${type}" \
-                        -DUSE_TRACY=On \
                         ..
 
                   echo "Linking compile_commands.json"
