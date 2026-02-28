@@ -117,11 +117,11 @@ auto puzzle::valid_thorough() const -> bool
         return false;
     }
     if (!std::string("012345678").contains(state[3]) || !std::string("012345678").contains(state[4])) {
-        infoln("Puzzle invalid: Representation[3/4] {}/{} doesn't match [1-9]", state[1], state[2]);
+        infoln("Puzzle invalid: Representation[3/4] {}/{} doesn't match [1-9]", state[3], state[4]);
         return false;
     }
     if (std::stoi(state.substr(3, 1)) != target_x || std::stoi(state.substr(4, 1)) != target_y) {
-        infoln("Puzzle invalid: Representation[3/4] {}/{} doesn't match target ({}, {})", state[1], state[2], target_x,
+        infoln("Puzzle invalid: Representation[3/4] {}/{} doesn't match target ({}, {})", state[3], state[4], target_x,
                target_y);
         return false;
     }
@@ -209,8 +209,8 @@ auto puzzle::try_set_goal(const int x, const int y) const -> std::optional<puzzl
         p.target_y = y;
     }
 
-    p.state.replace(3, 1, std::format("{}", target_x));
-    p.state.replace(4, 1, std::format("{}", target_y));
+    p.state.replace(3, 1, std::format("{}", p.target_x));
+    p.state.replace(4, 1, std::format("{}", p.target_y));
 
     return p;
 }
@@ -220,7 +220,7 @@ auto puzzle::try_clear_goal() const -> std::optional<puzzle>
     puzzle p = *this;
     p.target_x = MAX_WIDTH;
     p.target_y = MAX_HEIGHT;
-    p.state.replace(3, 2, "99");
+    p.state.replace(3, 2, std::format("{}{}", MAX_WIDTH, MAX_HEIGHT));
     return p;
 }
 

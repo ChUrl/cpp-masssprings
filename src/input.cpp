@@ -17,10 +17,10 @@ auto input_handler::init_handlers() -> void
     register_mouse_pressed_handler(MOUSE_BUTTON_LEFT, &input_handler::select_block);
     register_mouse_pressed_handler(MOUSE_BUTTON_LEFT, &input_handler::add_block);
     register_mouse_pressed_handler(MOUSE_BUTTON_LEFT, &input_handler::start_add_block);
+    register_mouse_pressed_handler(MOUSE_BUTTON_MIDDLE, &input_handler::place_goal);
     register_mouse_pressed_handler(MOUSE_BUTTON_RIGHT, &input_handler::camera_start_rotate);
     register_mouse_pressed_handler(MOUSE_BUTTON_RIGHT, &input_handler::remove_block);
     register_mouse_pressed_handler(MOUSE_BUTTON_RIGHT, &input_handler::clear_add_block);
-    register_mouse_pressed_handler(MOUSE_BUTTON_MIDDLE, &input_handler::place_goal);
 
     register_mouse_released_handler(MOUSE_BUTTON_LEFT, &input_handler::camera_stop_pan);
     register_mouse_released_handler(MOUSE_BUTTON_RIGHT, &input_handler::camera_stop_rotate);
@@ -29,19 +29,21 @@ auto input_handler::init_handlers() -> void
     register_key_pressed_handler(KEY_D, &input_handler::move_block_eas);
     register_key_pressed_handler(KEY_S, &input_handler::move_block_sou);
     register_key_pressed_handler(KEY_A, &input_handler::move_block_wes);
-    register_key_pressed_handler(KEY_P, &input_handler::print_state);
+
     register_key_pressed_handler(KEY_N, &input_handler::load_previous_preset);
     register_key_pressed_handler(KEY_M, &input_handler::load_next_preset);
     register_key_pressed_handler(KEY_R, &input_handler::goto_starting_state);
+    register_key_pressed_handler(KEY_V, &input_handler::goto_most_distant_state);
+    register_key_pressed_handler(KEY_B, &input_handler::goto_closest_target_state);
+    register_key_pressed_handler(KEY_SPACE, &input_handler::goto_optimal_next_state);
+    register_key_pressed_handler(KEY_BACKSPACE, &input_handler::goto_previous_state);
+
     register_key_pressed_handler(KEY_G, &input_handler::populate_graph);
     register_key_pressed_handler(KEY_C, &input_handler::clear_graph);
     register_key_pressed_handler(KEY_I, &input_handler::toggle_mark_solutions);
     register_key_pressed_handler(KEY_O, &input_handler::toggle_connect_solutions);
-    // RegisterKeyPressedHandler(KEY_U, &InputHandler::ToggleMarkPath);
-    register_key_pressed_handler(KEY_SPACE, &input_handler::goto_optimal_next_state);
-    register_key_pressed_handler(KEY_V, &input_handler::goto_most_distant_state);
-    register_key_pressed_handler(KEY_B, &input_handler::goto_closest_target_state);
-    register_key_pressed_handler(KEY_BACKSPACE, &input_handler::goto_previous_state);
+
+    register_key_pressed_handler(KEY_TAB, &input_handler::toggle_editing);
     register_key_pressed_handler(KEY_F, &input_handler::toggle_restricted_movement);
     register_key_pressed_handler(KEY_T, &input_handler::toggle_target_block);
     register_key_pressed_handler(KEY_Y, &input_handler::toggle_wall_block);
@@ -49,10 +51,11 @@ auto input_handler::init_handlers() -> void
     register_key_pressed_handler(KEY_RIGHT, &input_handler::add_board_column);
     register_key_pressed_handler(KEY_DOWN, &input_handler::remove_board_row);
     register_key_pressed_handler(KEY_LEFT, &input_handler::remove_board_column);
-    register_key_pressed_handler(KEY_TAB, &input_handler::toggle_editing);
+    register_key_pressed_handler(KEY_X, &input_handler::clear_goal);
+    register_key_pressed_handler(KEY_P, &input_handler::print_state);
+
     register_key_pressed_handler(KEY_L, &input_handler::toggle_camera_lock);
     register_key_pressed_handler(KEY_LEFT_ALT, &input_handler::toggle_camera_projection);
-    register_key_pressed_handler(KEY_X, &input_handler::clear_goal);
     register_key_pressed_handler(KEY_U, &input_handler::toggle_camera_mass_center_lock);
 }
 

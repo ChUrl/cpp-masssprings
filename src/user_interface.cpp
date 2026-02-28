@@ -554,7 +554,8 @@ auto user_interface::draw_puzzle_controls(const Color color) const -> void
         input.goto_most_distant_state();
     }
 
-    if (draw_menu_button(2, 5, 1, 1, "Go to Starting State (R)", color)) {
+    if (draw_menu_button(2, 5, 1, 1, "Go to Starting State (R)", color,
+                         state.get_current_index() != state.get_starting_index())) {
         input.goto_starting_state();
     }
 }
