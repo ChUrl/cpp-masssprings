@@ -15,7 +15,7 @@ auto puzzle::block::hash() const -> size_t
 
 auto puzzle::block::valid() const -> bool
 {
-    return width > 0 && height > 0 && x >= 0 && x + width <= 9 && y >= 0 && y + height <= 9;
+    return width > 0 && height > 0 && x >= 0 && x + width <= MAX_WIDTH && y >= 0 && y + height <= MAX_HEIGHT;
 }
 
 auto puzzle::block::string() const -> std::string

@@ -832,7 +832,7 @@ auto user_interface::draw_puzzle_board() -> void
     }
 
     // Draw goal boundaries when editing
-    if (input.editing) {
+    if (input.editing && current.has_win_condition() && target_block) {
         DrawRectangleLinesEx(board_grid.square_bounds(target_x, target_y, target_block->width, target_block->height), 2.0, TARGET_BLOCK_COLOR);
     }
 }
