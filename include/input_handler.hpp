@@ -1,7 +1,7 @@
 #ifndef INPUT_HPP_
 #define INPUT_HPP_
 
-#include "camera.hpp"
+#include "orbit_camera.hpp"
 #include "state_manager.hpp"
 
 #include <functional>

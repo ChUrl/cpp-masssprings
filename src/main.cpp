@@ -3,8 +3,9 @@
 #include <raylib.h>
 
 #include "config.hpp"
-#include "input.hpp"
-#include "physics.hpp"
+#include "input_handler.hpp"
+#include "mass_spring_system.hpp"
+#include "threaded_physics.hpp"
 #include "renderer.hpp"
 #include "state_manager.hpp"
 #include "user_interface.hpp"
@@ -136,7 +137,7 @@ auto main(int argc, char* argv[]) -> int
         // Update the camera after the physics, so target lock is smooth
         size_t current_index = state.get_current_index();
         if (masses.size() > current_index) {
-            const mass& current_mass = mass(masses.at(current_index));
+            const mass_spring_system::mass& current_mass = mass_spring_system::mass(masses.at(current_index));
             camera.update(current_mass.position, mass_center, input.camera_lock,
                           input.camera_mass_center_lock);
         }

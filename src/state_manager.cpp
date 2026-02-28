@@ -1,5 +1,5 @@
 #include "state_manager.hpp"
-#include "distance.hpp"
+#include "graph_distances.hpp"
 #include "util.hpp"
 
 #include <fstream>

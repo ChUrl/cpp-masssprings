@@ -1,4 +1,4 @@
-#include "input.hpp"
+#include "input_handler.hpp"
 #include "config.hpp"
 
 #include <raylib.h>

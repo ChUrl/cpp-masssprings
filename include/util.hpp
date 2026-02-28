@@ -24,6 +24,14 @@ struct overloads : Ts...
     using Ts::operator()...;
 };
 
+enum direction
+{
+    nor = 1 << 0,
+    eas = 1 << 1,
+    sou = 1 << 2,
+    wes = 1 << 3,
+};
+
 enum ctrl
 {
     reset = 0,

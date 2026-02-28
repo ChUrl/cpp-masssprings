@@ -1,9 +1,9 @@
 #ifndef RENDERER_HPP_
 #define RENDERER_HPP_
 
-#include "camera.hpp"
+#include "orbit_camera.hpp"
 #include "config.hpp"
-#include "input.hpp"
+#include "input_handler.hpp"
 #include "state_manager.hpp"
 #include "user_interface.hpp"
 

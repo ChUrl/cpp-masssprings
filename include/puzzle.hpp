@@ -10,14 +10,6 @@
 #include <string>
 #include <vector>
 
-enum direction
-{
-    nor = 1 << 0,
-    eas = 1 << 1,
-    sou = 1 << 2,
-    wes = 1 << 3,
-};
-
 // A state is represented by a string "MWHXYblocks", where M is "R"
 // (restricted) or "F" (free), W is the board width, H is the board height, X
 // is the target block x goal, Y is the target block y goal and blocks is an
@@ -52,7 +44,7 @@ public:
               const bool _target = false, const bool _immovable = false)
             : x(_x), y(_y), width(_width), height(_height), target(_target), immovable(_immovable)
         {
-            if (_x < 0 || _x + _width > 9 || _y < 0 || _y + _height > 9) {
+            if (_x < 0 || _x + _width > MAX_WIDTH || _y < 0 || _y + _height > MAX_HEIGHT) {
                 errln("Block must fit in a 9x9 board!");
                 exit(1);
             }

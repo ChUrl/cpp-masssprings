@@ -1,8 +1,8 @@
 #ifndef STATE_MANAGER_HPP_
 #define STATE_MANAGER_HPP_
 
-#include "distance.hpp"
-#include "physics.hpp"
+#include "graph_distances.hpp"
+#include "threaded_physics.hpp"
 #include "puzzle.hpp"
 
 #include <stack>

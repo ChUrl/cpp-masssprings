@@ -1,4 +1,4 @@
-#include "camera.hpp"
+#include "orbit_camera.hpp"
 #include "config.hpp"
 
 #include <raylib.h>

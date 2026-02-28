@@ -51,17 +51,18 @@ message("-- CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 # Headers + Sources
 include_directories(include)
 set(SOURCES
-    src/main.cpp
-    src/camera.cpp
-    src/renderer.cpp
-    src/octree.cpp
-    src/physics.cpp
-    src/puzzle.cpp
-    src/distance.cpp
-    src/state_manager.cpp
-    src/input.cpp
-    src/user_interface.cpp
     src/backward.cpp
+    src/graph_distances.cpp
+    src/input_handler.cpp
+    src/main.cpp
+    src/mass_spring_system.cpp
+    src/octree.cpp
+    src/orbit_camera.cpp
+    src/threaded_physics.cpp
+    src/puzzle.cpp
+    src/renderer.cpp
+    src/state_manager.cpp
+    src/user_interface.cpp
 )
 
 # Main target
