@@ -498,7 +498,7 @@ auto puzzle::explore_state_space() const
     ZoneScoped;
 #endif
 
-    infoln("Exploring state space, this might take a while...");
+    // infoln("Exploring state space, this might take a while...");
 
     std::vector<puzzle> state_pool;
     std::unordered_map<puzzle, std::size_t> state_indices; // Helper to construct the links vector

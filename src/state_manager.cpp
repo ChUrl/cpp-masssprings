@@ -6,7 +6,7 @@
 #include <ios>
 
 #ifdef TRACY
-    #include <tracy/Tracy.hpp>
+#include <tracy/Tracy.hpp>
 #endif
 
 auto state_manager::synced_try_insert_state(const puzzle& state) -> size_t
@@ -35,8 +35,7 @@ auto state_manager::synced_insert_link(size_t first_index, size_t second_index) 
 }
 
 auto state_manager::synced_insert_statespace(const std::vector<puzzle>& states,
-                                             const std::vector<std::pair<size_t, size_t>>& _links)
-    -> void
+                                             const std::vector<std::pair<size_t, size_t>>& _links) -> void
 {
     if (!state_pool.empty() || !state_indices.empty() || !links.empty()) {
         warnln("Inserting statespace but collections haven't been cleared");
@@ -71,7 +70,7 @@ auto state_manager::synced_clear_statespace() -> void
     winning_path.clear();
     path_indices.clear();
 
-    move_history = std::stack<size_t>();
+    move_history.clear();
     visit_counts.clear();
 
     // Queue an update to the physics engine state to keep in sync
@@ -150,6 +149,7 @@ auto state_manager::load_preset(const size_t preset) -> void
 {
     clear_graph_and_add_current(preset_states.at(preset));
     current_preset = preset;
+    edited = false;
 }
 
 auto state_manager::load_previous_preset() -> void
@@ -186,7 +186,7 @@ auto state_manager::update_current_state(const puzzle& p) -> void
     current_state_index = index;
 
     if (current_state_index != previous_state_index) {
-        move_history.push(previous_state_index);
+        move_history.emplace_back(previous_state_index);
     }
 
     if (p.won()) {
@@ -208,12 +208,14 @@ auto state_manager::edit_starting_state(const puzzle& p) -> void
 {
     clear_graph_and_add_current(p);
 
-    move_history = std::stack<size_t>();
+    move_history.clear();
     total_moves = 0;
     for (int& visits : visit_counts | std::views::values) {
         visits = 0;
     }
     visit_counts[current_state_index]++;
+
+    edited = true;
 }
 
 auto state_manager::goto_starting_state() -> void
@@ -226,7 +228,7 @@ auto state_manager::goto_starting_state() -> void
         visits = 0;
     }
     visit_counts[current_state_index]++;
-    move_history = std::stack<size_t>();
+    move_history.clear();
     total_moves = 0;
 }
 
@@ -251,11 +253,11 @@ auto state_manager::goto_previous_state() -> void
         return;
     }
 
-    update_current_state(get_state(move_history.top()));
+    update_current_state(get_state(move_history.back()));
 
     // Pop twice because update_current_state adds the state again...
-    move_history.pop();
-    move_history.pop();
+    move_history.pop_back();
+    move_history.pop_back();
 }
 
 auto state_manager::goto_most_distant_state() -> void
@@ -287,23 +289,24 @@ auto state_manager::goto_closest_target_state() -> void
 
 auto state_manager::populate_graph() -> void
 {
-#ifdef TRACY
+    #ifdef TRACY
     ZoneScoped;
-#endif
+    #endif
 
     // Need to make a copy before clearing the state_pool
+    const puzzle s = get_starting_state();
     const puzzle p = get_current_state();
 
     // Clear the graph first so we don't add duplicates somehow
     synced_clear_statespace();
 
     // Explore the entire statespace starting from the current state
-    const auto& [states, _links] = p.explore_state_space();
+    const auto& [states, _links] = s.explore_state_space();
     synced_insert_statespace(states, _links);
 
     current_state_index = state_indices.at(p);
     previous_state_index = current_state_index;
-    starting_state_index = current_state_index;
+    starting_state_index = state_indices.at(s);
 
     // Search for cool stuff
     populate_winning_indices();
@@ -313,7 +316,7 @@ auto state_manager::populate_graph() -> void
 
 auto state_manager::clear_graph_and_add_current(const puzzle& p) -> void
 {
-    // Do we need to make a copy before clearing the state_pool?
+    // We need to make a copy before clearing the state_pool
     const puzzle _p = p; // NOLINT(*-unnecessary-copy-initialization)
 
     synced_clear_statespace();
@@ -345,9 +348,9 @@ auto state_manager::populate_winning_indices() -> void
 
 auto state_manager::populate_node_target_distances() -> void
 {
-#ifdef TRACY
+    #ifdef TRACY
     ZoneScoped;
-#endif
+    #endif
 
     if (links.empty() || winning_indices.empty()) {
         return;
@@ -483,5 +486,5 @@ auto state_manager::get_total_moves() const -> size_t
 
 auto state_manager::was_edited() const -> bool
 {
-    return preset_states.at(current_preset) != get_state(starting_state_index);
+    return edited;
 }

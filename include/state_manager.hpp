@@ -34,7 +34,7 @@ private:
     std::unordered_set<size_t>
         path_indices; // For faster lookup if a vertex is part of the path in renderer
 
-    std::stack<size_t> move_history; // Moves between the starting state and the current state
+    std::vector<size_t> move_history; // Moves between the starting state and the current state
     std::unordered_map<size_t, int> visit_counts; // How often each state was visited
 
     size_t starting_state_index = 0;
@@ -42,6 +42,7 @@ private:
     size_t previous_state_index = 0;
 
     int total_moves = 0;
+    bool edited = false;
 
 public:
     state_manager(threaded_physics& _physics, const std::string& _preset_file) : physics(_physics)

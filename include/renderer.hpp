@@ -51,11 +51,11 @@ public:
         instancing_shader.locs[SHADER_LOC_VECTOR_VIEW] =
             GetShaderLocation(instancing_shader, "viewPos");
 
-        infoln("LOC vertexPosition: {}",
-               rlGetLocationAttrib(instancing_shader.id, "vertexPosition"));
-        infoln("LOC instanceTransform: {}",
-               rlGetLocationAttrib(instancing_shader.id, "instanceTransform"));
-        infoln("LOC instanceColor: {}", rlGetLocationAttrib(instancing_shader.id, "instanceColor"));
+        // infoln("LOC vertexPosition: {}",
+        //        rlGetLocationAttrib(instancing_shader.id, "vertexPosition"));
+        // infoln("LOC instanceTransform: {}",
+        //        rlGetLocationAttrib(instancing_shader.id, "instanceTransform"));
+        // infoln("LOC instanceColor: {}", rlGetLocationAttrib(instancing_shader.id, "instanceColor"));
 
         // vertex_mat.maps[MATERIAL_MAP_DIFFUSE].color = VERTEX_COLOR;
         vertex_mat.shader = instancing_shader;
