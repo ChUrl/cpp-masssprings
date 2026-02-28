@@ -1,0 +1,151 @@
+#ifndef STATE_MANAGER_HPP_
+#define STATE_MANAGER_HPP_
+
+#include "distance.hpp"
+#include "physics.hpp"
+#include "puzzle.hpp"
+
+#include <stack>
+#include <unordered_map>
+#include <unordered_set>
+
+class state_manager
+{
+private:
+    threaded_physics& physics;
+
+    std::string preset_file;
+    size_t current_preset = 0;
+    std::vector<puzzle> preset_states = {puzzle(4, 5, 9, 9, false)};
+    std::vector<std::string> preset_comments = {"Empty"};
+
+    // State storage (store states twice for bidirectional lookup).
+    // Everything else should only store indices to state_pool.
+
+    std::vector<puzzle> state_pool;                   // Indices are equal to mass_springs mass indices
+    std::unordered_map<puzzle, size_t> state_indices; // Maps states to indices
+    std::vector<std::pair<size_t, size_t>> links;     // Indices are equal to mass_springs springs indices
+
+    graph_distances node_target_distances;      // Buffered and reused if the graph doesn't change
+    std::unordered_set<size_t> winning_indices; // Indices of all states where the board is solved
+    std::vector<size_t> winning_path;           // Ordered list of node indices leading to the nearest solved state
+    std::unordered_set<size_t> path_indices;    // For faster lookup if a vertex is part of the path in renderer
+
+    std::stack<size_t> move_history;              // Moves between the starting state and the current state
+    std::unordered_map<size_t, int> visit_counts; // How often each state was visited
+
+    size_t starting_state_index = 0;
+    size_t current_state_index = 0;
+    size_t previous_state_index = 0;
+
+    int total_moves = 0;
+
+public:
+    state_manager(threaded_physics& _physics, const std::string& _preset_file) : physics(_physics)
+    {
+        parse_preset_file(_preset_file);
+        load_preset(0);
+    }
+
+    state_manager(const state_manager& copy) = delete;
+    auto operator=(const state_manager& copy) -> state_manager& = delete;
+    state_manager(state_manager&& move) = delete;
+    auto operator=(state_manager&& move) -> state_manager& = delete;
+
+private:
+    /**
+     * Inserts a board state into the state_manager and the physics system.
+     * States should only be inserted using this function to keep both systems in sync.
+     * The function checks for duplicates before insertion.
+     *
+     * @param state State to insert
+     * @return Index of insertion (or existing index if duplicate)
+     */
+    auto synced_try_insert_state(const puzzle& state) -> size_t;
+
+    /**
+     * Inserts a state link into the state_manager and the physics system.
+     * Links should only be inserted using this function to keep both systems in sync.
+     * The function does not check for duplicates before insertion.
+     *
+     * @param first_index Index of the first linked state
+     * @param second_index Index of the second linked state
+     */
+    auto synced_insert_link(size_t first_index, size_t second_index) -> void;
+
+    /**
+     * Inserts an entire statespace into the state_manager and the physics system.
+     * If inserting many states and links in bulk, this function should always be used
+     * to not stress the physics command mutex.
+     * The function does not check for duplicates before insertion.
+     *
+     * @param states List of states to insert
+     * @param _links List of links to insert
+     */
+    auto synced_insert_statespace(const std::vector<puzzle>& states,
+                                  const std::vector<std::pair<size_t, size_t>>& _links) -> void;
+
+    /**
+     * Clears all states and links (and related) from the state_manager and the physics system.
+     * Note that this leaves any dangling indices (e.g., current_state_index) in an invalid state.
+     */
+    auto synced_clear_statespace() -> void;
+
+public:
+    // Presets
+
+    auto parse_preset_file(const std::string& _preset_file) -> bool;
+    auto append_preset_file(const std::string& preset_name) -> bool;
+    auto load_preset(size_t preset) -> void;
+    auto load_previous_preset() -> void;
+    auto load_next_preset() -> void;
+
+    // Update current_state
+
+    auto update_current_state(const puzzle& p) -> void;
+    auto edit_starting_state(const puzzle& p) -> void;
+    auto goto_starting_state() -> void;
+    auto goto_optimal_next_state() -> void;
+    auto goto_previous_state() -> void;
+    auto goto_most_distant_state() -> void;
+    auto goto_closest_target_state() -> void;
+
+    // Update graph
+
+    auto populate_graph() -> void;
+    auto clear_graph_and_add_current(const puzzle& p) -> void;
+    auto clear_graph_and_add_current() -> void;
+    auto populate_winning_indices() -> void;
+    auto populate_node_target_distances() -> void;
+    auto populate_winning_path() -> void;
+
+    // Index mapping
+
+    [[nodiscard]] auto get_index(const puzzle& state) const -> size_t;
+    [[nodiscard]] auto get_current_index() const -> size_t;
+    [[nodiscard]] auto get_starting_index() const -> size_t;
+    [[nodiscard]] auto get_state(size_t index) const -> const puzzle&;
+    [[nodiscard]] auto get_current_state() const -> const puzzle&;
+    [[nodiscard]] auto get_starting_state() const -> const puzzle&;
+
+    // Access
+    [[nodiscard]] auto get_state_count() const -> size_t;
+    [[nodiscard]] auto get_target_count() const -> size_t;
+    [[nodiscard]] auto get_link_count() const -> size_t;
+    [[nodiscard]] auto get_path_length() const -> size_t;
+    [[nodiscard]] auto get_links() const -> const std::vector<std::pair<size_t, size_t>>&;
+    [[nodiscard]] auto get_winning_indices() const -> const std::unordered_set<size_t>&;
+    [[nodiscard]] auto get_visit_counts() const -> const std::unordered_map<size_t, int>&;
+    [[nodiscard]] auto get_winning_path() const -> const std::vector<size_t>&;
+    [[nodiscard]] auto get_path_indices() const -> const std::unordered_set<size_t>&;
+    [[nodiscard]] auto get_current_visits() const -> int;
+    [[nodiscard]] auto get_current_preset() const -> size_t;
+    [[nodiscard]] auto get_preset_count() const -> size_t;
+    [[nodiscard]] auto get_current_preset_comment() const -> const std::string&;
+    [[nodiscard]] auto has_history() const -> bool;
+    [[nodiscard]] auto has_distances() const -> bool;
+    [[nodiscard]] auto get_total_moves() const -> size_t;
+    [[nodiscard]] auto was_edited() const -> bool;
+};
+
+#endif

@@ -1,244 +1,226 @@
 #include "renderer.hpp"
 #include "config.hpp"
-#include "puzzle.hpp"
 
-#include <algorithm>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
 
 #ifdef TRACY
-#include "tracy.hpp"
-#include <tracy/Tracy.hpp>
+    #include <tracy/Tracy.hpp>
 #endif
 
-#ifdef BATCHING
-#include <cstring>
-#endif
-
-auto Renderer::UpdateTextureSizes() -> void {
-  if (!IsWindowResized()) {
-    return;
-  }
-
-  UnloadRenderTexture(render_target);
-  UnloadRenderTexture(klotski_target);
-  UnloadRenderTexture(menu_target);
-
-  int width = GetScreenWidth() / 2.0;
-  int height = GetScreenHeight() - MENU_HEIGHT;
-
-  render_target = LoadRenderTexture(width, height);
-  klotski_target = LoadRenderTexture(width, height);
-  menu_target = LoadRenderTexture(width * 2, MENU_HEIGHT);
-}
-
-auto Renderer::AllocateGraphInstancing(std::size_t size) -> void {
-  cube_instance = GenMeshCube(VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE);
-
-  instancing_shader = LoadShader("shader/instancing_vertex.glsl",
-                                 "shader/instancing_fragment.glsl");
-  instancing_shader.locs[SHADER_LOC_MATRIX_MVP] =
-      GetShaderLocation(instancing_shader, "mvp");
-  instancing_shader.locs[SHADER_LOC_VECTOR_VIEW] =
-      GetShaderLocation(instancing_shader, "viewPos");
-
-  vertex_mat = LoadMaterialDefault();
-  vertex_mat.maps[MATERIAL_MAP_DIFFUSE].color = VERTEX_COLOR;
-  vertex_mat.shader = instancing_shader;
-
-  transforms = (Matrix *)MemAlloc(size * sizeof(Matrix));
-  transforms_size = size;
-}
-
-auto Renderer::ReallocateGraphInstancingIfNecessary(std::size_t size) -> void {
-  if (transforms_size != size) {
-    transforms = (Matrix *)MemRealloc(transforms, size * sizeof(Matrix));
-    transforms_size = size;
-  }
-}
-
-auto Renderer::DrawMassSprings(const std::vector<Vector3> &masses) -> void {
-#ifdef TRACY
-  ZoneScoped;
-#endif
-
-  // Prepare cube instancing
-  {
-#ifdef TRACY
-    ZoneNamedN(prepare_masses, "PrepareMasses", true);
-#endif
-    if (masses.size() < DRAW_VERTICES_LIMIT) {
-      if (transforms == nullptr) {
-        AllocateGraphInstancing(masses.size());
-      }
-      ReallocateGraphInstancingIfNecessary(masses.size());
-
-      int i = 0;
-      for (const Vector3 &mass : masses) {
-        transforms[i] = MatrixTranslate(mass.x, mass.y, mass.z);
-        ++i;
-      }
+auto renderer::update_texture_sizes() -> void
+{
+    if (!IsWindowResized()) {
+        return;
     }
-  }
 
-  BeginTextureMode(render_target);
-  ClearBackground(RAYWHITE);
+    UnloadRenderTexture(render_target);
+    UnloadRenderTexture(klotski_target);
+    UnloadRenderTexture(menu_target);
 
-  BeginMode3D(camera.camera);
+    const int width = GetScreenWidth() / 2;
+    const int height = GetScreenHeight() - MENU_HEIGHT;
 
-  // Draw springs (batched)
-  {
+    render_target = LoadRenderTexture(width, height);
+    klotski_target = LoadRenderTexture(width, height);
+    menu_target = LoadRenderTexture(width * 2, MENU_HEIGHT);
+}
+
+auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
+{
 #ifdef TRACY
-    ZoneNamedN(draw_springs, "DrawSprings", true);
+    ZoneScoped;
 #endif
+
+    if (masses.size() != state.get_state_count()) {
+        // Because the physics run in a different thread, it might need time to catch up
+        return;
+    }
+
+    // Prepare connection batching
+    {
+#ifdef TRACY
+        ZoneNamedN(prepare_masses, "PrepareConnectionsBatching", true);
+#endif
+
+        connections.clear();
+        connections.reserve(state.get_target_count());
+        if (input.connect_solutions) {
+            for (const size_t& _state : state.get_winning_indices()) {
+                const Vector3& current_mass = masses.at(state.get_current_index());
+                const Vector3& winning_mass = masses.at(_state);
+                connections.emplace_back(current_mass, winning_mass);
+                DrawLine3D(current_mass, winning_mass, Fade(TARGET_BLOCK_COLOR, 0.5));
+            }
+        }
+    }
+
+    // Prepare cube instancing
+    {
+#ifdef TRACY
+        ZoneNamedN(prepare_masses, "PrepareMassInstancing", true);
+#endif
+
+        if (masses.size() < DRAW_VERTICES_LIMIT) {
+            // Don't have to reserve, capacity is already set to DRAW_VERTICES_LIMIT in constructor
+            transforms.clear();
+            colors.clear();
+
+            size_t mass = 0;
+            for (const auto& [x, y, z] : masses) {
+                transforms.emplace_back(MatrixTranslate(x, y, z));
+
+                // Normal vertex
+                Color c = VERTEX_COLOR;
+                if ((input.mark_solutions || input.mark_path) && state.get_winning_indices().contains(mass)) {
+                    // Winning vertex
+                    c = VERTEX_TARGET_COLOR;
+                } else if ((input.mark_solutions || input.mark_path) && state.get_path_indices().contains(mass)) {
+                    // Path vertex
+                    c = VERTEX_PATH_COLOR;
+                } else if (mass == state.get_starting_index()) {
+                    // Starting vertex
+                    c = VERTEX_START_COLOR;
+                } else if (state.get_visit_counts().at(mass) > 0) {
+                    // Visited vertex
+                    c = VERTEX_VISITED_COLOR;
+                }
+                // Current vertex is drawn as individual cube to increase its size
+
+                colors.emplace_back(c);
+                ++mass;
+            }
+        }
+
+        rlUpdateVertexBuffer(color_vbo_id, colors.data(), colors.size() * sizeof(Color), 0);
+    }
+
+    BeginTextureMode(render_target);
+    ClearBackground(RAYWHITE);
+    BeginMode3D(camera.camera);
+
+    // Draw springs (batched)
+    {
+#ifdef TRACY
+        ZoneNamedN(draw_springs, "DrawSprings", true);
+#endif
+
+        rlBegin(RL_LINES);
+        for (const auto& [from, to] : state.get_links()) {
+            if (masses.size() > from && masses.size() > to) {
+                const auto& [ax, ay, az] = masses.at(from);
+                const auto& [bx, by, bz] = masses.at(to);
+                rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
+                rlVertex3f(ax, ay, az);
+                rlVertex3f(bx, by, bz);
+            }
+        }
+        rlEnd();
+    }
+
+    // Draw masses (instanced)
+    {
+#ifdef TRACY
+        ZoneNamedN(draw_masses, "DrawMasses", true);
+#endif
+
+        if (masses.size() < DRAW_VERTICES_LIMIT) {
+            // NOTE: I don't know if drawing all this inside a shader would make it
+            //       much faster... The amount of data sent to the GPU would be
+            //       reduced (just positions instead of matrices), but is this
+            //       noticable for < 100000 cubes?
+            DrawMeshInstanced(cube_instance, vertex_mat, transforms.data(),
+                              masses.size()); // NOLINT(*-narrowing-conversions)
+        }
+    }
+
+    // Connect current to winning states (batched)
+    const auto [r, g, b, a] = Fade(VERTEX_CURRENT_COLOR, 0.3);
     rlBegin(RL_LINES);
-    for (const auto &[from, to] : state.springs) {
-      if (masses.size() > from && masses.size() > to) {
-        const Vector3 &a = masses.at(from);
-        const Vector3 &b = masses.at(to);
-        rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
-        rlVertex3f(a.x, a.y, a.z);
-        rlVertex3f(b.x, b.y, b.z);
-      }
+    for (const auto& [from, to] : connections) {
+        const auto& [ax, ay, az] = from;
+        const auto& [bx, by, bz] = to;
+        rlColor4ub(r, g, b, a);
+        rlVertex3f(ax, ay, az);
+        rlVertex3f(bx, by, bz);
     }
     rlEnd();
-  }
 
-  // Draw masses (instanced)
-  {
-#ifdef TRACY
-    ZoneNamedN(draw_masses, "DrawMasses", true);
-#endif
-    if (masses.size() < DRAW_VERTICES_LIMIT) {
-      // NOTE: I don't know if drawing all this inside a shader would make it
-      //       much faster... The amount of data sent to the GPU would be
-      //       reduced (just positions instead of matrices), but is this
-      //       noticable for < 100000 cubes?
-      DrawMeshInstanced(cube_instance, vertex_mat, transforms, masses.size());
+    // Mark current state
+    const size_t current_index = state.get_current_index();
+    if (masses.size() > current_index) {
+        const Vector3& current_mass = masses.at(current_index);
+        DrawCube(current_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_CURRENT_COLOR);
     }
-  }
 
-  // Mark winning states
-  if (input.mark_solutions || input.connect_solutions) {
-    for (const State &_state : state.winning_states) {
-
-      std::size_t winning_index = state.states.at(_state);
-      if (masses.size() > winning_index) {
-
-        const Vector3 &winning_mass = masses.at(winning_index);
-        if (input.mark_solutions) {
-          DrawCube(winning_mass, 2 * VERTEX_SIZE, 2 * VERTEX_SIZE,
-                   2 * VERTEX_SIZE, VERTEX_TARGET_COLOR);
-        }
-
-        std::size_t current_index = state.CurrentMassIndex();
-        if (input.connect_solutions && masses.size() > current_index) {
-          const Vector3 &current_mass = masses.at(current_index);
-          DrawLine3D(winning_mass, current_mass, Fade(TARGET_BLOCK_COLOR, 0.5));
-        }
-      }
-    }
-  }
-
-  // Mark visited states
-  for (const auto &[_state, visits] : state.visited_states) {
-    std::size_t visited_index = state.states.at(_state);
-
-    if (masses.size() > visited_index) {
-      const Vector3 &visited_mass = masses.at(visited_index);
-      DrawCube(visited_mass, VERTEX_SIZE * 1.5, VERTEX_SIZE * 1.5,
-               VERTEX_SIZE * 1.5, VERTEX_VISITED_COLOR);
-    }
-  }
-
-  // Mark winning path
-  if (input.mark_path) {
-    for (const std::size_t &_state : state.winning_path) {
-      if (masses.size() > _state) {
-        const Vector3 &path_mass = masses.at(_state);
-        DrawCube(path_mass, VERTEX_SIZE * 1.75, VERTEX_SIZE * 1.75,
-                 VERTEX_SIZE * 1.75, VERTEX_PATH_COLOR);
-      }
-    }
-  }
-
-  // Mark starting state
-  std::size_t starting_index = state.states.at(state.starting_state);
-  if (masses.size() > starting_index) {
-    const Vector3 &starting_mass = masses.at(starting_index);
-    DrawCube(starting_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
-             VERTEX_START_COLOR);
-  }
-
-  // Mark current state
-  std::size_t current_index = state.states.at(state.current_state);
-  if (masses.size() > current_index) {
-    const Vector3 &current_mass = masses.at(current_index);
-    DrawCube(current_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
-             VERTEX_CURRENT_COLOR);
-  }
-
-  EndMode3D();
-  EndTextureMode();
+    EndMode3D();
+    EndTextureMode();
 }
 
-auto Renderer::DrawKlotski() -> void {
+auto renderer::draw_klotski() const -> void
+{
 #ifdef TRACY
-  ZoneScoped;
+    ZoneScoped;
 #endif
 
-  BeginTextureMode(klotski_target);
-  ClearBackground(RAYWHITE);
+    BeginTextureMode(klotski_target);
+    ClearBackground(RAYWHITE);
 
-  gui.DrawPuzzleBoard();
+    gui.draw_puzzle_board();
 
-  EndTextureMode();
+    EndTextureMode();
 }
 
-auto Renderer::DrawMenu(const std::vector<Vector3> &masses) -> void {
+auto renderer::draw_menu() const -> void
+{
 #ifdef TRACY
-  ZoneScoped;
+    ZoneScoped;
 #endif
 
-  BeginTextureMode(menu_target);
-  ClearBackground(RAYWHITE);
+    BeginTextureMode(menu_target);
+    ClearBackground(RAYWHITE);
 
-  gui.DrawMainMenu();
+    gui.draw_main_menu();
 
-  EndTextureMode();
+    EndTextureMode();
 }
 
-auto Renderer::DrawTextures(int fps, int ups) -> void {
-  BeginDrawing();
+auto renderer::draw_textures(const int fps, const int ups, const size_t mass_count, const size_t spring_count) const
+    -> void
+{
+    BeginDrawing();
 
-  DrawTextureRec(menu_target.texture,
-                 Rectangle(0, 0, menu_target.texture.width,
-                           -1 * menu_target.texture.height),
-                 Vector2(0, 0), WHITE);
-  DrawTextureRec(klotski_target.texture,
-                 Rectangle(0, 0, klotski_target.texture.width,
-                           -1 * klotski_target.texture.height),
-                 Vector2(0, MENU_HEIGHT), WHITE);
-  DrawTextureRec(render_target.texture,
-                 Rectangle(0, 0, render_target.texture.width,
-                           -1 * render_target.texture.height),
-                 Vector2(GetScreenWidth() / 2.0, MENU_HEIGHT), WHITE);
+    DrawTextureRec(menu_target.texture, Rectangle(0, 0, menu_target.texture.width, -menu_target.texture.height),
+                   Vector2(0, 0), WHITE);
+    DrawTextureRec(klotski_target.texture,
+                   Rectangle(0, 0, klotski_target.texture.width, -klotski_target.texture.height),
+                   Vector2(0, MENU_HEIGHT), WHITE);
+    DrawTextureRec(render_target.texture, Rectangle(0, 0, render_target.texture.width, -render_target.texture.height),
+                   Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT), WHITE);
 
-  // Draw borders
-  DrawRectangleLinesEx(Rectangle(0, 0, GetScreenWidth(), MENU_HEIGHT), 1.0,
-                       BLACK);
-  DrawRectangleLinesEx(Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0,
-                                 GetScreenHeight() - MENU_HEIGHT),
-                       1.0, BLACK);
-  DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0, MENU_HEIGHT,
-                                 GetScreenWidth() / 2.0,
-                                 GetScreenHeight() - MENU_HEIGHT),
-                       1.0, BLACK);
+    // Draw borders
+    DrawRectangleLinesEx(Rectangle(0, 0, GetScreenWidth(), MENU_HEIGHT), 1.0f, BLACK);
+    DrawRectangleLinesEx(Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT), 1.0f,
+                         BLACK);
+    DrawRectangleLinesEx(
+        Rectangle(GetScreenWidth() / 2.0f, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT), 1.0f,
+        BLACK);
 
-  gui.DrawGraphOverlay(fps, ups);
-  gui.DrawSavePresetPopup();
-  gui.Update();
+    gui.draw_graph_overlay(fps, ups, mass_count, spring_count);
+    gui.draw_save_preset_popup();
+    gui.update();
 
-  EndDrawing();
+    EndDrawing();
+}
+
+auto renderer::render(const std::vector<Vector3>& masses, const int fps, const int ups, const size_t mass_count,
+                      const size_t spring_count) -> void
+{
+    update_texture_sizes();
+
+    draw_mass_springs(masses);
+    draw_klotski();
+    draw_menu();
+    draw_textures(fps, ups, mass_count, spring_count);
 }

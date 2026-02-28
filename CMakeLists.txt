@@ -19,10 +19,10 @@ endif()
 if(NOT DEFINED DISABLE_TRACY)
     include(FetchContent)
     FetchContent_Declare(tracy
-        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG v0.11.1
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
+                         GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+                         GIT_TAG v0.11.1
+                         GIT_SHALLOW TRUE
+                         GIT_PROGRESS TRUE
     )
     FetchContent_MakeAvailable(tracy)
     option(TRACY_ENABLE "" ON)
@@ -32,7 +32,7 @@ if(NOT DEFINED DISABLE_TRACY)
     list(APPEND FLAGS TRACY)
 endif()
 
-if (WIN32)
+if(WIN32)
     list(APPEND LIBS opengl32 gdi32 winmm)
 endif()
 
@@ -57,12 +57,11 @@ set(SOURCES
     src/octree.cpp
     src/physics.cpp
     src/puzzle.cpp
-    src/state.cpp
-    src/input.cpp
-    src/tracy.cpp
-    src/backward.cpp
     src/distance.cpp
-    src/gui.cpp
+    src/state_manager.cpp
+    src/input.cpp
+    src/user_interface.cpp
+    src/backward.cpp
 )
 
 # Main target
@@ -72,7 +71,7 @@ target_link_libraries(masssprings PRIVATE ${LIBS})
 target_compile_definitions(masssprings PRIVATE ${FLAGS})
 
 # LTO
-if (NOT WIN32)
+if(NOT WIN32)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT supported OUTPUT error)
     if(supported)

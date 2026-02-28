@@ -1,128 +1,21 @@
-#ifndef __PUZZLE_HPP_
-#define __PUZZLE_HPP_
+#ifndef PUZZLE_HPP_
+#define PUZZLE_HPP_
 
-#include "config.hpp"
+#include "util.hpp"
 
 #include <array>
 #include <cstddef>
 #include <format>
 #include <functional>
-#include <iostream>
 #include <string>
 #include <vector>
 
-enum Direction {
-  NOR = 1 << 0,
-  EAS = 1 << 1,
-  SOU = 1 << 2,
-  WES = 1 << 3,
-};
-
-// A block is represented as a 2-digit string "wh", where w is the block width
-// and h the block height.
-// The target block (to remove from the board) is represented as a 2-letter
-// lower-case string "xy", where x is the block width and y the block height and
-// width/height are represented by [abcdefghi] (~= [123456789]).
-// Immovable blocks are represented as a 2-letter upper-case string "XY", where
-// X is the block width and Y the block height and width/height are represented
-// by [ABCDEFGHI] (~= [123456789]).
-class Block {
-public:
-  int x;
-  int y;
-  int width;
-  int height;
-  bool target;
-  bool immovable;
-
-public:
-  Block(int _x, int _y, int _width, int _height, bool _target, bool _immovable)
-      : x(_x), y(_y), width(_width), height(_height), target(_target),
-        immovable(_immovable) {
-    if (_x < 0 || _x + _width >= 10 || _y < 0 || _y + _height >= 10) {
-      std::cout << std::format("Block must fit in a 9x9 board!") << std::endl;
-      exit(1);
-    }
-  }
-
-  Block(int _x, int _y, int _width, int _height, bool _target)
-      : Block(_x, _y, _width, _height, _target, false) {}
-
-  Block(int _x, int _y, std::string block) : x(_x), y(_y) {
-    if (block == "..") {
-      this->x = 0;
-      this->y = 0;
-      width = 0;
-      height = 0;
-      target = false;
-      return;
-    }
-
-    const std::array<char, 9> target_chars{'a', 'b', 'c', 'd', 'e',
-                                           'f', 'g', 'h', 'i'};
-
-    target = false;
-    for (const char c : target_chars) {
-      if (block.contains(c)) {
-        target = true;
-        break;
-      }
-    }
-
-    const std::array<char, 9> immovable_chars{'A', 'B', 'C', 'D', 'E',
-                                              'F', 'G', 'H', 'I'};
-
-    immovable = false;
-    for (const char c : immovable_chars) {
-      if (block.contains(c)) {
-        immovable = true;
-        break;
-      }
-    }
-
-    if (target) {
-      width = static_cast<int>(block.at(0)) - static_cast<int>('a') + 1;
-      height = static_cast<int>(block.at(1)) - static_cast<int>('a') + 1;
-    } else if (immovable) {
-      width = static_cast<int>(block.at(0)) - static_cast<int>('A') + 1;
-      height = static_cast<int>(block.at(1)) - static_cast<int>('A') + 1;
-    } else {
-      width = std::stoi(block.substr(0, 1));
-      height = std::stoi(block.substr(1, 1));
-    }
-
-    if (_x < 0 || _x + width >= 10 || _y < 0 || _y + height >= 10) {
-      std::cout << std::format("Block must fit in a 9x9 board!") << std::endl;
-      exit(1);
-    }
-    if (block.length() != 2) {
-      std::cout << std::format("Block representation must have length 2!")
-                << std::endl;
-      exit(1);
-    }
-  }
-
-  bool operator==(const Block &other) {
-    return x == other.x && y == other.y && width && other.width &&
-           target == other.target && immovable == other.immovable;
-  }
-
-  bool operator!=(const Block &other) { return !(*this == other); }
-
-public:
-  auto Hash() const -> std::size_t;
-
-  static auto Invalid() -> Block;
-
-  auto IsValid() const -> bool;
-
-  auto ToString() const -> std::string;
-
-  auto GetPrincipalDirs() const -> int;
-
-  auto Covers(int xx, int yy) const -> bool;
-
-  auto Collides(const Block &other) const -> bool;
+enum direction
+{
+    nor = 1 << 0,
+    eas = 1 << 1,
+    sou = 1 << 2,
+    wes = 1 << 3,
 };
 
 // A state is represented by a string "MWHXYblocks", where M is "R"
@@ -133,189 +26,319 @@ public:
 // representation with length 5 + 3*3 * 2). The board's cells are enumerated
 // from top-left to bottom-right with each block's pivot being its top-left
 // corner.
-class State {
+class puzzle
+{
 public:
-  static constexpr int prefix = 5;
+    // A block is represented as a 2-digit string "wh", where w is the block width
+    // and h the block height.
+    // The target block (to remove from the board) is represented as a 2-letter
+    // lower-case string "xy", where x is the block width and y the block height and
+    // width/height are represented by [abcdefghi] (~= [123456789]).
+    // Immovable blocks are represented as a 2-letter upper-case string "XY", where
+    // X is the block width and Y the block height and width/height are represented
+    // by [ABCDEFGHI] (~= [123456789]).
+    class block
+    {
+    public:
+        int x = 0;
+        int y = 0;
+        int width = 0;
+        int height = 0;
+        bool target = false;
+        bool immovable = false;
 
-  int width;
-  int height;
-  int target_x;
-  int target_y;
-  bool restricted; // Only allow blocks to move in their principal direction
-  std::string state;
+    public:
+        block(const int _x, const int _y, const int _width, const int _height, const bool _target = false,
+              const bool _immovable = false)
+            : x(_x), y(_y), width(_width), height(_height), target(_target), immovable(_immovable)
+        {
+            if (_x < 0 || _x + _width > 9 || _y < 0 || _y + _height > 9) {
+                errln("Block must fit in a 9x9 board!");
+                exit(1);
+            }
+        }
 
-  // https://en.cppreference.com/w/cpp/iterator/input_iterator.html
-  class BlockIterator {
-  public:
-    using difference_type = std::ptrdiff_t;
-    using value_type = Block;
+        block(const int _x, const int _y, const std::string& b) : x(_x), y(_y)
+        {
+            if (b.length() != 2) {
+                errln("Block representation must have length 2!");
+                exit(1);
+            }
 
-  private:
-    const State &state;
-    int current_pos;
+            if (b == "..") {
+                this->x = 0;
+                this->y = 0;
+                width = 0;
+                height = 0;
+                target = false;
+                return;
+            }
 
-  public:
-    BlockIterator(const State &_state) : state(_state), current_pos(0) {}
+            target = false;
+            constexpr std::array<char, 9> target_chars{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'};
+            for (const char c : target_chars) {
+                if (b.contains(c)) {
+                    target = true;
+                    break;
+                }
+            }
 
-    BlockIterator(const State &_state, int _current_pos)
-        : state(_state), current_pos(_current_pos) {}
+            immovable = false;
+            constexpr std::array<char, 9> immovable_chars{'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'};
+            for (const char c : immovable_chars) {
+                if (b.contains(c)) {
+                    immovable = true;
+                    break;
+                }
+            }
 
-    Block operator*() const {
-      return Block(current_pos % state.width, current_pos / state.width,
-                   state.state.substr(current_pos * 2 + prefix, 2));
-    }
+            if (target) {
+                width = static_cast<int>(b.at(0)) - static_cast<int>('a') + 1;
+                height = static_cast<int>(b.at(1)) - static_cast<int>('a') + 1;
+            } else if (immovable) {
+                width = static_cast<int>(b.at(0)) - static_cast<int>('A') + 1;
+                height = static_cast<int>(b.at(1)) - static_cast<int>('A') + 1;
+            } else {
+                // println("Parsing block string '{}' at ({}, {})", b, _x, _y);
+                width = std::stoi(b.substr(0, 1));
+                height = std::stoi(b.substr(1, 1));
+            }
 
-    BlockIterator &operator++() {
-      do {
-        current_pos++;
-      } while (state.state.substr(current_pos * 2 + prefix, 2) == "..");
-      return *this;
-    }
+            if (_x < 0 || _x + width > 9 || _y < 0 || _y + height > 9) {
+                errln("Block must fit in a 9x9 board!");
+                exit(1);
+            }
+        }
 
-    bool operator==(const BlockIterator &other) {
-      return state == other.state && current_pos == other.current_pos;
-    }
+        block() = delete;
 
-    bool operator!=(const BlockIterator &other) { return !(*this == other); }
-  };
+        auto operator==(const block& other) const -> bool
+        {
+            return x == other.x && y == other.y && width && other.width && target == other.target &&
+                immovable == other.immovable;
+        }
+
+        auto operator!=(const block& other) const -> bool
+        {
+            return !(*this == other);
+        }
+
+    public:
+        [[nodiscard]] auto hash() const -> size_t;
+        [[nodiscard]] auto valid() const -> bool;
+        [[nodiscard]] auto string() const -> std::string;
+
+        // Movement
+
+        [[nodiscard]] auto principal_dirs() const -> int;
+        [[nodiscard]] auto covers(int _x, int _y) const -> bool;
+        [[nodiscard]] auto collides(const block& b) const -> bool;
+    };
+
+private:
+    // https://en.cppreference.com/w/cpp/iterator/input_iterator.html
+    class block_iterator
+    {
+    public:
+        using difference_type = std::ptrdiff_t;
+        using value_type = block;
+
+    private:
+        const puzzle& state;
+        int current_pos;
+
+    public:
+        explicit block_iterator(const puzzle& _state) : state(_state), current_pos(0)
+        {}
+
+        block_iterator(const puzzle& _state, const int _current_pos) : state(_state), current_pos(_current_pos)
+        {}
+
+        auto operator*() const -> block
+        {
+            return {current_pos % state.width, current_pos / state.width,
+                    state.state.substr(current_pos * 2 + PREFIX, 2)};
+        }
+
+        auto operator++() -> block_iterator&
+        {
+            do {
+                current_pos++;
+            } while (current_pos < state.width * state.height &&
+                     state.state.substr(current_pos * 2 + PREFIX, 2) == "..");
+            return *this;
+        }
+
+        auto operator==(const block_iterator& other) const -> bool
+        {
+            return state == other.state && current_pos == other.current_pos;
+        }
+
+        auto operator!=(const block_iterator& other) const -> bool
+        {
+            return !(*this == other);
+        }
+    };
 
 public:
-  State(int _width, int _height, int _target_x, int _target_y, bool _restricted)
-      : width(_width), height(_height), target_x(_target_x),
-        target_y(_target_y), restricted(_restricted),
-        state(std::format("{}{}{}{}{}{}", _restricted ? "R" : "F", _width,
-                          _height, _target_x, _target_y,
-                          std::string(_width * _height * 2, '.'))) {
-    if (_width < 1 || _width > 9 || _height < 1 || _height > 9) {
-      std::cout << std::format("State width/height must be in [1, 9]!")
-                << std::endl;
-      exit(1);
-    }
-    if (_target_x < 0 || _target_x >= 9 || _target_y < 0 || _target_y >= 9) {
-      if (_target_x != 9 && _target_y != 9) {
-        std::cout << std::format(
-                         "State target  must be within the board bounds!")
-                  << std::endl;
-        exit(1);
-      }
-    }
-  }
+    static constexpr int PREFIX = 5;
+    static constexpr int MIN_WIDTH = 3;
+    static constexpr int MIN_HEIGHT = 3;
+    static constexpr int MAX_WIDTH = 9;
+    static constexpr int MAX_HEIGHT = 9;
 
-  State(int _width, int _height, bool _restricted)
-      : State(_width, _height, 9, 9, _restricted) {}
-
-  State() : State(4, 5, 9, 9, false) {}
-
-  explicit State(std::string _state)
-      : width(std::stoi(_state.substr(1, 1))),
-        height(std::stoi(_state.substr(2, 1))),
-        target_x(std::stoi(_state.substr(3, 1))),
-        target_y(std::stoi(_state.substr(4, 1))),
-        restricted(_state.substr(0, 1) == "R"), state(_state) {
-    if (width < 1 || width > 9 || height < 1 || height > 9) {
-      std::cout << std::format("State width/height must be in [1, 9]!")
-                << std::endl;
-      exit(1);
-    }
-    if (target_x < 0 || target_x >= 9 || target_y < 0 || target_y >= 9) {
-      if (target_x != 9 && target_y != 9) {
-        std::cout << std::format(
-                         "State target  must be within the board bounds!")
-                  << std::endl;
-        exit(1);
-      }
-    }
-    if (static_cast<int>(_state.length()) != width * height * 2 + prefix) {
-      std::cout << std::format("State representation must have length width * "
-                               "height * 2 + {}!",
-                               prefix)
-                << std::endl;
-      exit(1);
-    }
-  }
-
-  bool operator==(const State &other) const { return state == other.state; }
-
-  bool operator!=(const State &other) const { return !(*this == other); }
-
-  BlockIterator begin() const {
-    BlockIterator it = BlockIterator(*this);
-    if (!(*it).IsValid()) {
-      ++it;
-    }
-    return it;
-  }
-
-  BlockIterator end() const { return BlockIterator(*this, width * height); }
+    int width = 0;
+    int height = 0;
+    int target_x = 9;
+    int target_y = 9;
+    bool restricted = false; // Only allow blocks to move in their principal direction
+    std::string state;
 
 public:
-  auto Hash() const -> std::size_t;
+    puzzle() = delete;
 
-  auto HasWinCondition() const -> bool;
+    puzzle(const int w, const int h, const int tx, const int ty, const bool r)
+        : width(w), height(h), target_x(tx), target_y(ty), restricted(r),
+          state(std::format("{}{}{}{}{}{}", r ? "R" : "F", w, h, tx, ty, std::string(w * h * 2, '.')))
+    {
+        if (w < 1 || w > 9 || h < 1 || h > 9) {
+            errln("State width/height must be in [1, 9]!");
+            exit(1);
+        }
+        if (tx < 0 || tx >= 9 || ty < 0 || ty >= 9) {
+            if (tx != 9 && ty != 9) {
+                errln("State target  must be within the board bounds!");
+                exit(1);
+            }
+        }
+    }
 
-  auto IsWon() const -> bool;
+    puzzle(const int w, const int h, const bool r) : puzzle(w, h, 9, 9, r)
+    {}
 
-  auto SetGoal(int x, int y) -> bool;
+    explicit puzzle(const std::string& s)
+        : width(std::stoi(s.substr(1, 1))), height(std::stoi(s.substr(2, 1))), target_x(std::stoi(s.substr(3, 1))),
+          target_y(std::stoi(s.substr(4, 1))), restricted(s.substr(0, 1) == "R"), state(s)
+    {
+        if (width < 1 || width > 9 || height < 1 || height > 9) {
+            errln("State width/height must be in [1, 9]!");
+            exit(1);
+        }
+        if (target_x < 0 || target_x >= 9 || target_y < 0 || target_y >= 9) {
+            if (target_x != 9 && target_y != 9) {
+                errln("State target  must be within the board bounds!");
+                exit(1);
+            }
+        }
+        if (static_cast<int>(s.length()) != width * height * 2 + PREFIX) {
+            errln("State representation must have length width * "
+                  "height * 2 + {}!",
+                  PREFIX);
+            exit(1);
+        }
+    }
 
-  auto ClearGoal() -> void;
+public:
+    auto operator==(const puzzle& other) const -> bool
+    {
+        return state == other.state;
+    }
 
-  auto AddColumn() const -> State;
+    auto operator!=(const puzzle& other) const -> bool
+    {
+        return !(*this == other);
+    }
 
-  auto RemoveColumn() const -> State;
+    [[nodiscard]] auto begin() const -> block_iterator
+    {
+        block_iterator it{*this};
+        if (!(*it).valid()) {
+            ++it;
+        }
+        return it;
+    }
 
-  auto AddRow() const -> State;
+    [[nodiscard]] auto end() const -> block_iterator
+    {
+        return {*this, width * height};
+    }
 
-  auto RemoveRow() const -> State;
+private:
+    [[nodiscard]] auto get_index(int x, int y) const -> int;
 
-  auto AddBlock(const Block &block) -> bool;
+public:
+    [[nodiscard]] auto hash() const -> size_t;
+    [[nodiscard]] auto has_win_condition() const -> bool;
+    [[nodiscard]] auto won() const -> bool;
+    [[nodiscard]] auto valid() const -> bool;
+    [[nodiscard]] auto valid_thorough() const -> bool;
 
-  auto GetBlock(int x, int y) const -> Block;
+    // Repr helpers
 
-  auto GetBlockAt(int x, int y) const -> std::string;
+    [[nodiscard]] auto try_get_block(int x, int y) const -> std::optional<block>;
+    [[nodiscard]] auto try_get_target_block() const -> std::optional<block>;
+    [[nodiscard]] auto covers(int x, int y, int w, int h) const -> bool;
+    [[nodiscard]] auto covers(int x, int y) const -> bool;
+    [[nodiscard]] auto covers(const block& b) const -> bool;
 
-  auto GetTargetBlock() const -> Block;
+    // Editing
 
-  auto GetIndex(int x, int y) const -> int;
+    [[nodiscard]] auto try_toggle_restricted() const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_set_goal(int x, int y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_clear_goal() const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_add_column() const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_remove_column() const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_add_row() const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_remove_row() const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_add_block(const block& b) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_remove_block(int x, int y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_toggle_target(int x, int y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_toggle_wall(int x, int y) const -> std::optional<puzzle>;
 
-  auto RemoveBlock(int x, int y) -> bool;
+    // Playing
 
-  auto ToggleTarget(int x, int y) -> bool;
+    [[nodiscard]] auto try_move_block_at(int x, int y, direction dir) const -> std::optional<puzzle>;
 
-  auto ToggleWall(int x, int y) -> bool;
+    // Statespace
 
-  auto ToggleRestricted() -> void;
-
-  auto MoveBlockAt(int x, int y, Direction dir) -> bool;
-
-  auto GetNextStates() const -> std::vector<State>;
-
-  auto Closure() const
-      -> std::pair<std::vector<State>,
-                   std::vector<std::pair<std::size_t, std::size_t>>>;
+    [[nodiscard]] auto find_adjacent_puzzles() const -> std::vector<puzzle>;
+    [[nodiscard]] auto explore_state_space() const
+        -> std::pair<std::vector<puzzle>, std::vector<std::pair<size_t, size_t>>>;
 };
 
 // Provide hash functions so we can use State and <State, State> as hash-set
 // keys for masses and springs.
-template <> struct std::hash<State> {
-  std::size_t operator()(const State &s) const noexcept { return s.Hash(); }
+template <>
+struct std::hash<puzzle>
+{
+    auto operator()(const puzzle& s) const noexcept -> size_t
+    {
+        return s.hash();
+    }
 };
 
-template <> struct std::hash<std::pair<State, State>> {
-  std::size_t operator()(const std::pair<State, State> &s) const noexcept {
-    auto h1 = std::hash<State>{}(s.first);
-    auto h2 = std::hash<State>{}(s.second);
-    return h1 + h2 + (h1 * h2);
-  }
+template <>
+struct std::hash<std::pair<puzzle, puzzle>>
+{
+    auto operator()(const std::pair<puzzle, puzzle>& s) const noexcept -> size_t
+    {
+        const size_t h1 = std::hash<puzzle>{}(s.first);
+        const size_t h2 = std::hash<puzzle>{}(s.second);
+
+        return h1 + h2 + h1 * h2;
+        // return (h1 ^ h2) + 0x9e3779b9 + (std::min(h1, h2) << 6) + (std::max(h1, h2) >> 2);
+    }
 };
 
-template <> struct std::equal_to<std::pair<State, State>> {
-  bool operator()(const std::pair<State, State> &a,
-                  const std::pair<State, State> &b) const noexcept {
-    return (a.first == b.first && a.second == b.second) ||
-           (a.first == b.second && a.second == b.first);
-  }
+template <>
+struct std::equal_to<std::pair<puzzle, puzzle>>
+{
+    auto operator()(const std::pair<puzzle, puzzle>& a, const std::pair<puzzle, puzzle>& b) const noexcept -> bool
+    {
+        return (a.first == b.first && a.second == b.second) || (a.first == b.second && a.second == b.first);
+    }
 };
 
-using WinCondition = std::function<bool(const State &)>;
+using win_condition = std::function<bool(const puzzle&)>;
 
 #endif

@@ -1,54 +1,51 @@
-#ifndef __OCTREE_HPP_
-#define __OCTREE_HPP_
+#ifndef OCTREE_HPP_
+#define OCTREE_HPP_
 
-#include "config.hpp"
-
+#include <array>
 #include <raylib.h>
 #include <raymath.h>
 #include <vector>
 
-class OctreeNode {
-public:
-  Vector3 mass_center;
-  float mass_total;
-  Vector3 box_min; // area start
-  Vector3 box_max; // area end
-  int children[8];
-  int mass_id;
-  bool leaf;
+class octree
+{
+    class node
+    {
+    public:
+        Vector3 mass_center = Vector3Zero();
+        float mass_total = 0.0;
+        Vector3 box_min = Vector3Zero(); // area start
+        Vector3 box_max = Vector3Zero(); // area end
+        std::array<int, 8> children = {-1, -1, -1, -1, -1, -1, -1, -1};
+        int mass_id = -1;
+        bool leaf = true;
+
+    public:
+        [[nodiscard]] auto child_count() const -> int;
+    };
 
 public:
-  OctreeNode()
-      : mass_center(Vector3Zero()), mass_total(0.0),
-        children(-1, -1, -1, -1, -1, -1, -1, -1), mass_id(-1), leaf(true) {}
+    static constexpr int MAX_DEPTH = 20;
+
+    std::vector<node> nodes;
 
 public:
-  auto ChildCount() const -> int;
-};
+    octree() = default;
 
-class Octree {
-public:
-  std::vector<OctreeNode> nodes;
-
-public:
-  Octree() {}
-
-  Octree(const Octree &copy) = delete;
-  Octree &operator=(const Octree &copy) = delete;
-  Octree(Octree &&move) = delete;
-  Octree &operator=(Octree &&move) = delete;
+    octree(const octree& copy) = delete;
+    auto operator=(const octree& copy) -> octree& = delete;
+    octree(octree&& move) = delete;
+    auto operator=(octree&& move) -> octree& = delete;
 
 public:
-  auto CreateNode(const Vector3 &box_min, const Vector3 &box_max) -> int;
+    auto create_empty_leaf(const Vector3& box_min, const Vector3& box_max) -> int;
 
-  auto GetOctant(int node_idx, const Vector3 &pos) -> int;
+    [[nodiscard]] auto get_octant(int node_idx, const Vector3& pos) const -> int;
 
-  auto GetChildBounds(int node_idx, int octant) -> std::pair<Vector3, Vector3>;
+    [[nodiscard]] auto get_child_bounds(int node_idx, int octant) const -> std::pair<Vector3, Vector3>;
 
-  auto Insert(int node_idx, int mass_id, const Vector3 &pos, float mass)
-      -> void;
+    auto insert(int node_idx, int mass_id, const Vector3& pos, float mass, int depth) -> void;
 
-  auto CalculateForce(int node_idx, const Vector3 &pos) const -> Vector3;
+    [[nodiscard]] auto calculate_force(int node_idx, const Vector3& pos) const -> Vector3;
 };
 
 #endif

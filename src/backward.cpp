@@ -2,14 +2,14 @@
 //
 // On GNU/Linux, you have few choices to get the most out of your stack trace.
 //
-// By default you get:
-//	- object filename
-//	- function name
+// By default, you get:
+//  - object filename
+//  - function name
 //
 // In order to add:
-//	- source filename
-//	- line and column numbers
-//	- source code snippet (assuming the file is accessible)
+//  - source filename
+//  - line and column numbers
+//  - source code snippet (assuming the file is accessible)
 
 // Install one of the following libraries then uncomment one of the macro (or
 // better, add the detection of the lib and the macro definition in your build
@@ -33,16 +33,13 @@
 // - g++/clang++ -lunwind
 // #define BACKWARD_HAS_LIBUNWIND 1
 
-#include "config.hpp"
-
 #ifdef BACKWARD
 
-#include "backward.hpp"
+    #include "backward.hpp"
 
-namespace backward {
-
-backward::SignalHandling sh;
-
+namespace backward
+{
+SignalHandling sh;
 } // namespace backward
 
 #endif

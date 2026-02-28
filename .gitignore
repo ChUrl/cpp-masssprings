@@ -5,3 +5,4 @@ cmake-build-release
 /result
 /.gdb_history
 /valgrind.log
+.idea

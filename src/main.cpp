@@ -1,18 +1,16 @@
 #include <chrono>
 #include <mutex>
 #include <raylib.h>
-#include <raymath.h>
 
 #include "config.hpp"
-#include "gui.hpp"
 #include "input.hpp"
 #include "physics.hpp"
 #include "renderer.hpp"
-#include "state.hpp"
+#include "state_manager.hpp"
+#include "user_interface.hpp"
 
 #ifdef TRACY
-#include "tracy.hpp"
-#include <tracy/Tracy.hpp>
+    #include <tracy/Tracy.hpp>
 #endif
 
 // TODO: Click states in the graph to display them in the board
@@ -25,11 +23,9 @@
 //       - Clear graph: Notify that this will clear the visited states and move
 //         history
 //       - Reset state: Notify that this will reset the move count
-//       Remove the keybindings, as it's simpler to show the popups from the
-//       button?
+//       - Next/Previous preset: Notify that this will clear all edits
 
 // TODO: Reduce memory usage
-//       - State.cpp stores a lot of duplicates, do I need all of them?
 //       - The memory model of the puzzle board is terrible (bitboards?)
 
 // TODO: Improve solver
@@ -44,127 +40,126 @@
 
 // NOTE: Tracy uses a huge amount of memory. For longer testing disable Tracy.
 
-auto main(int argc, char *argv[]) -> int {
-  std::string preset_file;
-  if (argc != 2) {
-    preset_file = "default.puzzle";
-  } else {
-    preset_file = argv[1];
-  }
+auto main(int argc, char* argv[]) -> int
+{
+    std::string preset_file;
+    if (argc != 2) {
+        preset_file = "default.puzzle";
+    } else {
+        preset_file = argv[1];
+    }
 
 #ifdef BACKWARD
-  std::cout << std::format("Backward stack-traces enabled.") << std::endl;
+    infoln("Backward stack-traces enabled.");
 #else
-  std::cout << std::format("Backward stack-traces disabled.") << std::endl;
+    infoln("Backward stack-traces disabled.");
 #endif
 
 #ifdef TRACY
-  std::cout << std::format("Tracy adapter enabled.") << std::endl;
+    infoln("Tracy adapter enabled.");
 #else
-  std::cout << std::format("Tracy adapter disabled.") << std::endl;
+    infoln("Tracy adapter disabled.");
 #endif
 
-  // RayLib window setup
-  SetTraceLogLevel(LOG_ERROR);
-  SetConfigFlags(FLAG_VSYNC_HINT);
-  SetConfigFlags(FLAG_MSAA_4X_HINT);
-  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-  SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
-  InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + MENU_HEIGHT, "MassSprings");
+    // RayLib window setup
+    SetTraceLogLevel(LOG_ERROR);
+    SetConfigFlags(FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
+    InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + MENU_HEIGHT, "MassSprings");
 
-  // Game setup
-  ThreadedPhysics physics;
-  StateManager state(physics, preset_file);
-  OrbitCamera3D camera;
-  InputHandler input(state, camera);
-  Gui gui(input, state, camera);
-  Renderer renderer(camera, state, input, gui);
+    // Game setup
+    threaded_physics physics;
+    state_manager state(physics, preset_file);
+    orbit_camera camera;
+    input_handler input(state, camera);
+    user_interface gui(input, state, camera);
+    renderer renderer(camera, state, input, gui);
 
-  std::chrono::time_point last = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> fps_accumulator(0);
-  unsigned int loop_iterations = 0;
+    std::chrono::time_point last = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> fps_accumulator(0);
+    int loop_iterations = 0;
 
-  unsigned int fps = 0;
-  unsigned int ups = 0;                // Read from physics
-  Vector3 mass_center = Vector3Zero(); // Read from physics
-  std::vector<Vector3> masses;         // Read from physics
+    int fps = 0;
+    int ups = 0;                 // Read from physics
+    Vector3 mass_center;         // Read from physics
+    std::vector<Vector3> masses; // Read from physics
+    size_t mass_count = 0;
+    size_t spring_count = 0;
 
-  // Game loop
-  while (!WindowShouldClose()) {
+    // Game loop
+    while (!WindowShouldClose()) {
 #ifdef TRACY
-    FrameMarkStart("MainThread");
+        FrameMarkStart("MainThread");
 #endif
 
-    // Time tracking
-    std::chrono::time_point now = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> deltatime = now - last;
-    fps_accumulator += deltatime;
-    last = now;
+        // Time tracking
+        std::chrono::time_point now = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> delta_time = now - last;
+        fps_accumulator += delta_time;
+        last = now;
 
-    // Input update
-    input.HandleInput();
-    state.UpdateGraph(); // Add state added after user input
+        // Input update
+        input.handle_input();
 
-    // Read positions from physics thread
+// Read positions from physics thread
 #ifdef TRACY
-    FrameMarkStart("MainThreadConsumeLock");
+        FrameMarkStart("MainThreadConsumeLock");
 #endif
-    {
+        {
 #ifdef TRACY
-      std::unique_lock<LockableBase(std::mutex)> lock(physics.state.data_mtx);
+            std::unique_lock<LockableBase(std::mutex)> lock(physics.state.data_mtx);
 #else
-      std::unique_lock<std::mutex> lock(physics.state.data_mtx);
+            std::unique_lock<std::mutex> lock(physics.state.data_mtx);
 #endif
 
-      ups = physics.state.ups;
-      mass_center = physics.state.mass_center;
+            ups = physics.state.ups;
+            mass_center = physics.state.mass_center;
+            mass_count = physics.state.mass_count;
+            spring_count = physics.state.spring_count;
 
-      // Only copy data if any has been produced
-      if (physics.state.data_ready) {
-        masses = physics.state.masses;
+            // Only copy data if any has been produced
+            if (physics.state.data_ready) {
+                masses = physics.state.masses;
 
-        physics.state.data_ready = false;
-        physics.state.data_consumed = true;
+                physics.state.data_ready = false;
+                physics.state.data_consumed = true;
 
-        lock.unlock();
-        // Notify the physics thread that data has been consumed
-        physics.state.data_consumed_cnd.notify_all();
-      }
-    }
+                lock.unlock();
+                // Notify the physics thread that data has been consumed
+                physics.state.data_consumed_cnd.notify_all();
+            }
+        }
 #ifdef TRACY
-    FrameMarkEnd("MainThreadConsumeLock");
+        FrameMarkEnd("MainThreadConsumeLock");
 #endif
 
-    // Update the camera after the physics, so target lock is smooth
-    std::size_t current_index = state.CurrentMassIndex();
-    if (masses.size() > current_index) {
-      const Mass &current_mass = masses.at(current_index);
-      camera.Update(current_mass.position, mass_center, input.camera_lock,
-                    input.camera_mass_center_lock);
-    }
+        // Update the camera after the physics, so target lock is smooth
+        size_t current_index = state.get_current_index();
+        if (masses.size() > current_index) {
+            const mass& current_mass = mass(masses.at(current_index));
+            camera.update(current_mass.position, mass_center, input.camera_lock, input.camera_mass_center_lock);
+        }
 
-    // Rendering
-    renderer.UpdateTextureSizes();
-    renderer.DrawMassSprings(masses);
-    renderer.DrawKlotski();
-    renderer.DrawMenu(masses);
-    renderer.DrawTextures(fps, ups);
+        // Rendering
+        renderer.render(masses, fps, ups, mass_count, spring_count);
 
-    if (fps_accumulator.count() > 1.0) {
-      // Update each second
-      fps = loop_iterations;
-      loop_iterations = 0;
-      fps_accumulator = std::chrono::duration<double>(0);
-    }
-    ++loop_iterations;
+        if (fps_accumulator.count() > 1.0) {
+            // Update each second
+            fps = loop_iterations;
+            loop_iterations = 0;
+            fps_accumulator = std::chrono::duration<double>(0);
+        }
+        ++loop_iterations;
 
 #ifdef TRACY
-    FrameMark;
-    FrameMarkEnd("MainThread");
+        FrameMark;
+        FrameMarkEnd("MainThread");
 #endif
-  }
+    }
 
-  CloseWindow();
+    CloseWindow();
 
-  return 0;
+    return 0;
 }

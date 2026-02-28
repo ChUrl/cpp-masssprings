@@ -1,5 +1,5 @@
-#ifndef __CONFIG_HPP_
-#define __CONFIG_HPP_
+#ifndef CONFIG_HPP_
+#define CONFIG_HPP_
 
 #include <raylib.h>
 
@@ -12,14 +12,16 @@
 // Window
 constexpr int INITIAL_WIDTH = 600;
 constexpr int INITIAL_HEIGHT = 600;
-constexpr int MENU_HEIGHT = 350;
+constexpr int MENU_HEIGHT = 300;
+constexpr int POPUP_WIDTH = 450;
+constexpr int POPUP_HEIGHT = 150;
 
 // Menu
 constexpr int MENU_PAD = 5;
 constexpr int BUTTON_PAD = 12;
 constexpr int MENU_ROWS = 7;
 constexpr int MENU_COLS = 3;
-constexpr const char *FONT = "fonts/SpaceMono.ttf";
+constexpr const char* FONT = "fonts/SpaceMono.ttf";
 constexpr int FONT_SIZE = 26;
 
 // Camera Controls

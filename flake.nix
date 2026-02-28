@@ -108,6 +108,7 @@ rec {
           valgrind
           # gnumake
           cmake
+          ninja
           # pkg-config
           # clang-tools
           # compdb
@@ -253,7 +254,7 @@ rec {
                   cd cmake-build-${typeLower}
 
                   echo "Running cmake"
-                  cmake -G "Unix Makefiles" \
+                  cmake -G "Ninja" \
                         -DCMAKE_BUILD_TYPE="${type}" \
                         ..
 
@@ -297,6 +298,8 @@ rec {
                 abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"
                 abbr -a runtracy "tracy -a 127.0.0.1 &; ${buildRelease} && sudo -E ./cmake-build-release/masssprings"
                 abbr -a runvalgrind "${buildDebug} && valgrind --leak-check=full --show-reachable=no --show-leak-kinds=definite,indirect,possible --track-origins=no --suppressions=valgrind.supp --log-file=valgrind.log ./cmake-build-debug/masssprings && cat valgrind.log"
+
+                abbr -a runclion "clion ./CMakeLists.txt 2>/dev/null 1>&2 & disown;"
               '';
             in
               builtins.concatStringsSep "\n" [
@@ -307,7 +310,7 @@ rec {
               ];
           };
 
-          # TODO: Doesn't work
+          # TODO: Can't get renderdoc in FHS to work
 
           # FHS environment for renderdoc. Access with "nix develop .#renderdoc".
           # https://ryantm.github.io/nixpkgs/builders/special/fhs-environments

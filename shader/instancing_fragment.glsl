@@ -1,8 +1,9 @@
 #version 330
 
-uniform vec4 colDiffuse;
+in vec4 fragColor;
 out vec4 finalColor;
 
 void main() {
-    finalColor = colDiffuse;
+    // Advanced coloring. CG lecture really paying off now
+    finalColor = fragColor;
 }

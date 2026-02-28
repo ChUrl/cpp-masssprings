@@ -1,12 +1,11 @@
-#ifndef __PHYSICS_HPP_
-#define __PHYSICS_HPP_
+#ifndef PHYSICS_HPP_
+#define PHYSICS_HPP_
 
 #include "config.hpp"
 #include "octree.hpp"
 
 #include <atomic>
 #include <condition_variable>
-#include <cstddef>
 #include <mutex>
 #include <queue>
 #include <raylib.h>
@@ -15,190 +14,198 @@
 #include <variant>
 #include <vector>
 
+#include "util.hpp"
+
 #ifdef THREADPOOL
-#if defined(_WIN32)
-#define NOGDI  // All GDI defines and routines
-#define NOUSER // All USER defines and routines
-#endif
-#define BS_THREAD_POOL_NATIVE_EXTENSIONS
-#include <BS_thread_pool.hpp>
-#if defined(_WIN32) // raylib uses these names as function parameters
-#undef near
-#undef far
-#endif
+    #if defined(_WIN32)
+        #define NOGDI  // All GDI defines and routines
+        #define NOUSER // All USER defines and routines
+    #endif
+    #define BS_THREAD_POOL_NATIVE_EXTENSIONS
+    #include <BS_thread_pool.hpp>
+    #if defined(_WIN32) // raylib uses these names as function parameters
+        #undef near
+        #undef far
+    #endif
 #endif
 
 #ifdef TRACY
-#include <tracy/Tracy.hpp>
+    #include <tracy/Tracy.hpp>
 #endif
 
-class Mass {
+class mass
+{
 public:
-  Vector3 position;
-  Vector3 previous_position; // for verlet integration
-  Vector3 velocity;
-  Vector3 force;
-
-public:
-  Mass(Vector3 _position)
-      : position(_position), previous_position(_position),
-        velocity(Vector3Zero()), force(Vector3Zero()) {}
+    Vector3 position = Vector3Zero();
+    Vector3 previous_position = Vector3Zero(); // for verlet integration
+    Vector3 velocity = Vector3Zero();
+    Vector3 force = Vector3Zero();
 
 public:
-  auto ClearForce() -> void;
+    mass() = delete;
 
-  auto CalculateVelocity(const float delta_time) -> void;
+    explicit mass(const Vector3 _position) : position(_position), previous_position(_position)
+    {}
 
-  auto CalculatePosition(const float delta_time) -> void;
-
-  auto VerletUpdate(const float delta_time) -> void;
+public:
+    auto clear_force() -> void;
+    auto calculate_velocity(float delta_time) -> void;
+    auto calculate_position(float delta_time) -> void;
+    auto verlet_update(float delta_time) -> void;
 };
 
-class Spring {
+class spring
+{
 public:
-  std::size_t a;
-  std::size_t b;
+    size_t a;
+    size_t b;
 
 public:
-  Spring(std::size_t _a, std::size_t _b) : a(_a), b(_b) {}
+    spring(const size_t _a, const size_t _b) : a(_a), b(_b)
+    {}
 
 public:
-  auto CalculateSpringForce(Mass &_a, Mass &_b) const -> void;
+    static auto calculate_spring_force(mass& _a, mass& _b) -> void;
 };
 
-class MassSpringSystem {
+class mass_spring_system
+{
 private:
 #ifdef THREADPOOL
-  BS::thread_pool<BS::tp::none> threads;
+    BS::thread_pool<> threads;
 #endif
 
 public:
-  Octree octree;
+    octree tree;
 
-  // This is the main ownership of all the states/masses/springs.
-  std::vector<Mass> masses;
-  std::vector<Spring> springs;
+    // This is the main ownership of all the states/masses/springs.
+    std::vector<mass> masses;
+    std::vector<spring> springs;
 
 public:
-  MassSpringSystem()
+    mass_spring_system()
 #ifdef THREADPOOL
-      : threads(std::thread::hardware_concurrency() - 1, SetThreadName)
+        : threads(std::thread::hardware_concurrency() - 1, set_thread_name)
 #endif
-  {
-    std::cout << std::format(
-                     "Using Barnes-Hut + Octree repulsion force calculation.")
-              << std::endl;
+    {
+        infoln("Using Barnes-Hut + Octree repulsion force calculation.");
 
 #ifdef THREADPOOL
-    std::cout << std::format("Thread-pool: {} threads.",
-                             threads.get_thread_count())
-              << std::endl;
+        infoln("Thread-pool: {} threads.", threads.get_thread_count());
 #else
-    std::cout << std::format("Thread-pool: Disabled.") << std::endl;
+        infoln("Thread-pool: Disabled.");
 #endif
-  };
+    }
 
-  MassSpringSystem(const MassSpringSystem &copy) = delete;
-  MassSpringSystem &operator=(const MassSpringSystem &copy) = delete;
-  MassSpringSystem(MassSpringSystem &move) = delete;
-  MassSpringSystem &operator=(MassSpringSystem &&move) = delete;
+    mass_spring_system(const mass_spring_system& copy) = delete;
+    auto operator=(const mass_spring_system& copy) -> mass_spring_system& = delete;
+    mass_spring_system(mass_spring_system& move) = delete;
+    auto operator=(mass_spring_system&& move) -> mass_spring_system& = delete;
 
 private:
 #ifdef THREADPOOL
-  static auto SetThreadName(std::size_t idx) -> void;
+    static auto set_thread_name(size_t idx) -> void;
 #endif
 
-  auto BuildOctree() -> void;
+    auto build_octree() -> void;
 
 public:
-  auto AddMass() -> void;
+    auto clear() -> void;
+    auto add_mass() -> void;
+    auto add_spring(size_t a, size_t b) -> void;
 
-  auto AddSpring(int a, int b) -> void;
+    auto clear_forces() -> void;
+    auto calculate_spring_forces() -> void;
+    auto calculate_repulsion_forces() -> void;
+    auto verlet_update(float delta_time) -> void;
 
-  auto Clear() -> void;
-
-  auto ClearForces() -> void;
-
-  auto CalculateSpringForces() -> void;
-
-  auto CalculateRepulsionForces() -> void;
-
-  auto VerletUpdate(float delta_time) -> void;
+    auto center_masses() -> void;
 };
 
-class ThreadedPhysics {
-  struct AddMass {};
-  struct AddSpring {
-    std::size_t a;
-    std::size_t b;
-  };
-  struct ClearGraph {};
+class threaded_physics
+{
+    struct add_mass
+    {};
 
-  using Command = std::variant<AddMass, AddSpring, ClearGraph>;
+    struct add_spring
+    {
+        size_t a;
+        size_t b;
+    };
 
-  struct PhysicsState {
+    struct clear_graph
+    {};
+
+    using command = std::variant<add_mass, add_spring, clear_graph>;
+
+    struct physics_state
+    {
 #ifdef TRACY
-    TracyLockable(std::mutex, command_mtx);
+        TracyLockable(std::mutex, command_mtx);
 #else
-    std::mutex command_mtx;
+        std::mutex command_mtx;
 #endif
-    std::queue<Command> pending_commands;
+        std::queue<command> pending_commands;
 
 #ifdef TRACY
-    TracyLockable(std::mutex, data_mtx);
+        TracyLockable(std::mutex, data_mtx);
 #else
-    std::mutex data_mtx;
+        std::mutex data_mtx;
 #endif
-    std::condition_variable_any data_ready_cnd;
-    std::condition_variable_any data_consumed_cnd;
-    Vector3 mass_center = Vector3Zero();
-    unsigned int ups = 0;
-    std::vector<Vector3> masses; // Read by renderer
-    bool data_ready = false;
-    bool data_consumed = true;
+        std::condition_variable_any data_ready_cnd;
+        std::condition_variable_any data_consumed_cnd;
+        Vector3 mass_center = Vector3Zero();
+        int ups = 0;
+        size_t mass_count = 0;       // For debug
+        size_t spring_count = 0;     // For debug
+        std::vector<Vector3> masses; // Read by renderer
+        bool data_ready = false;
+        bool data_consumed = true;
 
-    std::atomic<bool> running{true};
-  };
-
-private:
-  std::thread physics;
-
-public:
-  PhysicsState state;
-
-public:
-  ThreadedPhysics() : physics(PhysicsThread, std::ref(state)) {}
-
-  ThreadedPhysics(const ThreadedPhysics &copy) = delete;
-  ThreadedPhysics &operator=(const ThreadedPhysics &copy) = delete;
-  ThreadedPhysics(ThreadedPhysics &&move) = delete;
-  ThreadedPhysics &operator=(ThreadedPhysics &&move) = delete;
-
-  ~ThreadedPhysics() {
-    state.running = false;
-    state.data_ready_cnd.notify_all();
-    state.data_consumed_cnd.notify_all();
-    physics.join();
-  }
+        std::atomic<bool> running{true};
+    };
 
 private:
-  static auto PhysicsThread(PhysicsState &state) -> void;
+    std::thread physics;
 
 public:
-  auto AddMassCmd() -> void;
+    physics_state state;
 
-  auto AddSpringCmd(std::size_t a, std::size_t b) -> void;
+public:
+    threaded_physics() : physics(physics_thread, std::ref(state))
+    {}
 
-  auto ClearCmd() -> void;
+    threaded_physics(const threaded_physics& copy) = delete;
+    auto operator=(const threaded_physics& copy) -> threaded_physics& = delete;
+    threaded_physics(threaded_physics&& move) = delete;
+    auto operator=(threaded_physics&& move) -> threaded_physics& = delete;
 
-  auto AddMassSpringsCmd(
-      std::size_t num_masses,
-      const std::vector<std::pair<std::size_t, std::size_t>> &springs) -> void;
+    ~threaded_physics()
+    {
+        state.running = false;
+        state.data_ready_cnd.notify_all();
+        state.data_consumed_cnd.notify_all();
+        physics.join();
+    }
+
+private:
+    static auto physics_thread(physics_state& state) -> void;
+
+public:
+    auto add_mass_cmd() -> void;
+
+    auto add_spring_cmd(size_t a, size_t b) -> void;
+
+    auto clear_cmd() -> void;
+
+    auto add_mass_springs_cmd(size_t num_masses, const std::vector<std::pair<size_t, size_t>>& springs) -> void;
 };
 
 // https://en.cppreference.com/w/cpp/utility/variant/visit
-template <class... Ts> struct overloads : Ts... {
-  using Ts::operator()...;
+template <class... Ts>
+struct overloads : Ts...
+{
+    using Ts::operator()...;
 };
 
 #endif
