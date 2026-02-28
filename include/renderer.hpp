@@ -18,8 +18,12 @@ private:
     user_interface& gui;
 
     const orbit_camera& camera;
-    RenderTexture render_target = LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT);
-    RenderTexture klotski_target = LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT);
+    RenderTexture render_target =
+        LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT);
+
+    // TODO: Those should be moved to the user_interface.h
+    RenderTexture klotski_target =
+        LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT);
     RenderTexture menu_target = LoadRenderTexture(GetScreenWidth(), MENU_HEIGHT);
 
     // Batching
@@ -31,7 +35,8 @@ private:
     std::vector<Color> colors;
     Material vertex_mat = LoadMaterialDefault();
     Mesh cube_instance = GenMeshCube(VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE);
-    Shader instancing_shader = LoadShader("shader/instancing_vertex.glsl", "shader/instancing_fragment.glsl");
+    Shader instancing_shader =
+        LoadShader("shader/instancing_vertex.glsl", "shader/instancing_fragment.glsl");
 
     unsigned int color_vbo_id = 0;
 
@@ -43,10 +48,13 @@ public:
         instancing_shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(instancing_shader, "mvp");
         instancing_shader.locs[SHADER_LOC_MATRIX_MODEL] =
             GetShaderLocationAttrib(instancing_shader, "instanceTransform");
-        instancing_shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(instancing_shader, "viewPos");
+        instancing_shader.locs[SHADER_LOC_VECTOR_VIEW] =
+            GetShaderLocation(instancing_shader, "viewPos");
 
-        infoln("LOC vertexPosition: {}", rlGetLocationAttrib(instancing_shader.id, "vertexPosition"));
-        infoln("LOC instanceTransform: {}", rlGetLocationAttrib(instancing_shader.id, "instanceTransform"));
+        infoln("LOC vertexPosition: {}",
+               rlGetLocationAttrib(instancing_shader.id, "vertexPosition"));
+        infoln("LOC instanceTransform: {}",
+               rlGetLocationAttrib(instancing_shader.id, "instanceTransform"));
         infoln("LOC instanceColor: {}", rlGetLocationAttrib(instancing_shader.id, "instanceColor"));
 
         // vertex_mat.maps[MATERIAL_MAP_DIFFUSE].color = VERTEX_COLOR;
@@ -94,7 +102,8 @@ private:
     auto draw_textures(int fps, int ups, size_t mass_count, size_t spring_count) const -> void;
 
 public:
-    auto render(const std::vector<Vector3>& masses, int fps, int ups, size_t mass_count, size_t spring_count) -> void;
+    auto render(const std::vector<Vector3>& masses, int fps, int ups, size_t mass_count,
+                size_t spring_count) -> void;
 };
 
 #endif

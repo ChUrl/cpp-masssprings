@@ -41,7 +41,8 @@ public:
 
     [[nodiscard]] auto get_octant(int node_idx, const Vector3& pos) const -> int;
 
-    [[nodiscard]] auto get_child_bounds(int node_idx, int octant) const -> std::pair<Vector3, Vector3>;
+    [[nodiscard]] auto get_child_bounds(int node_idx, int octant) const
+        -> std::pair<Vector3, Vector3>;
 
     auto insert(int node_idx, int mass_id, const Vector3& pos, float mass, int depth) -> void;
 

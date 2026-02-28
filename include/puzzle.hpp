@@ -48,8 +48,8 @@ public:
         bool immovable = false;
 
     public:
-        block(const int _x, const int _y, const int _width, const int _height, const bool _target = false,
-              const bool _immovable = false)
+        block(const int _x, const int _y, const int _width, const int _height,
+              const bool _target = false, const bool _immovable = false)
             : x(_x), y(_y), width(_width), height(_height), target(_target), immovable(_immovable)
         {
             if (_x < 0 || _x + _width > 9 || _y < 0 || _y + _height > 9) {
@@ -84,7 +84,8 @@ public:
             }
 
             immovable = false;
-            constexpr std::array<char, 9> immovable_chars{'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'};
+            constexpr std::array<char, 9> immovable_chars{'A', 'B', 'C', 'D', 'E',
+                                                          'F', 'G', 'H', 'I'};
             for (const char c : immovable_chars) {
                 if (b.contains(c)) {
                     immovable = true;
@@ -151,7 +152,8 @@ private:
         explicit block_iterator(const puzzle& _state) : state(_state), current_pos(0)
         {}
 
-        block_iterator(const puzzle& _state, const int _current_pos) : state(_state), current_pos(_current_pos)
+        block_iterator(const puzzle& _state, const int _current_pos)
+            : state(_state), current_pos(_current_pos)
         {}
 
         auto operator*() const -> block
@@ -199,7 +201,8 @@ public:
 
     puzzle(const int w, const int h, const int tx, const int ty, const bool r)
         : width(w), height(h), target_x(tx), target_y(ty), restricted(r),
-          state(std::format("{}{}{}{}{}{}", r ? "R" : "F", w, h, tx, ty, std::string(w * h * 2, '.')))
+          state(
+              std::format("{}{}{}{}{}{}", r ? "R" : "F", w, h, tx, ty, std::string(w * h * 2, '.')))
     {
         if (w < 1 || w > 9 || h < 1 || h > 9) {
             errln("State width/height must be in [1, 9]!");
@@ -217,8 +220,9 @@ public:
     {}
 
     explicit puzzle(const std::string& s)
-        : width(std::stoi(s.substr(1, 1))), height(std::stoi(s.substr(2, 1))), target_x(std::stoi(s.substr(3, 1))),
-          target_y(std::stoi(s.substr(4, 1))), restricted(s.substr(0, 1) == "R"), state(s)
+        : width(std::stoi(s.substr(1, 1))), height(std::stoi(s.substr(2, 1))),
+          target_x(std::stoi(s.substr(3, 1))), target_y(std::stoi(s.substr(4, 1))),
+          restricted(s.substr(0, 1) == "R"), state(s)
     {
         if (width < 1 || width > 9 || height < 1 || height > 9) {
             errln("State width/height must be in [1, 9]!");
@@ -271,7 +275,7 @@ public:
     [[nodiscard]] auto has_win_condition() const -> bool;
     [[nodiscard]] auto won() const -> bool;
     [[nodiscard]] auto valid() const -> bool;
-    [[nodiscard]] auto valid_thorough() const -> bool;
+    [[nodiscard]] auto try_get_invalid_reason() const -> std::optional<std::string>;
 
     // Repr helpers
 
@@ -297,7 +301,8 @@ public:
 
     // Playing
 
-    [[nodiscard]] auto try_move_block_at(int x, int y, direction dir) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_move_block_at(int x, int y, direction dir) const
+        -> std::optional<puzzle>;
 
     // Statespace
 
@@ -333,9 +338,11 @@ struct std::hash<std::pair<puzzle, puzzle>>
 template <>
 struct std::equal_to<std::pair<puzzle, puzzle>>
 {
-    auto operator()(const std::pair<puzzle, puzzle>& a, const std::pair<puzzle, puzzle>& b) const noexcept -> bool
+    auto operator()(const std::pair<puzzle, puzzle>& a,
+                    const std::pair<puzzle, puzzle>& b) const noexcept -> bool
     {
-        return (a.first == b.first && a.second == b.second) || (a.first == b.second && a.second == b.first);
+        return (a.first == b.first && a.second == b.second) ||
+            (a.first == b.second && a.second == b.first);
     }
 };
 

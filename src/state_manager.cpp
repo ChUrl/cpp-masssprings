@@ -35,7 +35,8 @@ auto state_manager::synced_insert_link(size_t first_index, size_t second_index) 
 }
 
 auto state_manager::synced_insert_statespace(const std::vector<puzzle>& states,
-                                             const std::vector<std::pair<size_t, size_t>>& _links) -> void
+                                             const std::vector<std::pair<size_t, size_t>>& _links)
+    -> void
 {
     if (!state_pool.empty() || !state_indices.empty() || !links.empty()) {
         warnln("Inserting statespace but collections haven't been cleared");
@@ -70,7 +71,7 @@ auto state_manager::synced_clear_statespace() -> void
     winning_path.clear();
     path_indices.clear();
 
-    // move_history does not get cleared here, but when resetting the board
+    move_history = std::stack<size_t>();
     visit_counts.clear();
 
     // Queue an update to the physics engine state to keep in sync
@@ -107,9 +108,9 @@ auto state_manager::parse_preset_file(const std::string& _preset_file) -> bool
     for (const auto& preset : preset_lines) {
         const puzzle& p = puzzle(preset);
 
-        if (!p.valid_thorough()) {
+        if (const std::optional<std::string>& reason = p.try_get_invalid_reason()) {
             preset_states = {puzzle(4, 5, 9, 9, false)};
-            infoln("Preset file \"{}\" contained invalid presets.", preset_file);
+            infoln("Preset file \"{}\" contained invalid presets: {}", preset_file, *reason);
             return false;
         }
         preset_states.emplace_back(p);
@@ -125,7 +126,7 @@ auto state_manager::append_preset_file(const std::string& preset_name) -> bool
 {
     infoln(R"(Saving preset "{}" to "{}")", preset_name, preset_file);
 
-    if (!get_current_state().valid_thorough()) {
+    if (get_current_state().try_get_invalid_reason()) {
         return false;
     }
 
@@ -176,7 +177,8 @@ auto state_manager::update_current_state(const puzzle& p) -> void
     // Because synced_insert_link does not check for duplicates we do it here,
     // if the size grows, it was not a duplicate, and we can add the spring
     if (state_pool.size() > size_before) {
-        // The order is important, as the position of the second mass will be updated depending on the first
+        // The order is important, as the position of the second mass will be updated depending on
+        // the first
         synced_insert_link(current_state_index, index);
     }
 
@@ -312,12 +314,12 @@ auto state_manager::populate_graph() -> void
 auto state_manager::clear_graph_and_add_current(const puzzle& p) -> void
 {
     // Do we need to make a copy before clearing the state_pool?
-    // const puzzle _p = p;
+    const puzzle _p = p; // NOLINT(*-unnecessary-copy-initialization)
 
     synced_clear_statespace();
 
     // Re-add the current state
-    current_state_index = synced_try_insert_state(p);
+    current_state_index = synced_try_insert_state(_p);
 
     // These states are no longer in the graph
     previous_state_index = current_state_index;

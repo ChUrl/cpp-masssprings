@@ -53,6 +53,7 @@ auto input_handler::init_handlers() -> void
     register_key_pressed_handler(KEY_LEFT, &input_handler::remove_board_column);
     register_key_pressed_handler(KEY_X, &input_handler::clear_goal);
     register_key_pressed_handler(KEY_P, &input_handler::print_state);
+    register_key_pressed_handler(KEY_S, &input_handler::save_preset); // + CTRL
 
     register_key_pressed_handler(KEY_L, &input_handler::toggle_camera_lock);
     register_key_pressed_handler(KEY_LEFT_ALT, &input_handler::toggle_camera_projection);
@@ -87,8 +88,8 @@ auto input_handler::camera_start_pan() -> void
     }
 
     camera_panning = true;
-    // Enable this if the camera should be pannable even when locked (releasing the lock in the process):
-    // camera_lock = false;
+    // Enable this if the camera should be pannable even when locked (releasing the lock in the
+    // process): camera_lock = false;
 }
 
 auto input_handler::camera_pan() const -> void
@@ -197,8 +198,8 @@ auto input_handler::add_block() -> void
         block_add_y = -1;
         has_block_add_xy = false;
     } else if (current.covers(block_add_x, block_add_y, block_add_width, block_add_height)) {
-        const std::optional<puzzle>& next =
-            current.try_add_block(puzzle::block(block_add_x, block_add_y, block_add_width, block_add_height, false));
+        const std::optional<puzzle>& next = current.try_add_block(
+            puzzle::block(block_add_x, block_add_y, block_add_width, block_add_height, false));
 
         if (next) {
             sel_x = block_add_x;
@@ -331,10 +332,19 @@ auto input_handler::load_previous_preset() -> void
         return;
     }
 
-    block_add_x = -1;
-    block_add_y = -1;
-    has_block_add_xy = false;
-    state.load_previous_preset();
+    const auto handler = [&]()
+    {
+        block_add_x = -1;
+        block_add_y = -1;
+        has_block_add_xy = false;
+        state.load_previous_preset();
+    };
+
+    if (state.was_edited()) {
+        ui_commands.emplace(show_yes_no_message{"Switch Preset?", "Edits Will Be Lost.", handler});
+    } else {
+        handler();
+    }
 }
 
 auto input_handler::load_next_preset() -> void
@@ -343,17 +353,31 @@ auto input_handler::load_next_preset() -> void
         return;
     }
 
-    block_add_x = -1;
-    block_add_y = -1;
-    has_block_add_xy = false;
-    state.load_next_preset();
+    const auto handler = [&]()
+    {
+        block_add_x = -1;
+        block_add_y = -1;
+        has_block_add_xy = false;
+        state.load_next_preset();
+    };
+
+    if (state.was_edited()) {
+        ui_commands.emplace(show_yes_no_message{"Switch Preset?", "Edits Will Be Lost.", handler});
+    } else {
+        handler();
+    }
 }
 
 auto input_handler::goto_starting_state() -> void
 {
-    state.goto_starting_state();
-    sel_x = 0;
-    sel_y = 0;
+    const auto handler = [&]()
+    {
+        state.goto_starting_state();
+        sel_x = 0;
+        sel_y = 0;
+    };
+
+    ui_commands.emplace(show_yes_no_message{"Reset Board?", "This Clears the Move History.", handler});
 }
 
 auto input_handler::populate_graph() const -> void
@@ -361,9 +385,14 @@ auto input_handler::populate_graph() const -> void
     state.populate_graph();
 }
 
-auto input_handler::clear_graph() const -> void
+auto input_handler::clear_graph() -> void
 {
-    state.clear_graph_and_add_current();
+    const auto handler = [&]()
+    {
+        state.clear_graph_and_add_current();
+    };
+
+    ui_commands.emplace(show_yes_no_message{"Clear Graph?", "This Clears the Move History.", handler});
 }
 
 auto input_handler::toggle_mark_solutions() -> void
@@ -506,6 +535,19 @@ auto input_handler::clear_goal() const -> void
     }
 
     state.edit_starting_state(*next);
+}
+
+auto input_handler::save_preset() -> void
+{
+    if (!IsKeyDown(KEY_LEFT_CONTROL)) {
+        return;
+    }
+
+    if (const std::optional<std::string>& reason = state.get_current_state().try_get_invalid_reason()) {
+        ui_commands.emplace(show_ok_message{"Can't Save Preset", std::format("Invalid Board: {}.", *reason)});
+    } else {
+        ui_commands.emplace(show_save_preset_window{});
+    }
 }
 
 auto input_handler::register_generic_handler(const std::function<void(input_handler&)>& handler) -> void

@@ -18,7 +18,8 @@ auto graph_distances::empty() const -> bool
     return distances.empty() || parents.empty() || nearest_targets.empty();
 }
 
-auto graph_distances::calculate_distances(const size_t node_count, const std::vector<std::pair<size_t, size_t>>& edges,
+auto graph_distances::calculate_distances(const size_t node_count,
+                                          const std::vector<std::pair<size_t, size_t>>& edges,
                                           const std::vector<size_t>& targets) -> void
 {
     // Build a list of adjacent nodes to speed up BFS

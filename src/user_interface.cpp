@@ -1,5 +1,6 @@
 #include "user_interface.hpp"
 #include "config.hpp"
+#include "input.hpp"
 
 #include <raylib.h>
 
@@ -10,8 +11,9 @@
     #include <tracy/Tracy.hpp>
 #endif
 
-auto user_interface::grid::update_bounds(const int _x, const int _y, const int _width, const int _height,
-                                         const int _columns, const int _rows) -> void
+auto user_interface::grid::update_bounds(const int _x, const int _y, const int _width,
+                                         const int _height, const int _columns, const int _rows)
+    -> void
 {
     x = _x;
     y = _y;
@@ -21,7 +23,8 @@ auto user_interface::grid::update_bounds(const int _x, const int _y, const int _
     rows = _rows;
 }
 
-auto user_interface::grid::update_bounds(const int _x, const int _y, const int _width, const int _height) -> void
+auto user_interface::grid::update_bounds(const int _x, const int _y, const int _width,
+                                         const int _height) -> void
 {
     x = _x;
     y = _y;
@@ -45,7 +48,8 @@ auto user_interface::grid::bounds() const -> Rectangle
     return bounds;
 }
 
-auto user_interface::grid::bounds(const int _x, const int _y, const int _width, const int _height) const -> Rectangle
+auto user_interface::grid::bounds(const int _x, const int _y, const int _width,
+                                  const int _height) const -> Rectangle
 {
     if (_x < 0 || _x + _width > columns || _y < 0 || _y + _height > rows) {
         errln("Grid bounds are outside range.");
@@ -55,8 +59,8 @@ auto user_interface::grid::bounds(const int _x, const int _y, const int _width, 
     const int cell_width = (width - padding) / columns;
     const int cell_height = (height - padding) / rows;
 
-    return Rectangle(x + _x * cell_width + padding, y + _y * cell_height + padding, _width * cell_width - padding,
-                     _height * cell_height - padding);
+    return Rectangle(x + _x * cell_width + padding, y + _y * cell_height + padding,
+                     _width * cell_width - padding, _height * cell_height - padding);
 }
 
 auto user_interface::grid::square_bounds() const -> Rectangle
@@ -69,8 +73,8 @@ auto user_interface::grid::square_bounds() const -> Rectangle
     return bounds;
 }
 
-auto user_interface::grid::square_bounds(const int _x, const int _y, const int _width, const int _height) const
-    -> Rectangle
+auto user_interface::grid::square_bounds(const int _x, const int _y, const int _width,
+                                         const int _height) const -> Rectangle
 {
     // Assumes each cell is square, so either width or height are not completely
     // filled
@@ -89,8 +93,10 @@ auto user_interface::grid::square_bounds(const int _x, const int _y, const int _
     const int x_offset = (width - grid_width) / 2;
     const int y_offset = (height - grid_height) / 2;
 
-    return Rectangle(x_offset + _x * (cell_size + padding) + padding, y_offset + _y * (cell_size + padding) + padding,
-                     _width * cell_size + padding * (_width - 1), _height * cell_size + padding * (_height - 1));
+    return Rectangle(x_offset + _x * (cell_size + padding) + padding,
+                     y_offset + _y * (cell_size + padding) + padding,
+                     _width * cell_size + padding * (_width - 1),
+                     _height * cell_size + padding * (_height - 1));
 }
 
 auto user_interface::init() -> void
@@ -194,15 +200,16 @@ auto user_interface::set_default_style(const default_style& style) -> void
 
 auto user_interface::get_component_style(const int component) -> component_style
 {
-    return {{GuiGetStyle(component, BORDER_COLOR_NORMAL), GuiGetStyle(component, BASE_COLOR_NORMAL),
-             GuiGetStyle(component, TEXT_COLOR_NORMAL), GuiGetStyle(component, BORDER_COLOR_FOCUSED),
-             GuiGetStyle(component, BASE_COLOR_FOCUSED), GuiGetStyle(component, TEXT_COLOR_FOCUSED),
-             GuiGetStyle(component, BORDER_COLOR_PRESSED), GuiGetStyle(component, BASE_COLOR_PRESSED),
-             GuiGetStyle(component, TEXT_COLOR_PRESSED), GuiGetStyle(component, BORDER_COLOR_DISABLED),
-             GuiGetStyle(component, BASE_COLOR_DISABLED), GuiGetStyle(component, TEXT_COLOR_DISABLED)},
-            GuiGetStyle(component, BORDER_WIDTH),
-            GuiGetStyle(component, TEXT_PADDING),
-            GuiGetStyle(component, TEXT_ALIGNMENT)};
+    return {
+        {GuiGetStyle(component, BORDER_COLOR_NORMAL), GuiGetStyle(component, BASE_COLOR_NORMAL),
+         GuiGetStyle(component, TEXT_COLOR_NORMAL), GuiGetStyle(component, BORDER_COLOR_FOCUSED),
+         GuiGetStyle(component, BASE_COLOR_FOCUSED), GuiGetStyle(component, TEXT_COLOR_FOCUSED),
+         GuiGetStyle(component, BORDER_COLOR_PRESSED), GuiGetStyle(component, BASE_COLOR_PRESSED),
+         GuiGetStyle(component, TEXT_COLOR_PRESSED), GuiGetStyle(component, BORDER_COLOR_DISABLED),
+         GuiGetStyle(component, BASE_COLOR_DISABLED), GuiGetStyle(component, TEXT_COLOR_DISABLED)},
+        GuiGetStyle(component, BORDER_WIDTH),
+        GuiGetStyle(component, TEXT_PADDING),
+        GuiGetStyle(component, TEXT_ALIGNMENT)};
 }
 
 auto user_interface::set_component_style(const int component, const component_style& style) -> void
@@ -228,8 +235,16 @@ auto user_interface::set_component_style(const int component, const component_st
     GuiSetStyle(component, TEXT_ALIGNMENT, style.text_alignment);
 }
 
-auto user_interface::draw_button(const Rectangle bounds, const std::string& label, const Color color,
-                                 const bool enabled, const int font_size) const -> int
+auto user_interface::popup_bounds() -> Rectangle
+{
+    return Rectangle(static_cast<float>(GetScreenWidth()) / 2.0f - POPUP_WIDTH / 2.0f,
+                     static_cast<float>(GetScreenHeight()) / 2.0f - POPUP_HEIGHT / 2.0f,
+                     POPUP_WIDTH, POPUP_HEIGHT);
+}
+
+auto user_interface::draw_button(const Rectangle bounds, const std::string& label,
+                                 const Color color, const bool enabled, const int font_size) const
+    -> int
 {
     // Save original styling
     const default_style original_default = get_default_style();
@@ -260,16 +275,16 @@ auto user_interface::draw_button(const Rectangle bounds, const std::string& labe
 }
 
 auto user_interface::draw_menu_button(const int x, const int y, const int width, const int height,
-                                      const std::string& label, const Color color, const bool enabled,
-                                      const int font_size) const -> int
+                                      const std::string& label, const Color color,
+                                      const bool enabled, const int font_size) const -> int
 {
     const Rectangle bounds = menu_grid.bounds(x, y, width, height);
     return draw_button(bounds, label, color, enabled, font_size);
 }
 
 auto user_interface::draw_toggle_slider(const Rectangle bounds, const std::string& off_label,
-                                        const std::string& on_label, int* active, Color color, bool enabled,
-                                        int font_size) const -> int
+                                        const std::string& on_label, int* active, Color color,
+                                        bool enabled, int font_size) const -> int
 {
     // Save original styling
     const default_style original_default = get_default_style();
@@ -304,16 +319,18 @@ auto user_interface::draw_toggle_slider(const Rectangle bounds, const std::strin
     return pressed;
 }
 
-auto user_interface::draw_menu_toggle_slider(const int x, const int y, const int width, const int height,
-                                             const std::string& off_label, const std::string& on_label, int* active,
-                                             const Color color, const bool enabled, const int font_size) const -> int
+auto user_interface::draw_menu_toggle_slider(const int x, const int y, const int width,
+                                             const int height, const std::string& off_label,
+                                             const std::string& on_label, int* active,
+                                             const Color color, const bool enabled,
+                                             const int font_size) const -> int
 {
     const Rectangle bounds = menu_grid.bounds(x, y, width, height);
     return draw_toggle_slider(bounds, off_label, on_label, active, color, enabled, font_size);
 }
 
-auto user_interface::draw_spinner(Rectangle bounds, const std::string& label, int* value, int min, int max, Color color,
-                                  bool enabled, int font_size) const -> int
+auto user_interface::draw_spinner(Rectangle bounds, const std::string& label, int* value, int min,
+                                  int max, Color color, bool enabled, int font_size) const -> int
 {
     // Save original styling
     const default_style original_default = get_default_style();
@@ -349,15 +366,16 @@ auto user_interface::draw_spinner(Rectangle bounds, const std::string& label, in
 }
 
 auto user_interface::draw_menu_spinner(const int x, const int y, const int width, const int height,
-                                       const std::string& label, int* value, const int min, const int max,
-                                       const Color color, const bool enabled, const int font_size) const -> int
+                                       const std::string& label, int* value, const int min,
+                                       const int max, const Color color, const bool enabled,
+                                       const int font_size) const -> int
 {
     const Rectangle bounds = menu_grid.bounds(x, y, width, height);
     return draw_spinner(bounds, label, value, min, max, color, enabled, font_size);
 }
 
-auto user_interface::draw_label(const Rectangle bounds, const std::string& text, const Color color, const bool enabled,
-                                const int font_size) const -> int
+auto user_interface::draw_label(const Rectangle bounds, const std::string& text, const Color color,
+                                const bool enabled, const int font_size) const -> int
 {
     // Save original styling
     const default_style original_default = get_default_style();
@@ -387,8 +405,8 @@ auto user_interface::draw_label(const Rectangle bounds, const std::string& text,
     return pressed;
 }
 
-auto user_interface::draw_board_block(const int x, const int y, const int width, const int height, const Color color,
-                                      const bool enabled) const -> bool
+auto user_interface::draw_board_block(const int x, const int y, const int width, const int height,
+                                      const Color color, const bool enabled) const -> bool
 {
     component_style s = get_component_style(BUTTON);
     apply_block_color(s, color);
@@ -428,13 +446,14 @@ auto user_interface::draw_board_block(const int x, const int y, const int width,
 
 auto user_interface::window_open() const -> bool
 {
-    return save_window || help_window;
+    return save_window || help_window || ok_message || yes_no_message;
 }
 
 auto user_interface::draw_menu_header(const Color color) const -> void
 {
-    int preset = state.get_current_preset();
-    draw_menu_spinner(0, 0, 1, 1, "Preset: ", &preset, -1, state.get_preset_count(), color, !input.editing);
+    int preset = static_cast<int>(state.get_current_preset());
+    draw_menu_spinner(0, 0, 1, 1, "Preset: ", &preset, -1,
+                      static_cast<int>(state.get_preset_count()), color, !input.editing);
     if (preset > static_cast<int>(state.get_current_preset())) {
         input.load_next_preset();
     } else if (preset < static_cast<int>(state.get_current_preset())) {
@@ -456,15 +475,17 @@ auto user_interface::draw_menu_header(const Color color) const -> void
 auto user_interface::draw_graph_info(const Color color) const -> void
 {
     draw_menu_button(0, 1, 1, 1,
-                     std::format("Found {} States ({} Winning)", state.get_state_count(), state.get_target_count()),
+                     std::format("Found {} States ({} Winning)", state.get_state_count(),
+                                 state.get_target_count()),
                      color);
 
-    draw_menu_button(1, 1, 1, 1, std::format("Found {} Transitions", state.get_link_count()), color);
+    draw_menu_button(1, 1, 1, 1, std::format("Found {} Transitions", state.get_link_count()),
+                     color);
 
-    draw_menu_button(
-        2, 1, 1, 1,
-        std::format("{} Moves to Nearest Solution", state.get_path_length() > 0 ? state.get_path_length() - 1 : 0),
-        color);
+    draw_menu_button(2, 1, 1, 1,
+                     std::format("{} Moves to Nearest Solution",
+                                 state.get_path_length() > 0 ? state.get_path_length() - 1 : 0),
+                     color);
 }
 
 auto user_interface::draw_graph_controls(const Color color) const -> void
@@ -485,7 +506,8 @@ auto user_interface::draw_graph_controls(const Color color) const -> void
     }
 
     int mark_solutions = input.mark_solutions;
-    draw_menu_toggle_slider(2, 2, 1, 1, "Solution Hidden (I)", "Solution Shown (I)", &mark_solutions, color);
+    draw_menu_toggle_slider(2, 2, 1, 1, "Solution Hidden (I)", "Solution Shown (I)",
+                            &mark_solutions, color);
     if (mark_solutions != input.mark_solutions) {
         input.toggle_mark_solutions();
     }
@@ -495,20 +517,22 @@ auto user_interface::draw_graph_controls(const Color color) const -> void
 auto user_interface::draw_camera_controls(const Color color) const -> void
 {
     int lock_camera = input.camera_lock;
-    draw_menu_toggle_slider(0, 3, 1, 1, "Free Camera (L)", "Locked Camera (L)", &lock_camera, color);
+    draw_menu_toggle_slider(0, 3, 1, 1, "Free Camera (L)", "Locked Camera (L)", &lock_camera,
+                            color);
     if (lock_camera != input.camera_lock) {
         input.toggle_camera_lock();
     }
 
     int lock_camera_mass_center = input.camera_mass_center_lock;
-    draw_menu_toggle_slider(1, 3, 1, 1, "Current Block (U)", "Graph Center (U)", &lock_camera_mass_center, color,
-                            input.camera_lock);
+    draw_menu_toggle_slider(1, 3, 1, 1, "Current Block (U)", "Graph Center (U)",
+                            &lock_camera_mass_center, color, input.camera_lock);
     if (lock_camera_mass_center != input.camera_mass_center_lock) {
         input.toggle_camera_mass_center_lock();
     }
 
     int projection = camera.projection == CAMERA_ORTHOGRAPHIC;
-    draw_menu_toggle_slider(2, 3, 1, 1, "Perspective (Alt)", "Orthographic (Alt)", &projection, color);
+    draw_menu_toggle_slider(2, 3, 1, 1, "Perspective (Alt)", "Orthographic (Alt)", &projection,
+                            color);
     if (projection != (camera.projection == CAMERA_ORTHOGRAPHIC)) {
         input.toggle_camera_projection();
     }
@@ -535,7 +559,8 @@ auto user_interface::draw_puzzle_controls(const Color color) const -> void
 
     const int visits = state.get_current_visits();
     draw_menu_button(0, 4, 1, 1,
-                     std::format("{} Moves ({}{} Time at this State)", state.get_total_moves(), visits, nth(visits)),
+                     std::format("{} Moves ({}{} Time at this State)", state.get_total_moves(),
+                                 visits, nth(visits)),
                      color);
 
     if (draw_menu_button(1, 4, 1, 1, "Make Optimal Move (Space)", color, state.has_distances())) {
@@ -606,10 +631,18 @@ auto user_interface::draw_edit_controls(const Color color) const -> void
 
 auto user_interface::draw_menu_footer(const Color color) -> void
 {
-    draw_menu_button(0, 6, 2, 1, std::format("State: \"{}\"", state.get_current_state().state), color);
+    draw_menu_button(0, 6, 2, 1, std::format("State: \"{}\"", state.get_current_state().state),
+                     color);
 
     if (draw_menu_button(2, 6, 1, 1, "Save as Preset", color)) {
-        save_window = true;
+        if (const std::optional<std::string>& reason =
+                state.get_current_state().try_get_invalid_reason()) {
+            message_title = "Can't Save Preset";
+            message_message = std::format("Invalid Board: {}.", *reason);
+            ok_message = true;
+        } else {
+            save_window = true;
+        }
     }
 }
 
@@ -628,16 +661,47 @@ auto user_interface::draw_save_preset_popup() -> void
     }
 
     // Returns the pressed button index
-    const int button =
-        GuiTextInputBox(Rectangle((GetScreenWidth() - POPUP_WIDTH) / 2.0f, (GetScreenHeight() - POPUP_HEIGHT) / 2.0f,
-                                  POPUP_WIDTH, POPUP_HEIGHT),
-                        "Save as Preset", "Enter Preset Name", "Ok;Cancel", preset_name.data(), 255, nullptr);
+    const int button = GuiTextInputBox(popup_bounds(), "Save as Preset", "Enter Preset Name",
+                                       "Ok;Cancel", preset_name.data(), 255, nullptr);
     if (button == 1) {
         state.append_preset_file(preset_name.data());
     }
     if (button == 0 || button == 1 || button == 2) {
         save_window = false;
         TextCopy(preset_name.data(), "\0");
+    }
+}
+
+auto user_interface::draw_ok_message_box() -> void
+{
+    if (!ok_message) {
+        return;
+    }
+
+    const int button =
+        GuiMessageBox(popup_bounds(), message_title.data(), message_message.data(), "Ok");
+    if (button == 0 || button == 1) {
+        message_title = "";
+        message_message = "";
+        ok_message = false;
+    }
+}
+
+auto user_interface::draw_yes_no_message_box() -> void
+{
+    if (!yes_no_message) {
+        return;
+    }
+
+    const int button =
+        GuiMessageBox(popup_bounds(), message_title.data(), message_message.data(), "Yes;No");
+    if (button == 1) {
+        yes_no_handler();
+    }
+    if (button == 0 || button == 1 || button == 2) {
+        message_title = "";
+        message_message = "";
+        yes_no_message = false;
     }
 }
 
@@ -663,27 +727,30 @@ auto user_interface::draw_puzzle_board() -> void
 {
     const puzzle& current = state.get_current_state();
 
-    board_grid.update_bounds(0, MENU_HEIGHT, GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT, current.width,
-                             current.height);
+    board_grid.update_bounds(0, MENU_HEIGHT, GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT,
+                             current.width, current.height);
 
     // Draw outer border
     const Rectangle bounds = board_grid.square_bounds();
     DrawRectangleRec(bounds, current.won() ? BOARD_COLOR_WON : BOARD_COLOR_RESTRICTED);
 
     // Draw inner borders
-    DrawRectangle(bounds.x + BOARD_PADDING, bounds.y + BOARD_PADDING, bounds.width - 2 * BOARD_PADDING,
-                  bounds.height - 2 * BOARD_PADDING, current.restricted ? BOARD_COLOR_RESTRICTED : BOARD_COLOR_FREE);
+    DrawRectangle(bounds.x + BOARD_PADDING, bounds.y + BOARD_PADDING,
+                  bounds.width - 2 * BOARD_PADDING, bounds.height - 2 * BOARD_PADDING,
+                  current.restricted ? BOARD_COLOR_RESTRICTED : BOARD_COLOR_FREE);
 
     // Draw target opening
-    // TODO: Only draw single direction (in corner) if restricted (use target block principal direction)
+    // TODO: Only draw single direction (in corner) if restricted (use target block principal
+    // direction)
     const std::optional<puzzle::block> target_block = current.try_get_target_block();
-    if (current.has_win_condition() && target_block.has_value()) {
-        const int target_x = current.target_x;
-        const int target_y = current.target_y;
-        auto [x, y, width, height] =
-            board_grid.square_bounds(target_x, target_y, target_block.value().width, target_block.value().height);
+    const int target_x = current.target_x;
+    const int target_y = current.target_y;
+    if (current.has_win_condition() && target_block) {
+        auto [x, y, width, height] = board_grid.square_bounds(
+            target_x, target_y, target_block.value().width, target_block.value().height);
 
-        const Color opening_color = Fade(current.won() ? BOARD_COLOR_WON : BOARD_COLOR_RESTRICTED, 0.3);
+        const Color opening_color =
+            Fade(current.won() ? BOARD_COLOR_WON : BOARD_COLOR_RESTRICTED, 0.3);
 
         if (target_x == 0) {
             // Left opening
@@ -745,41 +812,82 @@ auto user_interface::draw_puzzle_board() -> void
 
     // Draw block placing
     if (input.editing && input.has_block_add_xy) {
-        if (current.covers(input.block_add_x, input.block_add_y) && input.hov_x >= input.block_add_x &&
-            input.hov_y >= input.block_add_y) {
+        if (current.covers(input.block_add_x, input.block_add_y) &&
+            input.hov_x >= input.block_add_x && input.hov_y >= input.block_add_y) {
             bool collides = false;
             for (const puzzle::block& b : current) {
-                if (b.collides(puzzle::block(input.block_add_x, input.block_add_y, input.hov_x - input.block_add_x + 1,
+                if (b.collides(puzzle::block(input.block_add_x, input.block_add_y,
+                                             input.hov_x - input.block_add_x + 1,
                                              input.hov_y - input.block_add_y + 1, false))) {
                     collides = true;
                     break;
                 }
             }
             if (!collides) {
-                draw_board_block(input.block_add_x, input.block_add_y, input.hov_x - input.block_add_x + 1,
+                draw_board_block(input.block_add_x, input.block_add_y,
+                                 input.hov_x - input.block_add_x + 1,
                                  input.hov_y - input.block_add_y + 1, PURPLE);
             }
         }
     }
+
+    // Draw goal boundaries when editing
+    if (input.editing) {
+        DrawRectangleLinesEx(board_grid.square_bounds(target_x, target_y, target_block->width, target_block->height), 2.0, TARGET_BLOCK_COLOR);
+    }
 }
 
-auto user_interface::draw_graph_overlay(int fps, int ups, size_t mass_count, size_t spring_count) -> void
+auto user_interface::draw_graph_overlay(int fps, int ups, size_t mass_count, size_t spring_count)
+    -> void
 {
     graph_overlay_grid.update_bounds(GetScreenWidth() / 2, MENU_HEIGHT);
     debug_overlay_grid.update_bounds(GetScreenWidth() / 2, GetScreenHeight() - 75);
 
-    draw_label(graph_overlay_grid.bounds(0, 0, 1, 1), std::format("Dist: {:0>7.2f}", camera.distance), BLACK);
-    draw_label(graph_overlay_grid.bounds(0, 1, 1, 1), std::format("FoV:  {:0>6.2f}", camera.fov), BLACK);
+    draw_label(graph_overlay_grid.bounds(0, 0, 1, 1),
+               std::format("Dist: {:0>7.2f}", camera.distance), BLACK);
+    draw_label(graph_overlay_grid.bounds(0, 1, 1, 1), std::format("FoV:  {:0>6.2f}", camera.fov),
+               BLACK);
     draw_label(graph_overlay_grid.bounds(0, 2, 1, 1), std::format("FPS:  {:0>3}", fps), LIME);
     draw_label(graph_overlay_grid.bounds(0, 3, 1, 1), std::format("UPS:  {:0>3}", ups), ORANGE);
 
     // Debug
-    draw_label(debug_overlay_grid.bounds(0, 0, 1, 1), std::format("Debug:"), BLACK);
-    draw_label(debug_overlay_grid.bounds(0, 1, 1, 1), std::format("Masses:  {}", mass_count), BLACK);
-    draw_label(debug_overlay_grid.bounds(0, 2, 1, 1), std::format("Springs: {}", spring_count), BLACK);
+    draw_label(debug_overlay_grid.bounds(0, 0, 1, 1), std::format("Physics Debug:"), BLACK);
+    draw_label(debug_overlay_grid.bounds(0, 1, 1, 1), std::format("Masses:  {}", mass_count),
+               BLACK);
+    draw_label(debug_overlay_grid.bounds(0, 2, 1, 1), std::format("Springs: {}", spring_count),
+               BLACK);
 }
 
-auto user_interface::update() const -> void
+auto user_interface::draw(const int fps, const int ups, const size_t mass_count,
+                          const size_t spring_count) -> void
 {
+    const auto visitor = overloads{[&](const show_ok_message& msg)
+                                   {
+                                       message_title = msg.title;
+                                       message_message = msg.message;
+                                       ok_message = true;
+                                   },
+                                   [&](const show_yes_no_message& msg)
+                                   {
+                                       message_title = msg.title;
+                                       message_message = msg.message;
+                                       yes_no_handler = msg.on_yes;
+                                       yes_no_message = true;
+                                   },
+                                   [&](const show_save_preset_window& msg) { save_window = true; }};
+
+    while (!input.ui_commands.empty()) {
+        const ui_command& cmd = input.ui_commands.front();
+
+        cmd.visit(visitor);
+
+        input.ui_commands.pop();
+    }
+
     input.disable = window_open();
+
+    draw_graph_overlay(fps, ups, mass_count, spring_count);
+    draw_save_preset_popup();
+    draw_ok_message_box();
+    draw_yes_no_message_box();
 }

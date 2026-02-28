@@ -12,7 +12,7 @@ AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: true
 AlwaysBreakAfterDefinitionReturnType: false
 AlwaysBreakTemplateDeclarations: Yes
-BraceWrapping: 
+BraceWrapping:
   AfterCaseLabel: true
   AfterClass: true
   AfterControlStatement: false
@@ -30,8 +30,8 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 BreakBeforeBraces: Custom
-ColumnLimit: 120
-IncludeCategories: 
+ColumnLimit: 100
+IncludeCategories:
   - Regex: '^<.*'
     Priority: 1
   - Regex: '^".*'

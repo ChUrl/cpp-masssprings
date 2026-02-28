@@ -13,17 +13,10 @@
     #include <tracy/Tracy.hpp>
 #endif
 
-// TODO: Click states in the graph to display them in the board
-// TODO: Move selection accordingly when undoing moves (need to diff two states
-//       and get the moved blocks)
-
 // TODO: Add some popups (my split between input.cpp/gui.cpp makes this ugly)
-//       - Next move, goto target, goto worst: Notify that the graph needs to be
-//         populated
 //       - Clear graph: Notify that this will clear the visited states and move
 //         history
 //       - Reset state: Notify that this will reset the move count
-//       - Next/Previous preset: Notify that this will clear all edits
 
 // TODO: Reduce memory usage
 //       - The memory model of the puzzle board is terrible (bitboards?)
@@ -37,6 +30,11 @@
 //           possible statespace). Currently wer're just finding all states
 //           given the initial state
 //         - Would allow to generate random puzzles with a certain move count
+
+// TODO: Move selection accordingly when undoing moves (need to diff two states
+//       and get the moved blocks)
+
+// TODO: Click states in the graph to display them in the board
 
 // NOTE: Tracy uses a huge amount of memory. For longer testing disable Tracy.
 
@@ -139,7 +137,8 @@ auto main(int argc, char* argv[]) -> int
         size_t current_index = state.get_current_index();
         if (masses.size() > current_index) {
             const mass& current_mass = mass(masses.at(current_index));
-            camera.update(current_mass.position, mass_center, input.camera_lock, input.camera_mass_center_lock);
+            camera.update(current_mass.position, mass_center, input.camera_lock,
+                          input.camera_mass_center_lock);
         }
 
         // Rendering

@@ -22,16 +22,19 @@ private:
     // State storage (store states twice for bidirectional lookup).
     // Everything else should only store indices to state_pool.
 
-    std::vector<puzzle> state_pool;                   // Indices are equal to mass_springs mass indices
+    std::vector<puzzle> state_pool; // Indices are equal to mass_springs mass indices
     std::unordered_map<puzzle, size_t> state_indices; // Maps states to indices
-    std::vector<std::pair<size_t, size_t>> links;     // Indices are equal to mass_springs springs indices
+    std::vector<std::pair<size_t, size_t>>
+        links; // Indices are equal to mass_springs springs indices
 
     graph_distances node_target_distances;      // Buffered and reused if the graph doesn't change
     std::unordered_set<size_t> winning_indices; // Indices of all states where the board is solved
-    std::vector<size_t> winning_path;           // Ordered list of node indices leading to the nearest solved state
-    std::unordered_set<size_t> path_indices;    // For faster lookup if a vertex is part of the path in renderer
+    std::vector<size_t>
+        winning_path; // Ordered list of node indices leading to the nearest solved state
+    std::unordered_set<size_t>
+        path_indices; // For faster lookup if a vertex is part of the path in renderer
 
-    std::stack<size_t> move_history;              // Moves between the starting state and the current state
+    std::stack<size_t> move_history; // Moves between the starting state and the current state
     std::unordered_map<size_t, int> visit_counts; // How often each state was visited
 
     size_t starting_state_index = 0;

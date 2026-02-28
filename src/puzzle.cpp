@@ -1,5 +1,6 @@
 #include "puzzle.hpp"
 
+#include <optional>
 #include <unordered_set>
 
 #ifdef TRACY
@@ -85,45 +86,64 @@ auto puzzle::valid() const -> bool
     return width >= MIN_WIDTH && width <= MAX_WIDTH && height >= MIN_HEIGHT && height <= MAX_HEIGHT;
 }
 
-auto puzzle::valid_thorough() const -> bool
+auto puzzle::try_get_invalid_reason() const -> std::optional<std::string>
 {
-    if (has_win_condition() && !try_get_target_block()) {
-        return false;
+    const std::optional<block>& b = try_get_target_block();
+    if (has_win_condition() && !b) {
+        return "Goal Without Target";
+    }
+    if (!has_win_condition() && b) {
+        return "Target Without Goal";
+    }
+
+    if (has_win_condition() && b && restricted) {
+        const int dirs = b->principal_dirs();
+        if ((dirs & nor && b->x != target_x) || (dirs & eas && b->y != target_y)) {
+            return "Goal Unreachable";
+        }
+    }
+
+    if (target_x > 0 && target_x + b->width < width && target_y > 0 && target_y + b->height < height) {
+        return "Goal Inside";
     }
 
     infoln("Validating puzzle {}", state);
 
     if (static_cast<int>(state.length()) != width * height * 2 + PREFIX) {
-        infoln("Puzzle invalid: Representation length {} doesn't match {}x{} board", state.length(), width, height);
-        return false;
+        infoln("Puzzle invalid: Representation length {} doesn't match {}x{} board", state.length(),
+               width, height);
+        return "Invalid Repr Length";
     }
 
     // Check prefix
     if (!std::string("FR").contains(state[0])) {
         infoln("Puzzle invalid: Representation[0] {} doesn't match [FR]", state[0]);
-        return false;
+        return "Invalid Restricted Repr";
     }
     if (restricted && state[0] != 'R') {
-        infoln("Puzzle invalid: Representation[0] {} doesn't match restricted={}", state[0], restricted);
-        return false;
+        infoln("Puzzle invalid: Representation[0] {} doesn't match restricted={}", state[0],
+               restricted);
+        return "Restricted != Restricted Repr";
     }
-    if (!std::string("3456789").contains(state[1]) || !std::string("3456789").contains(state[2])) {
+    if (!std::string("0123456789").contains(state[1]) ||
+        !std::string("0123456789").contains(state[2])) {
         infoln("Puzzle invalid: Representation[1/2] {}/{} doesn't match [3-9]", state[1], state[2]);
-        return false;
+        return "Invalid Dims Repr";
     }
     if (std::stoi(state.substr(1, 1)) != width || std::stoi(state.substr(2, 1)) != height) {
-        infoln("Puzzle invalid: Representation[1/2] {}/{} doesn't match {}x{} board", state[1], state[2], width,
-               height);
-        return false;
+        infoln("Puzzle invalid: Representation[1/2] {}/{} doesn't match {}x{} board", state[1],
+               state[2], width, height);
+        return "Dims != Dims Repr";
     }
-    if (!std::string("012345678").contains(state[3]) || !std::string("012345678").contains(state[4])) {
+    if (!std::string("0123456789").contains(state[3]) ||
+        !std::string("0123456789").contains(state[4])) {
         infoln("Puzzle invalid: Representation[3/4] {}/{} doesn't match [1-9]", state[3], state[4]);
-        return false;
+        return "Invalid Goal Repr";
     }
     if (std::stoi(state.substr(3, 1)) != target_x || std::stoi(state.substr(4, 1)) != target_y) {
-        infoln("Puzzle invalid: Representation[3/4] {}/{} doesn't match target ({}, {})", state[3], state[4], target_x,
-               target_y);
-        return false;
+        infoln("Puzzle invalid: Representation[3/4] {}/{} doesn't match target ({}, {})", state[3],
+               state[4], target_x, target_y);
+        return "Goal != Goal Repr";
     }
 
     // Check blocks
@@ -131,17 +151,19 @@ auto puzzle::valid_thorough() const -> bool
     for (const char c : state.substr(PREFIX, state.length() - PREFIX)) {
         if (!allowed_chars.contains(c)) {
             infoln("Puzzle invalid: Block {} has invalid character", c);
-            return false;
+            return "Invalid Block Repr";
         }
     }
 
-    const bool success = width >= MIN_WIDTH && width <= MAX_WIDTH && height >= MIN_HEIGHT && height <= MAX_HEIGHT;
+    const bool success =
+        width >= MIN_WIDTH && width <= MAX_WIDTH && height >= MIN_HEIGHT && height <= MAX_HEIGHT;
 
     if (!success) {
         infoln("Puzzle invalid: Board size {}x{} not in range [3-9]", width, height);
+        return "Invalid Dims";
+    } else {
+        return std::nullopt;
     }
-
-    return success;
 }
 
 auto puzzle::try_get_block(const int x, const int y) const -> std::optional<block>
@@ -365,7 +387,8 @@ auto puzzle::try_toggle_wall(const int x, const int y) const -> std::optional<pu
     return p;
 }
 
-auto puzzle::try_move_block_at(const int x, const int y, const direction dir) const -> std::optional<puzzle>
+auto puzzle::try_move_block_at(const int x, const int y, const direction dir) const
+    -> std::optional<puzzle>
 {
     const std::optional<block>& b = try_get_block(x, y);
     if (!b || b->immovable) {
@@ -468,7 +491,8 @@ auto puzzle::find_adjacent_puzzles() const -> std::vector<puzzle>
     return puzzles;
 }
 
-auto puzzle::explore_state_space() const -> std::pair<std::vector<puzzle>, std::vector<std::pair<size_t, size_t>>>
+auto puzzle::explore_state_space() const
+    -> std::pair<std::vector<puzzle>, std::vector<std::pair<size_t, size_t>>>
 {
 #ifdef TRACY
     ZoneScoped;

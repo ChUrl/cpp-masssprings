@@ -57,7 +57,8 @@ auto spring::calculate_spring_force(mass& _a, mass& _b) -> void
     const Vector3 delta_velocity = Vector3Subtract(_a.velocity, _b.velocity);
 
     const float hooke = SPRING_CONSTANT * (current_length - REST_LENGTH);
-    const float dampening = DAMPENING_CONSTANT * Vector3DotProduct(delta_velocity, delta_position) * inv_current_length;
+    const float dampening =
+        DAMPENING_CONSTANT * Vector3DotProduct(delta_velocity, delta_position) * inv_current_length;
 
     const Vector3 force_a = Vector3Scale(delta_position, -(hooke + dampening) * inv_current_length);
     const Vector3 force_b = Vector3Scale(force_a, -1.0);
@@ -72,8 +73,8 @@ auto mass_spring_system::add_mass() -> void
 
     // Done when adding springs
     // Vector3 position{
-    //   static_cast<float>(GetRandomValue(-100, 100)), static_cast<float>(GetRandomValue(-100, 100)),
-    //   static_cast<float>(GetRandomValue(-100, 100))
+    //   static_cast<float>(GetRandomValue(-100, 100)), static_cast<float>(GetRandomValue(-100,
+    //   100)), static_cast<float>(GetRandomValue(-100, 100))
     // };
     // position = Vector3Scale(Vector3Normalize(position), REST_LENGTH * 2.0);
 
@@ -86,13 +87,15 @@ auto mass_spring_system::add_spring(size_t a, size_t b) -> void
     const mass& mass_a = masses.at(a);
     mass& mass_b = masses.at(b);
 
-    Vector3 offset{static_cast<float>(GetRandomValue(-100, 100)), static_cast<float>(GetRandomValue(-100, 100)),
+    Vector3 offset{static_cast<float>(GetRandomValue(-100, 100)),
+                   static_cast<float>(GetRandomValue(-100, 100)),
                    static_cast<float>(GetRandomValue(-100, 100))};
     offset = Vector3Normalize(offset) * REST_LENGTH;
 
     // If the offset moves the mass closer to the current center of mass, flip it
     if (!tree.nodes.empty()) {
-        const Vector3 mass_center_direction = Vector3Subtract(mass_a.position, tree.nodes.at(0).mass_center);
+        const Vector3 mass_center_direction =
+            Vector3Subtract(mass_a.position, tree.nodes.at(0).mass_center);
         const float mass_center_distance = Vector3Length(mass_center_direction);
 
         if (mass_center_distance > 0 && Vector3DotProduct(offset, mass_center_direction) < 0.0f) {
@@ -103,7 +106,8 @@ auto mass_spring_system::add_spring(size_t a, size_t b) -> void
     mass_b.position = mass_a.position + offset;
     mass_b.previous_position = mass_b.position;
 
-    // infoln("Adding spring: ({}, {}, {})->({}, {}, {})", mass_a.position.x, mass_a.position.y, mass_a.position.z,
+    // infoln("Adding spring: ({}, {}, {})->({}, {}, {})", mass_a.position.x, mass_a.position.y,
+    // mass_a.position.z,
     //        mass_b.position.x, mass_b.position.y, mass_b.position.z);
 
     springs.emplace_back(a, b);
@@ -201,7 +205,8 @@ auto mass_spring_system::calculate_repulsion_forces() -> void
 
 // Calculate forces using Barnes-Hut
 #ifdef THREADPOOL
-    const BS::multi_future<void> loop_future = threads.submit_loop(0, masses.size(), solve_octree, 256);
+    const BS::multi_future<void> loop_future =
+        threads.submit_loop(0, masses.size(), solve_octree, 256);
     loop_future.wait();
 #else
     for (size_t i = 0; i < masses.size(); ++i) {
@@ -291,9 +296,9 @@ auto threaded_physics::physics_thread(physics_state& state) -> void
             mass_springs.calculate_repulsion_forces();
             mass_springs.verlet_update(TIMESTEP * SIM_SPEED);
 
-            // This is only helpful if we're drawing a grid at (0, 0, 0). Otherwise, it's just expensive
-            // and yields no benefit since we can lock the camera to the center of mass cheaply.
-            // mass_springs.center_masses();
+            // This is only helpful if we're drawing a grid at (0, 0, 0). Otherwise, it's just
+            // expensive and yields no benefit since we can lock the camera to the center of mass
+            // cheaply. mass_springs.center_masses();
 
             ++loop_iterations;
             physics_accumulator -= std::chrono::duration<double>(TIMESTEP);
@@ -309,7 +314,8 @@ auto threaded_physics::physics_thread(physics_state& state) -> void
 #else
             std::unique_lock<std::mutex> lock(state.data_mtx);
 #endif
-            state.data_consumed_cnd.wait(lock, [&] { return state.data_consumed || !state.running.load(); });
+            state.data_consumed_cnd.wait(lock, [&]
+                                         { return state.data_consumed || !state.running.load(); });
             if (!state.running.load()) {
                 // Running turned false while we were waiting for the condition
                 break;
@@ -386,7 +392,8 @@ auto threaded_physics::clear_cmd() -> void
 }
 
 auto threaded_physics::add_mass_springs_cmd(const size_t num_masses,
-                                            const std::vector<std::pair<size_t, size_t>>& springs) -> void
+                                            const std::vector<std::pair<size_t, size_t>>& springs)
+    -> void
 {
     {
 #ifdef TRACY

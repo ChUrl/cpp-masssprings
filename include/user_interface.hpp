@@ -22,13 +22,15 @@ class user_interface
         const int padding;
 
     public:
-        grid(const int _x, const int _y, const int _width, const int _height, const int _columns, const int _rows,
-             const int _padding)
-            : x(_x), y(_y), width(_width), height(_height), columns(_columns), rows(_rows), padding(_padding)
+        grid(const int _x, const int _y, const int _width, const int _height, const int _columns,
+             const int _rows, const int _padding)
+            : x(_x), y(_y), width(_width), height(_height), columns(_columns), rows(_rows),
+              padding(_padding)
         {}
 
     public:
-        auto update_bounds(int _x, int _y, int _width, int _height, int _columns, int _rows) -> void;
+        auto update_bounds(int _x, int _y, int _width, int _height, int _columns, int _rows)
+            -> void;
         auto update_bounds(int _x, int _y, int _width, int _height) -> void;
         auto update_bounds(int _x, int _y) -> void;
 
@@ -36,7 +38,8 @@ class user_interface
         [[nodiscard]] auto bounds(int _x, int _y, int _width, int _height) const -> Rectangle;
 
         [[nodiscard]] auto square_bounds() const -> Rectangle;
-        [[nodiscard]] auto square_bounds(int _x, int _y, int _width, int _height) const -> Rectangle;
+        [[nodiscard]] auto square_bounds(int _x, int _y, int _width, int _height) const
+            -> Rectangle;
     };
 
     struct style
@@ -84,13 +87,22 @@ private:
 
     grid menu_grid = grid(0, 0, GetScreenWidth(), MENU_HEIGHT, MENU_COLS, MENU_ROWS, MENU_PAD);
 
-    grid board_grid = grid(0, MENU_HEIGHT, GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT,
-                           state.get_current_state().width, state.get_current_state().height, BOARD_PADDING);
+    grid board_grid =
+        grid(0, MENU_HEIGHT, GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT,
+             state.get_current_state().width, state.get_current_state().height, BOARD_PADDING);
 
     grid graph_overlay_grid = grid(GetScreenWidth() / 2, MENU_HEIGHT, 200, 100, 1, 4, MENU_PAD);
 
-    grid debug_overlay_grid = grid(GetScreenWidth() / 2, GetScreenHeight() - 75, 200, 75, 1, 3, MENU_PAD);
+    grid debug_overlay_grid =
+        grid(GetScreenWidth() / 2, GetScreenHeight() - 75, 200, 75, 1, 3, MENU_PAD);
 
+    // Windows
+
+    std::string message_title;
+    std::string message_message;
+    std::function<void(void)> yes_no_handler;
+    bool ok_message = false;
+    bool yes_no_message = false;
     bool save_window = false;
     std::array<char, 256> preset_name = {};
     bool help_window = false;
@@ -119,29 +131,34 @@ private:
     static auto get_component_style(int component) -> component_style;
     static auto set_component_style(int component, const component_style& style) -> void;
 
+    [[nodiscard]] static auto popup_bounds() -> Rectangle;
+
     auto draw_button(Rectangle bounds, const std::string& label, Color color, bool enabled = true,
                      int font_size = FONT_SIZE) const -> int;
 
-    auto draw_menu_button(int x, int y, int width, int height, const std::string& label, Color color,
-                          bool enabled = true, int font_size = FONT_SIZE) const -> int;
+    auto draw_menu_button(int x, int y, int width, int height, const std::string& label,
+                          Color color, bool enabled = true, int font_size = FONT_SIZE) const -> int;
 
-    auto draw_toggle_slider(Rectangle bounds, const std::string& off_label, const std::string& on_label, int* active,
-                            Color color, bool enabled = true, int font_size = FONT_SIZE) const -> int;
+    auto draw_toggle_slider(Rectangle bounds, const std::string& off_label,
+                            const std::string& on_label, int* active, Color color,
+                            bool enabled = true, int font_size = FONT_SIZE) const -> int;
 
     auto draw_menu_toggle_slider(int x, int y, int width, int height, const std::string& off_label,
-                                 const std::string& on_label, int* active, Color color, bool enabled = true,
-                                 int font_size = FONT_SIZE) const -> int;
+                                 const std::string& on_label, int* active, Color color,
+                                 bool enabled = true, int font_size = FONT_SIZE) const -> int;
 
-    auto draw_spinner(Rectangle bounds, const std::string& label, int* value, int min, int max, Color color,
-                      bool enabled = true, int font_size = FONT_SIZE) const -> int;
+    auto draw_spinner(Rectangle bounds, const std::string& label, int* value, int min, int max,
+                      Color color, bool enabled = true, int font_size = FONT_SIZE) const -> int;
 
-    auto draw_menu_spinner(int x, int y, int width, int height, const std::string& label, int* value, int min, int max,
-                           Color color, bool enabled = true, int font_size = FONT_SIZE) const -> int;
+    auto draw_menu_spinner(int x, int y, int width, int height, const std::string& label,
+                           int* value, int min, int max, Color color, bool enabled = true,
+                           int font_size = FONT_SIZE) const -> int;
 
     auto draw_label(Rectangle bounds, const std::string& text, Color color, bool enabled = true,
                     int font_size = FONT_SIZE) const -> int;
 
-    auto draw_board_block(int x, int y, int width, int height, Color color, bool enabled = true) const -> bool;
+    auto draw_board_block(int x, int y, int width, int height, Color color,
+                          bool enabled = true) const -> bool;
 
     [[nodiscard]] auto window_open() const -> bool;
 
@@ -158,10 +175,12 @@ public:
     static auto get_background_color() -> Color;
     auto help_popup() -> void;
     auto draw_save_preset_popup() -> void;
+    auto draw_ok_message_box() -> void;
+    auto draw_yes_no_message_box() -> void;
     auto draw_main_menu() -> void;
     auto draw_puzzle_board() -> void;
     auto draw_graph_overlay(int fps, int ups, size_t mass_count, size_t spring_count) -> void;
-    auto update() const -> void;
+    auto draw(int fps, int ups, size_t mass_count, size_t spring_count) -> void;
 };
 
 #endif

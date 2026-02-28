@@ -17,6 +17,13 @@ inline auto operator<<(std::ostream& os, const Vector3& v) -> std::ostream&
     return os;
 }
 
+// https://en.cppreference.com/w/cpp/utility/variant/visit
+template <class... Ts>
+struct overloads : Ts...
+{
+    using Ts::operator()...;
+};
+
 enum ctrl
 {
     reset = 0,

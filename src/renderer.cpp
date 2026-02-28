@@ -73,10 +73,12 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 
                 // Normal vertex
                 Color c = VERTEX_COLOR;
-                if ((input.mark_solutions || input.mark_path) && state.get_winning_indices().contains(mass)) {
+                if ((input.mark_solutions || input.mark_path) &&
+                    state.get_winning_indices().contains(mass)) {
                     // Winning vertex
                     c = VERTEX_TARGET_COLOR;
-                } else if ((input.mark_solutions || input.mark_path) && state.get_path_indices().contains(mass)) {
+                } else if ((input.mark_solutions || input.mark_path) &&
+                           state.get_path_indices().contains(mass)) {
                     // Path vertex
                     c = VERTEX_PATH_COLOR;
                 } else if (mass == state.get_starting_index()) {
@@ -151,7 +153,8 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
     const size_t current_index = state.get_current_index();
     if (masses.size() > current_index) {
         const Vector3& current_mass = masses.at(current_index);
-        DrawCube(current_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_CURRENT_COLOR);
+        DrawCube(current_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
+                 VERTEX_CURRENT_COLOR);
     }
 
     EndMode3D();
@@ -186,36 +189,37 @@ auto renderer::draw_menu() const -> void
     EndTextureMode();
 }
 
-auto renderer::draw_textures(const int fps, const int ups, const size_t mass_count, const size_t spring_count) const
-    -> void
+auto renderer::draw_textures(const int fps, const int ups, const size_t mass_count,
+                             const size_t spring_count) const -> void
 {
     BeginDrawing();
 
-    DrawTextureRec(menu_target.texture, Rectangle(0, 0, menu_target.texture.width, -menu_target.texture.height),
+    DrawTextureRec(menu_target.texture,
+                   Rectangle(0, 0, menu_target.texture.width, -menu_target.texture.height),
                    Vector2(0, 0), WHITE);
     DrawTextureRec(klotski_target.texture,
                    Rectangle(0, 0, klotski_target.texture.width, -klotski_target.texture.height),
                    Vector2(0, MENU_HEIGHT), WHITE);
-    DrawTextureRec(render_target.texture, Rectangle(0, 0, render_target.texture.width, -render_target.texture.height),
+    DrawTextureRec(render_target.texture,
+                   Rectangle(0, 0, render_target.texture.width, -render_target.texture.height),
                    Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT), WHITE);
 
     // Draw borders
     DrawRectangleLinesEx(Rectangle(0, 0, GetScreenWidth(), MENU_HEIGHT), 1.0f, BLACK);
-    DrawRectangleLinesEx(Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT), 1.0f,
-                         BLACK);
     DrawRectangleLinesEx(
-        Rectangle(GetScreenWidth() / 2.0f, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT), 1.0f,
+        Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT), 1.0f,
         BLACK);
+    DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0f, MENU_HEIGHT, GetScreenWidth() / 2.0f,
+                                   GetScreenHeight() - MENU_HEIGHT),
+                         1.0f, BLACK);
 
-    gui.draw_graph_overlay(fps, ups, mass_count, spring_count);
-    gui.draw_save_preset_popup();
-    gui.update();
+    gui.draw(fps, ups, mass_count, spring_count);
 
     EndDrawing();
 }
 
-auto renderer::render(const std::vector<Vector3>& masses, const int fps, const int ups, const size_t mass_count,
-                      const size_t spring_count) -> void
+auto renderer::render(const std::vector<Vector3>& masses, const int fps, const int ups,
+                      const size_t mass_count, const size_t spring_count) -> void
 {
     update_texture_sizes();
 

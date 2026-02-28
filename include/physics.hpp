@@ -198,14 +198,8 @@ public:
 
     auto clear_cmd() -> void;
 
-    auto add_mass_springs_cmd(size_t num_masses, const std::vector<std::pair<size_t, size_t>>& springs) -> void;
-};
-
-// https://en.cppreference.com/w/cpp/utility/variant/visit
-template <class... Ts>
-struct overloads : Ts...
-{
-    using Ts::operator()...;
+    auto add_mass_springs_cmd(size_t num_masses,
+                              const std::vector<std::pair<size_t, size_t>>& springs) -> void;
 };
 
 #endif
