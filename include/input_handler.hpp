@@ -78,7 +78,7 @@ public:
 
     // Camera
     bool camera_lock = true;
-    bool camera_mass_center_lock = false;
+    bool camera_mass_center_lock = true;
     bool camera_panning = false;
     bool camera_rotating = false;
 
