@@ -12,7 +12,7 @@
 auto state_manager::synced_try_insert_state(const puzzle& state) -> size_t
 {
     if (state_indices.contains(state)) {
-        return state_indices.at(state);
+        return state_indices[state];
     }
 
     const size_t index = state_pool.size();
@@ -148,7 +148,7 @@ auto state_manager::append_preset_file(const std::string& preset_name) -> bool
 
 auto state_manager::load_preset(const size_t preset) -> void
 {
-    clear_graph_and_add_current(preset_states.at(preset));
+    clear_graph_and_add_current(preset_states[preset]);
     current_preset = preset;
     edited = false;
 }
@@ -270,8 +270,8 @@ auto state_manager::goto_most_distant_state() -> void
     int max_distance = 0;
     size_t max_distance_index = 0;
     for (size_t i = 0; i < node_target_distances.distances.size(); ++i) {
-        if (node_target_distances.distances.at(i) > max_distance) {
-            max_distance = node_target_distances.distances.at(i);
+        if (node_target_distances.distances[i] > max_distance) {
+            max_distance = node_target_distances.distances[i];
             max_distance_index = i;
         }
     }
@@ -285,7 +285,7 @@ auto state_manager::goto_closest_target_state() -> void
         return;
     }
 
-    update_current_state(get_state(node_target_distances.nearest_targets.at(current_state_index)));
+    update_current_state(get_state(node_target_distances.nearest_targets[current_state_index]));
 }
 
 auto state_manager::populate_graph() -> void
@@ -306,9 +306,9 @@ auto state_manager::populate_graph() -> void
     const auto& [states, _links] = s.explore_state_space();
     synced_insert_statespace(states, _links);
 
-    current_state_index = state_indices.at(p);
+    current_state_index = state_indices[p];
     previous_state_index = current_state_index;
-    starting_state_index = state_indices.at(s);
+    starting_state_index = state_indices[s];
 
     // Search for cool stuff
     populate_winning_indices();
@@ -393,7 +393,7 @@ auto state_manager::get_starting_index() const -> size_t
 
 auto state_manager::get_state(const size_t index) const -> const puzzle&
 {
-    return state_pool.at(index);
+    return state_pool[index];
 }
 
 auto state_manager::get_current_state() const -> const puzzle&
@@ -468,7 +468,7 @@ auto state_manager::get_preset_count() const -> size_t
 
 auto state_manager::get_current_preset_comment() const -> const std::string&
 {
-    return preset_comments.at(current_preset);
+    return preset_comments[current_preset];
 }
 
 auto state_manager::has_history() const -> bool

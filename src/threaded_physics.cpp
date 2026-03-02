@@ -1,6 +1,7 @@
 #include "threaded_physics.hpp"
 #include "config.hpp"
 #include "mass_spring_system.hpp"
+#include "util.hpp"
 
 #include <chrono>
 #include <raylib.h>
@@ -12,16 +13,30 @@
 #include <tracy/Tracy.hpp>
 #endif
 
+#ifdef ASYNC_OCTREE
+auto threaded_physics::set_octree_pool_thread_name(size_t idx) -> void
+{
+    BS::this_thread::set_os_thread_name(std::format("octree-{}", idx));
+    traceln("Using thread \"{}\"", BS::this_thread::get_os_thread_name().value_or("INVALID NAME"));
+}
+#endif
+
 auto threaded_physics::physics_thread(physics_state& state) -> void
 {
-    #ifdef THREADPOOL
-    BS::this_thread::set_os_thread_name("physics");
-    #endif
-
     mass_spring_system mass_springs;
 
+    #ifdef ASYNC_OCTREE
+    BS::this_thread::set_os_thread_name("physics");
+
+    BS::thread_pool<> octree_thread(1, set_octree_pool_thread_name);
+    std::future<void> octree_future;
+    octree tree_buffer;
+    size_t last_mass_count = 0;
+    infoln("Using asynchronous octree builder.");
+    #endif
+
     const auto visitor = overloads{
-        [&](const struct add_mass& am)
+        [&](const struct add_mass&)
         {
             mass_springs.add_mass();
         },
@@ -29,7 +44,7 @@ auto threaded_physics::physics_thread(physics_state& state) -> void
         {
             mass_springs.add_spring(as.a, as.b);
         },
-        [&](const struct clear_graph& cg)
+        [&](const struct clear_graph&)
         {
             mass_springs.clear();
         },
@@ -66,25 +81,57 @@ auto threaded_physics::physics_thread(physics_state& state) -> void
             }
         }
 
-        if (mass_springs.masses.empty()) {
+        if (mass_springs.positions.empty()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
 
         // Physics update
         if (physics_accumulator.count() > TIMESTEP) {
+            #ifdef ASYNC_OCTREE
+            // Snapshot the positions so mass_springs is not mutating the vector while the octree is building
+            std::vector<Vector3> positions = mass_springs.positions;
+
+            // Start building the octree for the next physics update.
+            // Move the snapshot into the closure so it doesn't get captured by reference (don't use [&])
+            octree_future = octree_thread.submit_task([&tree_buffer, positions = std::move(positions)]()
+            {
+                octree::build_octree(tree_buffer, positions);
+            });
+
+            // Rebuild the tree synchronously if we changed the number of masses to not use
+            // an empty tree from the last frame in the frame where the graph was generated
+            if (last_mass_count != mass_springs.positions.size()) {
+                traceln("Rebuilding octree synchronously because graph size changed");
+                octree::build_octree(mass_springs.tree, mass_springs.positions);
+                last_mass_count = mass_springs.positions.size();
+            }
+            #else
+            octree::build_octree(mass_springs.tree, mass_springs.positions);
+            #endif
+
             mass_springs.clear_forces();
             mass_springs.calculate_spring_forces();
             mass_springs.calculate_repulsion_forces();
-            mass_springs.verlet_update(TIMESTEP * SIM_SPEED);
+            mass_springs.update(TIMESTEP * SIM_SPEED);
 
             // This is only helpful if we're drawing a grid at (0, 0, 0). Otherwise, it's just
             // expensive and yields no benefit since we can lock the camera to the center of mass
-            // cheaply. mass_springs.center_masses();
+            // cheaply.
+            // mass_springs.center_masses();
 
             ++loop_iterations;
             physics_accumulator -= std::chrono::duration<double>(TIMESTEP);
         }
+
+        #ifdef ASYNC_OCTREE
+        // Wait for the octree to be built
+        if (octree_future.valid()) {
+            octree_future.wait();
+            octree_future = std::future<void>{};
+            std::swap(mass_springs.tree, tree_buffer);
+        }
+        #endif
 
         // Publish the positions for the renderer (copy)
         #ifdef TRACY
@@ -114,16 +161,16 @@ auto threaded_physics::physics_thread(physics_state& state) -> void
             if (mass_springs.tree.nodes.empty()) {
                 state.mass_center = Vector3Zero();
             } else {
-                state.mass_center = mass_springs.tree.nodes.at(0).mass_center;
+                state.mass_center = mass_springs.tree.nodes[0].mass_center;
             }
 
             state.masses.clear();
-            state.masses.reserve(mass_springs.masses.size());
-            for (const auto& mass : mass_springs.masses) {
-                state.masses.emplace_back(mass.position);
+            state.masses.reserve(mass_springs.positions.size());
+            for (const Vector3& pos : mass_springs.positions) {
+                state.masses.emplace_back(pos);
             }
 
-            state.mass_count = mass_springs.masses.size();
+            state.mass_count = mass_springs.positions.size();
             state.spring_count = mass_springs.springs.size();
 
             state.data_ready = true;
@@ -131,11 +178,22 @@ auto threaded_physics::physics_thread(physics_state& state) -> void
         }
         // Notify the rendering thread that new data is available
         state.data_ready_cnd.notify_all();
-        #ifdef TRACY
-        FrameMarkEnd("PhysicsThreadProduceLock");
 
-        FrameMarkEnd("PhysicsThread");
+        #ifdef TRACY
+        FrameMarkEnd("PhysicsThreadProduceLock"); FrameMarkEnd("PhysicsThread");
         #endif
+    }
+}
+
+auto threaded_physics::clear_cmd() -> void
+{
+    {
+        #ifdef TRACY
+        std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
+        #else
+        std::lock_guard<std::mutex> lock(state.command_mtx);
+        #endif
+        state.pending_commands.emplace(clear_graph{});
     }
 }
 
@@ -160,18 +218,6 @@ auto threaded_physics::add_spring_cmd(const size_t a, const size_t b) -> void
         std::lock_guard<std::mutex> lock(state.command_mtx);
         #endif
         state.pending_commands.emplace(add_spring{a, b});
-    }
-}
-
-auto threaded_physics::clear_cmd() -> void
-{
-    {
-        #ifdef TRACY
-        std::lock_guard<LockableBase(std::mutex)> lock(state.command_mtx);
-        #else
-        std::lock_guard<std::mutex> lock(state.command_mtx);
-        #endif
-        state.pending_commands.emplace(clear_graph{});
     }
 }
 

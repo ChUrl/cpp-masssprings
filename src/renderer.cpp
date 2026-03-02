@@ -6,7 +6,7 @@
 #include <rlgl.h>
 
 #ifdef TRACY
-    #include <tracy/Tracy.hpp>
+#include <tracy/Tracy.hpp>
 #endif
 
 auto renderer::update_texture_sizes() -> void
@@ -29,9 +29,9 @@ auto renderer::update_texture_sizes() -> void
 
 auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 {
-#ifdef TRACY
+    #ifdef TRACY
     ZoneScoped;
-#endif
+    #endif
 
     if (masses.size() != state.get_state_count()) {
         // Because the physics run in a different thread, it might need time to catch up
@@ -40,16 +40,16 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 
     // Prepare connection batching
     {
-#ifdef TRACY
-        ZoneNamedN(prepare_masses, "PrepareConnectionsBatching", true);
-#endif
+        #ifdef TRACY
+        ZoneNamedN(prepare_connections, "PrepareConnectionsBatching", true);
+        #endif
 
         connections.clear();
         connections.reserve(state.get_target_count());
         if (input.connect_solutions) {
             for (const size_t& _state : state.get_winning_indices()) {
-                const Vector3& current_mass = masses.at(state.get_current_index());
-                const Vector3& winning_mass = masses.at(_state);
+                const Vector3& current_mass = masses[state.get_current_index()];
+                const Vector3& winning_mass = masses[_state];
                 connections.emplace_back(current_mass, winning_mass);
                 DrawLine3D(current_mass, winning_mass, Fade(TARGET_BLOCK_COLOR, 0.5));
             }
@@ -58,9 +58,9 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 
     // Prepare cube instancing
     {
-#ifdef TRACY
+        #ifdef TRACY
         ZoneNamedN(prepare_masses, "PrepareMassInstancing", true);
-#endif
+        #endif
 
         if (masses.size() < DRAW_VERTICES_LIMIT) {
             // Don't have to reserve, capacity is already set to DRAW_VERTICES_LIMIT in constructor
@@ -73,12 +73,10 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 
                 // Normal vertex
                 Color c = VERTEX_COLOR;
-                if ((input.mark_solutions || input.mark_path) &&
-                    state.get_winning_indices().contains(mass)) {
+                if ((input.mark_solutions || input.mark_path) && state.get_winning_indices().contains(mass)) {
                     // Winning vertex
                     c = VERTEX_TARGET_COLOR;
-                } else if ((input.mark_solutions || input.mark_path) &&
-                           state.get_path_indices().contains(mass)) {
+                } else if ((input.mark_solutions || input.mark_path) && state.get_path_indices().contains(mass)) {
                     // Path vertex
                     c = VERTEX_PATH_COLOR;
                 } else if (mass == state.get_starting_index()) {
@@ -104,15 +102,15 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 
     // Draw springs (batched)
     {
-#ifdef TRACY
+        #ifdef TRACY
         ZoneNamedN(draw_springs, "DrawSprings", true);
-#endif
+        #endif
 
         rlBegin(RL_LINES);
         for (const auto& [from, to] : state.get_links()) {
             if (masses.size() > from && masses.size() > to) {
-                const auto& [ax, ay, az] = masses.at(from);
-                const auto& [bx, by, bz] = masses.at(to);
+                const auto& [ax, ay, az] = masses[from];
+                const auto& [bx, by, bz] = masses[to];
                 rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
                 rlVertex3f(ax, ay, az);
                 rlVertex3f(bx, by, bz);
@@ -123,17 +121,16 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 
     // Draw masses (instanced)
     {
-#ifdef TRACY
+        #ifdef TRACY
         ZoneNamedN(draw_masses, "DrawMasses", true);
-#endif
+        #endif
 
         if (masses.size() < DRAW_VERTICES_LIMIT) {
             // NOTE: I don't know if drawing all this inside a shader would make it
             //       much faster... The amount of data sent to the GPU would be
             //       reduced (just positions instead of matrices), but is this
             //       noticable for < 100000 cubes?
-            DrawMeshInstanced(cube_instance, vertex_mat, transforms.data(),
-                              masses.size()); // NOLINT(*-narrowing-conversions)
+            DrawMeshInstanced(cube_instance, vertex_mat, transforms.data(), masses.size()); // NOLINT(*-narrowing-conversions)
         }
     }
 
@@ -152,9 +149,8 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
     // Mark current state
     const size_t current_index = state.get_current_index();
     if (masses.size() > current_index) {
-        const Vector3& current_mass = masses.at(current_index);
-        DrawCube(current_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
-                 VERTEX_CURRENT_COLOR);
+        const Vector3& current_mass = masses[current_index];
+        DrawCube(current_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_CURRENT_COLOR);
     }
 
     EndMode3D();
@@ -163,9 +159,9 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 
 auto renderer::draw_klotski() const -> void
 {
-#ifdef TRACY
+    #ifdef TRACY
     ZoneScoped;
-#endif
+    #endif
 
     BeginTextureMode(klotski_target);
     ClearBackground(RAYWHITE);
@@ -177,9 +173,9 @@ auto renderer::draw_klotski() const -> void
 
 auto renderer::draw_menu() const -> void
 {
-#ifdef TRACY
+    #ifdef TRACY
     ZoneScoped;
-#endif
+    #endif
 
     BeginTextureMode(menu_target);
     ClearBackground(RAYWHITE);
@@ -194,32 +190,28 @@ auto renderer::draw_textures(const int fps, const int ups, const size_t mass_cou
 {
     BeginDrawing();
 
-    DrawTextureRec(menu_target.texture,
-                   Rectangle(0, 0, menu_target.texture.width, -menu_target.texture.height),
+    DrawTextureRec(menu_target.texture, Rectangle(0, 0, menu_target.texture.width, -menu_target.texture.height),
                    Vector2(0, 0), WHITE);
     DrawTextureRec(klotski_target.texture,
                    Rectangle(0, 0, klotski_target.texture.width, -klotski_target.texture.height),
                    Vector2(0, MENU_HEIGHT), WHITE);
-    DrawTextureRec(render_target.texture,
-                   Rectangle(0, 0, render_target.texture.width, -render_target.texture.height),
+    DrawTextureRec(render_target.texture, Rectangle(0, 0, render_target.texture.width, -render_target.texture.height),
                    Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT), WHITE);
 
     // Draw borders
     DrawRectangleLinesEx(Rectangle(0, 0, GetScreenWidth(), MENU_HEIGHT), 1.0f, BLACK);
-    DrawRectangleLinesEx(
-        Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT), 1.0f,
-        BLACK);
+    DrawRectangleLinesEx(Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT), 1.0f,
+                         BLACK);
     DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0f, MENU_HEIGHT, GetScreenWidth() / 2.0f,
-                                   GetScreenHeight() - MENU_HEIGHT),
-                         1.0f, BLACK);
+                                   GetScreenHeight() - MENU_HEIGHT), 1.0f, BLACK);
 
     gui.draw(fps, ups, mass_count, spring_count);
 
     EndDrawing();
 }
 
-auto renderer::render(const std::vector<Vector3>& masses, const int fps, const int ups,
-                      const size_t mass_count, const size_t spring_count) -> void
+auto renderer::render(const std::vector<Vector3>& masses, const int fps, const int ups, const size_t mass_count,
+                      const size_t spring_count) -> void
 {
     update_texture_sizes();
 

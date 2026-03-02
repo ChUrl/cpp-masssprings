@@ -542,7 +542,7 @@ auto puzzle::try_get_invalid_reason() const -> std::optional<std::string>
 
     const auto [w, h, gx, gy, r, g] = unpack_meta();
 
-    infoln("Validating puzzle {}", string_repr());
+    traceln("Validating puzzle \"{}\"", string_repr());
 
     const std::optional<block>& b = try_get_target_block();
     if (get_goal() && !b) {

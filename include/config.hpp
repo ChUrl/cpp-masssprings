@@ -5,6 +5,22 @@
 
 #define THREADPOOL // Enable physics threadpool
 
+#ifdef THREADPOOL
+#if defined(_WIN32)
+#define NOGDI  // All GDI defines and routines
+#define NOUSER // All USER defines and routines
+#endif
+#define BS_THREAD_POOL_NATIVE_EXTENSIONS
+#include <BS_thread_pool.hpp>
+#if defined(_WIN32) // raylib uses these names as function parameters
+#undef near
+#undef far
+#endif
+#endif
+
+// TODO: Using the octree from the last frame completely breaks the physics :/
+// #define ASYNC_OCTREE
+
 // Gets set by CMake
 // #define BACKWARD   // Enable pretty stack traces
 // #define TRACY      // Enable tracy profiling support

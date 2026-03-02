@@ -64,6 +64,12 @@ auto main(int argc, char* argv[]) -> int
     infoln("Tracy adapter disabled.");
     #endif
 
+    #ifdef THREADPOOL
+    infoln("Thread-pool enabled.");
+    #else
+    infoln("Thread-pool disabled.");
+    #endif
+
     // RayLib window setup
     SetTraceLogLevel(LOG_ERROR);
     SetConfigFlags(FLAG_VSYNC_HINT);
@@ -141,8 +147,8 @@ auto main(int argc, char* argv[]) -> int
         // Update the camera after the physics, so target lock is smooth
         size_t current_index = state.get_current_index();
         if (masses.size() > current_index) {
-            const mass_spring_system::mass& current_mass = mass_spring_system::mass(masses.at(current_index));
-            camera.update(current_mass.position, mass_center, input.camera_lock, input.camera_mass_center_lock);
+            const Vector3& current_mass = masses[current_index];
+            camera.update(current_mass, mass_center, input.camera_lock, input.camera_mass_center_lock);
         }
 
         // Rendering

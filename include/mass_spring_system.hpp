@@ -2,49 +2,13 @@
 #define MASS_SPRING_SYSTEM_HPP_
 
 #include "octree.hpp"
-#include "util.hpp"
 #include "config.hpp"
 
 #include <raylib.h>
-#include <raymath.h>
-
-#ifdef THREADPOOL
-#if defined(_WIN32)
-#define NOGDI  // All GDI defines and routines
-#define NOUSER // All USER defines and routines
-#endif
-#define BS_THREAD_POOL_NATIVE_EXTENSIONS
-#include <BS_thread_pool.hpp>
-#if defined(_WIN32) // raylib uses these names as function parameters
-#undef near
-#undef far
-#endif
-#endif
 
 class mass_spring_system
 {
 public:
-    class mass
-    {
-    public:
-        Vector3 position = Vector3Zero();
-        Vector3 previous_position = Vector3Zero(); // for verlet integration
-        Vector3 velocity = Vector3Zero();
-        Vector3 force = Vector3Zero();
-
-    public:
-        mass() = delete;
-
-        explicit mass(const Vector3 _position)
-            : position(_position), previous_position(_position) {}
-
-    public:
-        auto clear_force() -> void;
-        auto calculate_velocity(float delta_time) -> void;
-        auto calculate_position(float delta_time) -> void;
-        auto verlet_update(float delta_time) -> void;
-    };
-
     class spring
     {
     public:
@@ -54,9 +18,6 @@ public:
     public:
         spring(const size_t _a, const size_t _b)
             : a(_a), b(_b) {}
-
-    public:
-        static auto calculate_spring_force(mass& _a, mass& _b) -> void;
     };
 
 private:
@@ -65,26 +26,25 @@ private:
     #endif
 
 public:
+    static constexpr int SMALL_TASK_BLOCK_SIZE = 256;
+    static constexpr int LARGE_TASK_BLOCK_SIZE = 256;
+
     octree tree;
 
     // This is the main ownership of all the states/masses/springs.
-    std::vector<mass> masses;
+    std::vector<Vector3> positions;
+    std::vector<Vector3> previous_positions; // for verlet integration
+    std::vector<Vector3> velocities;
+    std::vector<Vector3> forces;
+
     std::vector<spring> springs;
 
 public:
     mass_spring_system()
     #ifdef THREADPOOL
-        : threads(std::thread::hardware_concurrency() - 1, set_thread_name)
+        : threads(std::thread::hardware_concurrency() - 2, set_mass_springs_pool_thread_name)
     #endif
-    {
-        infoln("Using Barnes-Hut + Octree repulsion force calculation.");
-
-        #ifdef THREADPOOL
-        infoln("Thread-pool: {} threads.", threads.get_thread_count());
-        #else
-        infoln("Thread-pool: Disabled.");
-        #endif
-    }
+    {}
 
     mass_spring_system(const mass_spring_system& copy) = delete;
     auto operator=(const mass_spring_system& copy) -> mass_spring_system& = delete;
@@ -93,10 +53,8 @@ public:
 
 private:
     #ifdef THREADPOOL
-    static auto set_thread_name(size_t idx) -> void;
+    static auto set_mass_springs_pool_thread_name(size_t idx) -> void;
     #endif
-
-    auto build_octree() -> void;
 
 public:
     auto clear() -> void;
@@ -104,9 +62,13 @@ public:
     auto add_spring(size_t a, size_t b) -> void;
 
     auto clear_forces() -> void;
+    auto calculate_spring_force(size_t s) -> void;
     auto calculate_spring_forces() -> void;
     auto calculate_repulsion_forces() -> void;
-    auto verlet_update(float delta_time) -> void;
+    auto integrate_velocity(size_t m, float dt) -> void;
+    auto integrate_position(size_t m, float dt) -> void;
+    auto verlet_update(size_t m, float dt) -> void;
+    auto update(float dt) -> void;
 
     auto center_masses() -> void;
 };

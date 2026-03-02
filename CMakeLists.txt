@@ -9,8 +9,8 @@ if(POLICY CMP0167)
 endif()
 
 option(DISABLE_BACKWARD "Disable backward stacktrace printer" OFF)
-option(DISABLE_TRACY "Disable the Tracy profiler client" ON)
-option(DISABLE_TESTS "Disable building and running tests" ON)
+option(DISABLE_TRACY "Disable the Tracy profiler client" OFF)
+option(DISABLE_TESTS "Disable building and running tests" OFF)
 
 # Headers + Sources
 set(SOURCES

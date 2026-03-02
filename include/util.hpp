@@ -141,6 +141,13 @@ inline auto ansi_reset() -> std::string
 
 // std::println doesn't work with mingw
 template <typename... Args>
+auto traceln(std::format_string<Args...> fmt, Args&&... args) -> void
+{
+    std::cout << std::format("[{}TRACE{}]: ", ansi_bold_fg(fg_cyan), ansi_reset()) << std::format(
+        fmt, std::forward<Args>(args)...) << std::endl;
+}
+
+template <typename... Args>
 auto infoln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
     std::cout << std::format("[{}INFO{}]: ", ansi_bold_fg(fg_blue), ansi_reset()) << std::format(

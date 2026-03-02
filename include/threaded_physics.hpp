@@ -1,6 +1,8 @@
 #ifndef PHYSICS_HPP_
 #define PHYSICS_HPP_
 
+#include "config.hpp"
+
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -80,15 +82,16 @@ public:
     }
 
 private:
+    #ifdef ASYNC_OCTREE
+    static auto set_octree_pool_thread_name(size_t idx) -> void;
+    #endif
+
     static auto physics_thread(physics_state& state) -> void;
 
 public:
-    auto add_mass_cmd() -> void;
-
-    auto add_spring_cmd(size_t a, size_t b) -> void;
-
     auto clear_cmd() -> void;
-
+    auto add_mass_cmd() -> void;
+    auto add_spring_cmd(size_t a, size_t b) -> void;
     auto add_mass_springs_cmd(size_t num_masses, const std::vector<std::pair<size_t, size_t>>& springs) -> void;
 };
 

@@ -1,7 +1,7 @@
 #include "octree.hpp"
 #include "config.hpp"
-#include "util.hpp"
 
+#include <cfloat>
 #include <raymath.h>
 
 #ifdef TRACY
@@ -17,16 +17,6 @@ auto octree::node::child_count() const -> int
         }
     }
     return child_count;
-}
-
-auto octree::create_empty_leaf(const Vector3& box_min, const Vector3& box_max) -> int
-{
-    node n;
-    n.box_min = box_min;
-    n.box_max = box_max;
-    nodes.emplace_back(n);
-
-    return static_cast<int>(nodes.size() - 1);
 }
 
 auto octree::get_octant(const int node_idx, const Vector3& pos) const -> int
@@ -73,6 +63,16 @@ auto octree::get_child_bounds(const int node_idx, const int octant) const -> std
     max.z = octant & 4 ? n.box_max.z : cz;
 
     return std::make_pair(min, max);
+}
+
+auto octree::create_empty_leaf(const Vector3& box_min, const Vector3& box_max) -> int
+{
+    node n;
+    n.box_min = box_min;
+    n.box_max = box_max;
+    nodes.emplace_back(n);
+
+    return static_cast<int>(nodes.size() - 1);
 }
 
 auto octree::insert(const int node_idx, const int mass_id, const Vector3& pos, const float mass,
@@ -151,6 +151,44 @@ auto octree::insert(const int node_idx, const int mass_id, const Vector3& pos, c
     nodes[node_idx].mass_center.y = (nodes[node_idx].mass_center.y * nodes[node_idx].mass_total + pos.y) / new_mass;
     nodes[node_idx].mass_center.z = (nodes[node_idx].mass_center.z * nodes[node_idx].mass_total + pos.z) / new_mass;
     nodes[node_idx].mass_total = new_mass;
+}
+
+auto octree::build_octree(octree& t, const std::vector<Vector3>& positions) -> void
+{
+    #ifdef TRACY
+    ZoneScoped;
+    #endif
+
+    t.nodes.clear();
+    t.nodes.reserve(positions.size() * 2);
+
+    // Compute bounding box around all masses
+    Vector3 min{FLT_MAX, FLT_MAX, FLT_MAX};
+    Vector3 max{-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    for (const auto& [x, y, z] : positions) {
+        min.x = std::min(min.x, x);
+        max.x = std::max(max.x, x);
+        min.y = std::min(min.y, y);
+        max.y = std::max(max.y, y);
+        min.z = std::min(min.z, z);
+        max.z = std::max(max.z, z);
+    }
+
+    // Pad the bounding box
+    constexpr float pad = 1.0;
+    min = Vector3Subtract(min, Vector3Scale(Vector3One(), pad));
+    max = Vector3Add(max, Vector3Scale(Vector3One(), pad));
+
+    // Make it cubic (so subdivisions are balanced)
+    const float max_extent = std::max({max.x - min.x, max.y - min.y, max.z - min.z});
+    max = Vector3Add(min, Vector3Scale(Vector3One(), max_extent));
+
+    // Root node spans the entire area
+    const int root = t.create_empty_leaf(min, max);
+
+    for (size_t i = 0; i < positions.size(); ++i) {
+        t.insert(root, static_cast<int>(i), positions[i], MASS, 0);
+    }
 }
 
 auto octree::calculate_force(const int node_idx, const Vector3& pos) const -> Vector3
