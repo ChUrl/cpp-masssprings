@@ -278,7 +278,7 @@ auto input_handler::toggle_camera_projection() const -> void
 auto input_handler::move_block_nor() -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at_fast(sel_x, sel_y, nor);
+    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, nor);
     if (!next) {
         return;
     }
@@ -290,7 +290,7 @@ auto input_handler::move_block_nor() -> void
 auto input_handler::move_block_wes() -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at_fast(sel_x, sel_y, wes);
+    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, wes);
     if (!next) {
         return;
     }
@@ -302,7 +302,7 @@ auto input_handler::move_block_wes() -> void
 auto input_handler::move_block_sou() -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at_fast(sel_x, sel_y, sou);
+    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, sou);
     if (!next) {
         return;
     }
@@ -314,7 +314,7 @@ auto input_handler::move_block_sou() -> void
 auto input_handler::move_block_eas() -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at_fast(sel_x, sel_y, eas);
+    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, eas);
     if (!next) {
         return;
     }
