@@ -11,7 +11,7 @@
 #include "user_interface.hpp"
 
 #ifdef TRACY
-    #include <tracy/Tracy.hpp>
+#include <tracy/Tracy.hpp>
 #endif
 
 // TODO: Add some popups (my split between input.cpp/gui.cpp makes this ugly)
@@ -39,6 +39,19 @@
 
 // NOTE: Tracy uses a huge amount of memory. For longer testing disable Tracy.
 
+// For profiling explore_state_space
+auto main2(int argc, char* argv[]) -> int
+{
+    const puzzle p = puzzle(
+        "S:[4x5] G:[1,3] M:[F] B:[{_ 2X2 _ _} {1x1 _ _ 1x1} {1x2 2x1 _ 1x2} {_ 2x1 _ _} {1x1 2x1 _ 1x1}]");
+
+    for (int i = 0; i < 50; ++i) {
+        auto space = p.explore_state_space();
+    }
+
+    return 0;
+}
+
 auto main(int argc, char* argv[]) -> int
 {
     std::string preset_file;
@@ -48,17 +61,17 @@ auto main(int argc, char* argv[]) -> int
         preset_file = argv[1];
     }
 
-#ifdef BACKWARD
+    #ifdef BACKWARD
     infoln("Backward stack-traces enabled.");
-#else
+    #else
     infoln("Backward stack-traces disabled.");
-#endif
+    #endif
 
-#ifdef TRACY
+    #ifdef TRACY
     infoln("Tracy adapter enabled.");
-#else
+    #else
     infoln("Tracy adapter disabled.");
-#endif
+    #endif
 
     // RayLib window setup
     SetTraceLogLevel(LOG_ERROR);
@@ -89,9 +102,9 @@ auto main(int argc, char* argv[]) -> int
 
     // Game loop
     while (!WindowShouldClose()) {
-#ifdef TRACY
+        #ifdef TRACY
         FrameMarkStart("MainThread");
-#endif
+        #endif
 
         // Time tracking
         std::chrono::time_point now = std::chrono::high_resolution_clock::now();
@@ -102,16 +115,16 @@ auto main(int argc, char* argv[]) -> int
         // Input update
         input.handle_input();
 
-// Read positions from physics thread
-#ifdef TRACY
+        // Read positions from physics thread
+        #ifdef TRACY
         FrameMarkStart("MainThreadConsumeLock");
-#endif
+        #endif
         {
-#ifdef TRACY
+            #ifdef TRACY
             std::unique_lock<LockableBase(std::mutex)> lock(physics.state.data_mtx);
-#else
+            #else
             std::unique_lock<std::mutex> lock(physics.state.data_mtx);
-#endif
+            #endif
 
             ups = physics.state.ups;
             mass_center = physics.state.mass_center;
@@ -130,16 +143,15 @@ auto main(int argc, char* argv[]) -> int
                 physics.state.data_consumed_cnd.notify_all();
             }
         }
-#ifdef TRACY
+        #ifdef TRACY
         FrameMarkEnd("MainThreadConsumeLock");
-#endif
+        #endif
 
         // Update the camera after the physics, so target lock is smooth
         size_t current_index = state.get_current_index();
         if (masses.size() > current_index) {
             const mass_spring_system::mass& current_mass = mass_spring_system::mass(masses.at(current_index));
-            camera.update(current_mass.position, mass_center, input.camera_lock,
-                          input.camera_mass_center_lock);
+            camera.update(current_mass.position, mass_center, input.camera_lock, input.camera_mass_center_lock);
         }
 
         // Rendering
@@ -153,10 +165,9 @@ auto main(int argc, char* argv[]) -> int
         }
         ++loop_iterations;
 
-#ifdef TRACY
-        FrameMark;
-        FrameMarkEnd("MainThread");
-#endif
+        #ifdef TRACY
+        FrameMark; FrameMarkEnd("MainThread");
+        #endif
     }
 
     CloseWindow();

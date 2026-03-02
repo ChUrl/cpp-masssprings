@@ -109,6 +109,7 @@ rec {
           # gnumake
           cmake
           ninja
+          # cling
           # pkg-config
           # clang-tools
           # compdb
@@ -118,6 +119,8 @@ rec {
           hotspot
           kdePackages.kcachegrind
           gdbgui
+          massif-visualizer
+          heaptrack
           # renderdoc
         ];
 
@@ -129,11 +132,13 @@ rec {
           raylib
           raygui
           thread-pool
+          boost
 
           # Debugging
           tracy-wayland
           backward-cpp
           libbfd
+          catch2_3
         ];
         # ===========================================================================================
         # Define buildable + installable packages
@@ -152,7 +157,14 @@ rec {
           cmakeFlags = [
             "-DDISABLE_TRACY=On"
             "-DDISABLE_BACKWARD=On"
+            "-DDISABLE_TESTS=On"
           ];
+
+          hardeningDisable = ["all"];
+
+          preConfigure = ''
+            unset NIX_ENFORCE_NO_NATIVE
+          '';
 
           installPhase = ''
             mkdir -p $out/bin
@@ -178,6 +190,7 @@ rec {
             raylib
             raygui
             thread-pool
+            boost
           ];
 
           cmakeFlags = [
@@ -295,9 +308,12 @@ rec {
                 abbr -a release "${buildRelease} && ./cmake-build-release/masssprings"
                 abbr -a debug-clean "${cmakeDebug} && ${buildDebug} && ./cmake-build-debug/masssprings"
                 abbr -a release-clean "${cmakeRelease} && ${buildRelease} && ./cmake-build-release/masssprings"
+
                 abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"
+                abbr -a runperf "${buildRelease} && perf record -g ./cmake-build-release/masssprings && hotspot ./perf.data"
                 abbr -a runtracy "tracy -a 127.0.0.1 &; ${buildRelease} && sudo -E ./cmake-build-release/masssprings"
                 abbr -a runvalgrind "${buildDebug} && valgrind --leak-check=full --show-reachable=no --show-leak-kinds=definite,indirect,possible --track-origins=no --suppressions=valgrind.supp --log-file=valgrind.log ./cmake-build-debug/masssprings && cat valgrind.log"
+                abbr -a runtests "${buildDebug} && ./cmake-build-debug/tests"
 
                 abbr -a runclion "clion ./CMakeLists.txt 2>/dev/null 1>&2 & disown;"
               '';

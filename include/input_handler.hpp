@@ -19,7 +19,7 @@ struct show_yes_no_message
 {
     std::string title;
     std::string message;
-    std::function<void(void)> on_yes;
+    std::function<void()> on_yes;
 };
 
 struct show_save_preset_window

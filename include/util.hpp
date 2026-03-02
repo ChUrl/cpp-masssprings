@@ -3,19 +3,65 @@
 
 #include <iostream>
 #include <raylib.h>
-#include <raymath.h>
 
-inline auto operator<<(std::ostream& os, const Vector2& v) -> std::ostream&
+// Bit shifting + masking
+
+template <class T>
+    requires std::unsigned_integral<T>
+auto create_mask(const uint8_t first, const uint8_t last) -> T
 {
-    os << "(" << v.x << ", " << v.y << ")";
-    return os;
+    // If the mask width is equal the type width return all 1s instead of shifting
+    // as shifting by type-width is undefined behavior.
+    if (static_cast<size_t>(last - first + 1) >= sizeof(T) * 8) {
+        return ~T{0};
+    }
+
+    // Example: first=4, last=7, 7-4+1=4
+    //           1 << 4 = 0b00010000
+    //          32  - 1 = 0b00001111
+    //          31 << 4 = 0b11110000
+    // Subtracting 1 generates a consecutive mask.
+    return ((T{1} << (last - first + 1)) - 1) << first;
 }
 
-inline auto operator<<(std::ostream& os, const Vector3& v) -> std::ostream&
+template <class T>
+    requires std::unsigned_integral<T>
+auto clear_bits(T& bits, const uint8_t first, const uint8_t last) -> void
 {
-    os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
-    return os;
+    const T mask = create_mask<T>(first, last);
+
+    bits = bits & ~mask;
 }
+
+template <class T, class U>
+    requires std::unsigned_integral<T> && std::unsigned_integral<U>
+auto set_bits(T& bits, const uint8_t first, const uint8_t last, const U value) -> void
+{
+    const T mask = create_mask<T>(first, last);
+
+    // Example: first=4, last=6, value=0b1110,   bits = 0b 01111110
+    //          mask                                  = 0b 01110000
+    //          bits & ~mask                          = 0b 00001110
+    //          value << 4                            = 0b 11100000
+    //          (value << 4) & mask                   = 0b 01100000
+    //          (bits & ~mask) | (value << 4) & mask  = 0b 01101110
+    //                                 Insert position:     ^^^
+    // First clear the bits, then | with the value positioned at the insertion point.
+    // The value may be larger than [first, last], extra bits are ignored.
+    bits = (bits & ~mask) | ((static_cast<T>(value) << first) & mask);
+}
+
+template <class T>
+    requires std::unsigned_integral<T>
+auto get_bits(const T bits, const uint8_t first, const uint8_t last) -> T
+{
+    const T mask = create_mask<T>(first, last);
+
+    // We can >> without sign extension because T is unsigned_integral
+    return (bits & mask) >> first;
+}
+
+// std::variant visitor
 
 // https://en.cppreference.com/w/cpp/utility/variant/visit
 template <class... Ts>
@@ -23,6 +69,8 @@ struct overloads : Ts...
 {
     using Ts::operator()...;
 };
+
+// Enums
 
 enum direction
 {
@@ -67,6 +115,20 @@ enum bg
     bg_white = 47
 };
 
+// Output
+
+inline auto operator<<(std::ostream& os, const Vector2& v) -> std::ostream&
+{
+    os << "(" << v.x << ", " << v.y << ")";
+    return os;
+}
+
+inline auto operator<<(std::ostream& os, const Vector3& v) -> std::ostream&
+{
+    os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+    return os;
+}
+
 inline auto ansi_bold_fg(const fg color) -> std::string
 {
     return std::format("\033[1;{}m", static_cast<int>(color));
@@ -81,22 +143,22 @@ inline auto ansi_reset() -> std::string
 template <typename... Args>
 auto infoln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}INFO{}]: ", ansi_bold_fg(fg_blue), ansi_reset())
-              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
+    std::cout << std::format("[{}INFO{}]: ", ansi_bold_fg(fg_blue), ansi_reset()) << std::format(
+        fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto warnln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}WARNING{}]: ", ansi_bold_fg(fg_yellow), ansi_reset())
-              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
+    std::cout << std::format("[{}WARNING{}]: ", ansi_bold_fg(fg_yellow), ansi_reset()) << std::format(
+        fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto errln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}ERROR{}]: ", ansi_bold_fg(fg_red), ansi_reset())
-              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
+    std::cout << std::format("[{}ERROR{}]: ", ansi_bold_fg(fg_red), ansi_reset()) << std::format(
+        fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 #endif

@@ -6,8 +6,8 @@
 #include "puzzle.hpp"
 
 #include <stack>
-#include <unordered_map>
-#include <unordered_set>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 
 class state_manager
 {
@@ -16,26 +16,23 @@ private:
 
     std::string preset_file;
     size_t current_preset = 0;
-    std::vector<puzzle> preset_states = {puzzle(4, 5, 9, 9, false)};
-    std::vector<std::string> preset_comments = {"Empty"};
+    std::vector<puzzle> preset_states = {puzzle(4, 5, 0, 0, true, false)};
+    std::vector<std::string> preset_comments = {"# Empty"};
 
     // State storage (store states twice for bidirectional lookup).
     // Everything else should only store indices to state_pool.
 
     std::vector<puzzle> state_pool; // Indices are equal to mass_springs mass indices
-    std::unordered_map<puzzle, size_t> state_indices; // Maps states to indices
-    std::vector<std::pair<size_t, size_t>>
-        links; // Indices are equal to mass_springs springs indices
+    boost::unordered_flat_map<puzzle, size_t, puzzle_hasher> state_indices; // Maps states to indices
+    std::vector<std::pair<size_t, size_t>> links; // Indices are equal to mass_springs springs indices
 
-    graph_distances node_target_distances;      // Buffered and reused if the graph doesn't change
-    std::unordered_set<size_t> winning_indices; // Indices of all states where the board is solved
-    std::vector<size_t>
-        winning_path; // Ordered list of node indices leading to the nearest solved state
-    std::unordered_set<size_t>
-        path_indices; // For faster lookup if a vertex is part of the path in renderer
+    graph_distances node_target_distances; // Buffered and reused if the graph doesn't change
+    boost::unordered_flat_set<size_t> winning_indices; // Indices of all states where the board is solved
+    std::vector<size_t> winning_path; // Ordered list of node indices leading to the nearest solved state
+    boost::unordered_flat_set<size_t> path_indices; // For faster lookup if a vertex is part of the path in renderer
 
-    std::vector<size_t> move_history; // Moves between the starting state and the current state
-    std::unordered_map<size_t, int> visit_counts; // How often each state was visited
+    std::vector<size_t> move_history;                    // Moves between the starting state and the current state
+    boost::unordered_flat_map<size_t, int> visit_counts; // How often each state was visited
 
     size_t starting_state_index = 0;
     size_t current_state_index = 0;
@@ -45,7 +42,8 @@ private:
     bool edited = false;
 
 public:
-    state_manager(threaded_physics& _physics, const std::string& _preset_file) : physics(_physics)
+    state_manager(threaded_physics& _physics, const std::string& _preset_file)
+        : physics(_physics)
     {
         parse_preset_file(_preset_file);
         load_preset(0);
@@ -138,10 +136,10 @@ public:
     [[nodiscard]] auto get_link_count() const -> size_t;
     [[nodiscard]] auto get_path_length() const -> size_t;
     [[nodiscard]] auto get_links() const -> const std::vector<std::pair<size_t, size_t>>&;
-    [[nodiscard]] auto get_winning_indices() const -> const std::unordered_set<size_t>&;
-    [[nodiscard]] auto get_visit_counts() const -> const std::unordered_map<size_t, int>&;
+    [[nodiscard]] auto get_winning_indices() const -> const boost::unordered_flat_set<size_t>&;
+    [[nodiscard]] auto get_visit_counts() const -> const boost::unordered_flat_map<size_t, int>&;
     [[nodiscard]] auto get_winning_path() const -> const std::vector<size_t>&;
-    [[nodiscard]] auto get_path_indices() const -> const std::unordered_set<size_t>&;
+    [[nodiscard]] auto get_path_indices() const -> const boost::unordered_flat_set<size_t>&;
     [[nodiscard]] auto get_current_visits() const -> int;
     [[nodiscard]] auto get_current_preset() const -> size_t;
     [[nodiscard]] auto get_preset_count() const -> size_t;
