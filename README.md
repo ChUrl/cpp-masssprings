@@ -5,4 +5,12 @@ The graph layout is calculated iteratively using a mass-spring-system with addit
 
 ![](screenshot.png)
 
-Build and run on NixOS: `nix run git+https://gitea.local.chriphost.de/christoph/cpp-masssprings`.
+## Running
+
+Requirements:
+
+- Directory `fonts`
+- Directory `shader`
+- Preset file `default.puzzle` (optional)
+
+Run `nix run git+https://gitea.local.chriphost.de/christoph/cpp-masssprings` from the working directory containing the listed requirements.

@@ -7,306 +7,431 @@
 #include <cstddef>
 #include <format>
 #include <functional>
+#include <ranges>
 #include <string>
 #include <vector>
+#include <bits/fs_fwd.h>
 
-// A state is represented by a string "MWHXYblocks", where M is "R"
-// (restricted) or "F" (free), W is the board width, H is the board height, X
-// is the target block x goal, Y is the target block y goal and blocks is an
-// enumeration of each of the board's cells, with each cell being a 2-letter
-// or 2-digit block representation (a 3x3 board would have a string
-// representation with length 5 + 3*3 * 2). The board's cells are enumerated
-// from top-left to bottom-right with each block's pivot being its top-left
-// corner.
+/*
+ * 8x8 board
+ *  -> 64 (sizes) * 2 (target) * 2 (movable) blocks = 1 Byte
+ *
+ * 1. Encode the position inside the board (max 64 cells)
+ *     -> 64 (slots) * 1 Byte (block) = 64 Byte
+ * 2. Encode the position inside the block (max 64 cells)
+ *     -> 64 (blocks) * 2 Byte (size + pos) = 128 Byte
+ * 3. Encode the position inside the block (with 15 block limit)
+ *     -> 15 (blocks) * 2 (block) = 30 Byte
+ *
+ * Store board size + restricted: +1 Byte
+ * Store target position: +1 Byte
+ *
+ * => Limit to 15 blocks max and use option 3. (4x uint64_t)
+ *
+ */
 class puzzle
 {
 public:
-    // A block is represented as a 2-digit string "wh", where w is the block width
-    // and h the block height.
-    // The target block (to remove from the board) is represented as a 2-letter
-    // lower-case string "xy", where x is the block width and y the block height and
-    // width/height are represented by [abcdefghi] (~= [123456789]).
-    // Immovable blocks are represented as a 2-letter upper-case string "XY", where
-    // X is the block width and Y the block height and width/height are represented
-    // by [ABCDEFGHI] (~= [123456789]).
+    /*
+     * A block is represented as uint16_t.
+     * It stores its position, width, height and if it's the target block or immovable.
+     */
     class block
     {
-    public:
-        int x = 0;
-        int y = 0;
-        int width = 0;
-        int height = 0;
-        bool target = false;
-        bool immovable = false;
-
-    public:
-        block(const int _x, const int _y, const int _width, const int _height,
-              const bool _target = false, const bool _immovable = false)
-            : x(_x), y(_y), width(_width), height(_height), target(_target), immovable(_immovable)
-        {
-            if (_x < 0 || _x + _width > MAX_WIDTH || _y < 0 || _y + _height > MAX_HEIGHT) {
-                errln("Block must fit in a 9x9 board!");
-                exit(1);
-            }
-        }
-
-        block(const int _x, const int _y, const std::string& b) : x(_x), y(_y)
-        {
-            if (b.length() != 2) {
-                errln("Block representation must have length 2!");
-                exit(1);
-            }
-
-            if (b == "..") {
-                this->x = 0;
-                this->y = 0;
-                width = 0;
-                height = 0;
-                target = false;
-                return;
-            }
-
-            target = false;
-            constexpr std::array<char, 9> target_chars{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'};
-            for (const char c : target_chars) {
-                if (b.contains(c)) {
-                    target = true;
-                    break;
-                }
-            }
-
-            immovable = false;
-            constexpr std::array<char, 9> immovable_chars{'A', 'B', 'C', 'D', 'E',
-                                                          'F', 'G', 'H', 'I'};
-            for (const char c : immovable_chars) {
-                if (b.contains(c)) {
-                    immovable = true;
-                    break;
-                }
-            }
-
-            if (target) {
-                width = static_cast<int>(b.at(0)) - static_cast<int>('a') + 1;
-                height = static_cast<int>(b.at(1)) - static_cast<int>('a') + 1;
-            } else if (immovable) {
-                width = static_cast<int>(b.at(0)) - static_cast<int>('A') + 1;
-                height = static_cast<int>(b.at(1)) - static_cast<int>('A') + 1;
-            } else {
-                // println("Parsing block string '{}' at ({}, {})", b, _x, _y);
-                width = std::stoi(b.substr(0, 1));
-                height = std::stoi(b.substr(1, 1));
-            }
-
-            if (_x < 0 || _x + width > 9 || _y < 0 || _y + height > 9) {
-                errln("Block must fit in a 9x9 board!");
-                exit(1);
-            }
-        }
-
-        block() = delete;
-
-        auto operator==(const block& other) const -> bool
-        {
-            return x == other.x && y == other.y && width && other.width && target == other.target &&
-                immovable == other.immovable;
-        }
-
-        auto operator!=(const block& other) const -> bool
-        {
-            return !(*this == other);
-        }
-
-    public:
-        [[nodiscard]] auto hash() const -> size_t;
-        [[nodiscard]] auto valid() const -> bool;
-        [[nodiscard]] auto string() const -> std::string;
-
-        // Movement
-
-        [[nodiscard]] auto principal_dirs() const -> int;
-        [[nodiscard]] auto covers(int _x, int _y) const -> bool;
-        [[nodiscard]] auto collides(const block& b) const -> bool;
-    };
-
-private:
-    // https://en.cppreference.com/w/cpp/iterator/input_iterator.html
-    class block_iterator
-    {
-    public:
-        using difference_type = std::ptrdiff_t;
-        using value_type = block;
+        friend class puzzle;
 
     private:
-        const puzzle& state;
-        int current_pos;
+        static constexpr uint16_t INVALID = 0x8000;
+
+        static constexpr uint8_t IMMOVABLE_S = 0;
+        static constexpr uint8_t IMMOVABLE_E = 0;
+        static constexpr uint8_t TARGET_S = 1;
+        static constexpr uint8_t TARGET_E = 1;
+        static constexpr uint8_t WIDTH_S = 2;
+        static constexpr uint8_t WIDTH_E = 4;
+        static constexpr uint8_t HEIGHT_S = 5;
+        static constexpr uint8_t HEIGHT_E = 7;
+        static constexpr uint8_t X_S = 8;
+        static constexpr uint8_t X_E = 10;
+        static constexpr uint8_t Y_S = 11;
+        static constexpr uint8_t Y_E = 13;
+
+        /*
+         * Memory layout:
+         *
+         * 154 321 098 765 432 1 0
+         *  B0 YYY XXX HHH WWW T I
+         *  ---------- -----------
+         *    Byte 1     Byte 0
+         *
+         * Store the y-position at the most significant bits to obtain a row-major ordering when comparing reprs.
+         * The block at (0, 0) will be the smallest, the block at (width, height) the largest,
+         * the block at (1, 0) will be smaller than the block at (0, 1), all independent of block size.
+         * Then, the block with size (1, 1) will be smaller than the block with size (2, 2),
+         * the block with size (1, 0) - horizontal - will be smaller than the block with size (0, 1) - vertical.
+         *
+         * To mark if a block is empty, the first B bit is set to 1. This is required,
+         * since otherwise uint16_t{0} would be a valid block. This also makes empty blocks sorted last.
+         */
+        uint16_t repr;
 
     public:
-        explicit block_iterator(const puzzle& _state) : state(_state), current_pos(0)
-        {}
+        // Produces an invalid block, for usage with std::array<block, MaxBlocks>
+        block()
+            : repr(INVALID) {}
 
-        block_iterator(const puzzle& _state, const int _current_pos)
-            : state(_state), current_pos(_current_pos)
-        {}
+        explicit block(const uint16_t _repr)
+            : repr(_repr) {}
 
-        auto operator*() const -> block
+        block(const int x, const int y, const int w, const int h, const bool t = false, const bool i = false)
+            : repr(create_repr(x, y, w, h, t, i))
         {
-            return {current_pos % state.width, current_pos / state.width,
-                    state.state.substr(current_pos * 2 + PREFIX, 2)};
+            if (x < 0 || x + w > MAX_WIDTH || y < 0 || y + h > MAX_HEIGHT) {
+                throw std::invalid_argument("Block size out of bounds");
+            }
+            if (t && i) {
+                throw std::invalid_argument("Target block can't be immovable");
+            }
         }
 
-        auto operator++() -> block_iterator&
+        auto operator==(const block other) const -> bool
         {
-            do {
-                current_pos++;
-            } while (current_pos < state.width * state.height &&
-                     state.state.substr(current_pos * 2 + PREFIX, 2) == "..");
-            return *this;
+            return repr == other.repr;
         }
 
-        auto operator==(const block_iterator& other) const -> bool
+        auto operator!=(const block other) const -> bool
         {
-            return state == other.state && current_pos == other.current_pos;
+            return repr != other.repr;
         }
 
-        auto operator!=(const block_iterator& other) const -> bool
+        auto operator<(const block other) const -> bool
         {
-            return !(*this == other);
+            return repr < other.repr;
         }
+
+        auto operator<=(const block other) const -> bool
+        {
+            return repr <= other.repr;
+        }
+
+        auto operator>(const block other) const -> bool
+        {
+            return repr > other.repr;
+        }
+
+        auto operator>=(const block other) const -> bool
+        {
+            return repr >= other.repr;
+        }
+
+    private:
+        [[nodiscard]] static auto create_repr(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool t = false,
+                                              bool i = false) -> uint16_t;
+
+        // Repr setters
+        [[nodiscard]] auto set_x(uint8_t x) const -> block;
+        [[nodiscard]] auto set_y(uint8_t y) const -> block;
+        [[nodiscard]] auto set_width(uint8_t width) const -> block;
+        [[nodiscard]] auto set_height(uint8_t height) const -> block;
+        [[nodiscard]] auto set_target(bool target) const -> block;
+        [[nodiscard]] auto set_immovable(bool immovable) const -> block;
+
+    public:
+        [[nodiscard]] auto unpack_repr() const -> std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>;
+
+        // Repr getters
+        [[nodiscard]] auto get_x() const -> uint8_t;
+        [[nodiscard]] auto get_y() const -> uint8_t;
+        [[nodiscard]] auto get_width() const -> uint8_t;
+        [[nodiscard]] auto get_height() const -> uint8_t;
+        [[nodiscard]] auto get_target() const -> bool;
+        [[nodiscard]] auto get_immovable() const -> bool;
+
+        // Util
+        [[nodiscard]] auto valid() const -> bool;
+        [[nodiscard]] auto principal_dirs() const -> uint8_t;
+        [[nodiscard]] auto covers(int _x, int _y) const -> bool;
+        [[nodiscard]] auto collides(block b) const -> bool;
     };
 
 public:
-    static constexpr int PREFIX = 5;
-    static constexpr int MIN_WIDTH = 3;
-    static constexpr int MIN_HEIGHT = 3;
-    static constexpr int MAX_WIDTH = 9;
-    static constexpr int MAX_HEIGHT = 9;
+    static constexpr uint8_t MAX_BLOCKS = 15;
+    static constexpr uint8_t MIN_WIDTH = 3;
+    static constexpr uint8_t MIN_HEIGHT = 3;
+    static constexpr uint8_t MAX_WIDTH = 8;
+    static constexpr uint8_t MAX_HEIGHT = 8;
 
-    int width = 0;
-    int height = 0;
-    int target_x = 9;
-    int target_y = 9;
-    bool restricted = false; // Only allow blocks to move in their principal direction
-    std::string state;
+private:
+    static constexpr uint16_t INVALID = 0x8000;
+
+    static constexpr uint8_t RESTRICTED_S = 0;
+    static constexpr uint8_t RESTRICTED_E = 0;
+    static constexpr uint8_t GOAL_X_S = 1;
+    static constexpr uint8_t GOAL_X_E = 3;
+    static constexpr uint8_t GOAL_Y_S = 4;
+    static constexpr uint8_t GOAL_Y_E = 6;
+    static constexpr uint8_t WIDTH_S = 7;
+    static constexpr uint8_t WIDTH_E = 9;
+    static constexpr uint8_t HEIGHT_S = 10;
+    static constexpr uint8_t HEIGHT_E = 12;
+    static constexpr uint8_t GOAL_S = 13;
+    static constexpr uint8_t GOAL_E = 13;
+
+    struct repr_cooked
+    {
+        /*
+         * Memory layout:
+         *
+         * 1543 210 98 7 654 321 0
+         *  B0G HHH WW W YYY XXX R
+         *  ---------- -----------
+         *    Byte 1     Byte 0
+         *
+         * To mark if a puzzle is empty, the first B bit is set to 1.
+         * An extra bit is used to mark if the board has a goal, because we can't store MAX_WIDTH=8 in 3 bits.
+         */
+        uint16_t meta;
+
+        // NOTE: For the hashes to work, this array needs to be sorted always.
+        // NOTE: This array might contain empty blocks at the end. The iterator handles this.
+        std::array<uint16_t, MAX_BLOCKS> blocks;
+
+        // repr_cooked() = delete;
+        // repr_cooked(const repr_cooked& copy) = delete;
+        // repr_cooked(repr_cooked&& move) = delete;
+    } __attribute__((packed));
+
+    /**
+     * With gcc, were allowed to acces the members arbitrarily, even if they're not active (not the ones last written):
+     * - https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Structures-unions-enumerations-and-bit_002dfields-implementation.html#Structures-unions-enumerations-and-bit_002dfields-implementation
+     * - https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Optimize-Options.html#Type_002dpunning
+     */
+    union repr_u
+    {
+        // The representation split into meta information and the blocks array
+        repr_cooked cooked;
+
+        // For 15 blocks, we have sizeof(meta) + blocks.size() * sizeof(block) = 2 + 15 * 2 = 32 Bytes
+        std::array<uint64_t, 4> raw;
+    };
+
+    repr_u repr;
 
 public:
-    puzzle() = delete;
+    // Produces an invalid puzzle, for usage with containers
+    puzzle()
+        : repr(repr_cooked{INVALID, invalid_blocks()}) {}
 
-    puzzle(const int w, const int h, const int tx, const int ty, const bool r)
-        : width(w), height(h), target_x(tx), target_y(ty), restricted(r),
-          state(
-              std::format("{}{}{}{}{}{}", r ? "R" : "F", w, h, tx, ty, std::string(w * h * 2, '.')))
+    explicit puzzle(const uint16_t meta)
+        : repr(repr_cooked{meta, invalid_blocks()}) {}
+
+    // NOTE: This constructor does not sort the blocks and is only for state space generation
+    puzzle(const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>& meta,
+           const std::array<uint16_t, MAX_BLOCKS>& sorted_blocks)
+        : repr(repr_cooked{create_meta(meta), sorted_blocks}) {}
+
+    puzzle(const uint64_t byte_0, const uint64_t byte_1, const uint64_t byte_2, const uint64_t byte_3)
+        : repr(create_repr(byte_0, byte_1, byte_2, byte_3)) {}
+
+    puzzle(const uint16_t meta, const std::array<uint16_t, MAX_BLOCKS>& blocks)
+        : repr(repr_cooked{meta, blocks}) {}
+
+    puzzle(const uint8_t w, const uint8_t h, const uint8_t tx, const uint8_t ty, const bool r, const bool g)
+        : repr(create_repr(w, h, tx, ty, r, g, invalid_blocks()))
     {
-        if (w < 1 || w > 9 || h < 1 || h > 9) {
-            errln("State width/height must be in [1, 9]!");
-            exit(1);
+        if (w < MIN_WIDTH || w > MAX_WIDTH || h < MIN_HEIGHT || h > MAX_HEIGHT) {
+            throw std::invalid_argument("Board size out of bounds");
         }
-        if (tx < 0 || tx >= 9 || ty < 0 || ty >= 9) {
-            if (tx != 9 && ty != 9) {
-                errln("State target  must be within the board bounds!");
-                exit(1);
-            }
+        if (tx >= MAX_WIDTH || ty >= MAX_HEIGHT) {
+            throw std::invalid_argument("Goal out of bounds");
         }
     }
 
-    puzzle(const int w, const int h, const bool r) : puzzle(w, h, 9, 9, r)
-    {}
-
-    explicit puzzle(const std::string& s)
-        : width(std::stoi(s.substr(1, 1))), height(std::stoi(s.substr(2, 1))),
-          target_x(std::stoi(s.substr(3, 1))), target_y(std::stoi(s.substr(4, 1))),
-          restricted(s.substr(0, 1) == "R"), state(s)
+    puzzle(const uint8_t w, const uint8_t h, const uint8_t tx, const uint8_t ty, const bool r, const bool g,
+           const std::array<uint16_t, MAX_BLOCKS>& b)
+        : repr(create_repr(w, h, tx, ty, r, g, b))
     {
-        if (width < 1 || width > 9 || height < 1 || height > 9) {
-            errln("State width/height must be in [1, 9]!");
-            exit(1);
+        if (w < MIN_WIDTH || w > MAX_WIDTH || h < MIN_HEIGHT || h > MAX_HEIGHT) {
+            throw std::invalid_argument("Board size out of bounds");
         }
-        if (target_x < 0 || target_x >= 9 || target_y < 0 || target_y >= 9) {
-            if (target_x != 9 && target_y != 9) {
-                errln("State target  must be within the board bounds!");
-                exit(1);
-            }
-        }
-        if (static_cast<int>(s.length()) != width * height * 2 + PREFIX) {
-            errln("State representation must have length width * "
-                  "height * 2 + {}!",
-                  PREFIX);
-            exit(1);
+        if (tx >= MAX_WIDTH || ty >= MAX_HEIGHT) {
+            throw std::invalid_argument("Goal out of bounds");
         }
     }
+
+    explicit puzzle(const std::string& string_repr)
+        : repr(create_repr(string_repr)) {}
 
 public:
     auto operator==(const puzzle& other) const -> bool
     {
-        return state == other.state;
+        return repr.raw == other.repr.raw;
     }
 
     auto operator!=(const puzzle& other) const -> bool
     {
-        return !(*this == other);
+        return repr.raw != other.repr.raw;
     }
 
-    [[nodiscard]] auto begin() const -> block_iterator
+    auto operator<(const puzzle& other) const -> bool
     {
-        block_iterator it{*this};
-        if (!(*it).valid()) {
-            ++it;
+        // Start from MSB and go to LSB. If equal, check the next.
+        for (int i = 3; i >= 0; --i) {
+            if (repr.raw[i] < other.repr.raw[i]) {
+                return true;
+            }
+            if (repr.raw[i] > other.repr.raw[i]) {
+                return false;
+            }
         }
-        return it;
+
+        // All are equal
+        return false;
     }
 
-    [[nodiscard]] auto end() const -> block_iterator
+    auto operator<=(const puzzle& other) const -> bool
     {
-        return {*this, width * height};
+        return *this < other || *this == other;
     }
+
+    auto operator>(const puzzle& other) const -> bool
+    {
+        return !(*this <= other);
+    }
+
+    auto operator>=(const puzzle& other) const -> bool
+    {
+        return !(*this < other);
+    }
+
+    auto repr_view() const
+    {
+        return std::span<const uint16_t>(repr.cooked.blocks.data(), block_count());
+    }
+
+    auto block_view() const
+    {
+        return std::span<const uint16_t>(repr.cooked.blocks.data(), block_count()) | std::views::transform(
+            [](const uint16_t val)
+            {
+                return block(val);
+            });
+    }
+
+    template <typename T, typename... Rest>
+    static auto hash_combine(std::size_t& seed, const T& v, const Rest&... rest) -> void;
 
 private:
-    [[nodiscard]] auto get_index(int x, int y) const -> int;
+    [[nodiscard]] static constexpr auto invalid_blocks() -> std::array<uint16_t, MAX_BLOCKS>
+    {
+        std::array<uint16_t, MAX_BLOCKS> blocks;
+        for (size_t i = 0; i < MAX_BLOCKS; ++i) {
+            blocks[i] = block::INVALID;
+        }
+        return blocks;
+    }
+
+    [[nodiscard]] static auto create_meta(const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>& meta) -> uint16_t;
+    [[nodiscard]] static auto create_repr(uint8_t w, uint8_t h, uint8_t tx, uint8_t ty, bool r, bool g,
+                                          const std::array<uint16_t, MAX_BLOCKS>& b) -> repr_cooked;
+
+    [[nodiscard]] static auto create_repr(uint64_t byte_0, uint64_t byte_1, uint64_t byte_2,
+                                          uint64_t byte_3) -> repr_cooked;
+
+    [[nodiscard]] static auto create_repr(const std::string& string_repr) -> repr_cooked;
+
+    // Repr setters
+    [[nodiscard]] auto set_restricted(bool restricted) const -> puzzle;
+    [[nodiscard]] auto set_width(uint8_t width) const -> puzzle;
+    [[nodiscard]] auto set_height(uint8_t height) const -> puzzle;
+    [[nodiscard]] auto set_goal(bool goal) const -> puzzle;
+    [[nodiscard]] auto set_goal_x(uint8_t target_x) const -> puzzle;
+    [[nodiscard]] auto set_goal_y(uint8_t target_y) const -> puzzle;
+    [[nodiscard]] auto set_blocks(std::array<uint16_t, MAX_BLOCKS> blocks) const -> puzzle;
 
 public:
+    // Repr getters
+    [[nodiscard]] auto unpack_meta() const -> std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>;
+    [[nodiscard]] auto get_restricted() const -> bool;
+    [[nodiscard]] auto get_width() const -> uint8_t;
+    [[nodiscard]] auto get_height() const -> uint8_t;
+    [[nodiscard]] auto get_goal() const -> bool;
+    [[nodiscard]] auto get_goal_x() const -> uint8_t;
+    [[nodiscard]] auto get_goal_y() const -> uint8_t;
+
+    // Util
     [[nodiscard]] auto hash() const -> size_t;
-    [[nodiscard]] auto has_win_condition() const -> bool;
-    [[nodiscard]] auto won() const -> bool;
+    [[nodiscard]] auto string_repr() const -> std::string;
+    [[nodiscard]] static auto try_parse_string_repr(const std::string& string_repr) -> std::optional<repr_cooked>;
     [[nodiscard]] auto valid() const -> bool;
     [[nodiscard]] auto try_get_invalid_reason() const -> std::optional<std::string>;
-
-    // Repr helpers
-
-    [[nodiscard]] auto try_get_block(int x, int y) const -> std::optional<block>;
+    [[nodiscard]] auto block_count() const -> uint8_t;
+    [[nodiscard]] auto goal_reached() const -> bool;
+    [[nodiscard]] auto try_get_block(uint8_t x, uint8_t y) const -> std::optional<block>;
     [[nodiscard]] auto try_get_target_block() const -> std::optional<block>;
-    [[nodiscard]] auto covers(int x, int y, int w, int h) const -> bool;
-    [[nodiscard]] auto covers(int x, int y) const -> bool;
-    [[nodiscard]] auto covers(const block& b) const -> bool;
+    [[nodiscard]] auto covers(uint8_t x, uint8_t y, uint8_t _w, uint8_t _h) const -> bool;
+    [[nodiscard]] auto covers(uint8_t x, uint8_t y) const -> bool;
+    [[nodiscard]] auto covers(block b) const -> bool;
 
     // Editing
-
-    [[nodiscard]] auto try_toggle_restricted() const -> std::optional<puzzle>;
-    [[nodiscard]] auto try_set_goal(int x, int y) const -> std::optional<puzzle>;
-    [[nodiscard]] auto try_clear_goal() const -> std::optional<puzzle>;
+    [[nodiscard]] auto toggle_restricted() const -> puzzle;
+    [[nodiscard]] auto try_set_goal(uint8_t x, uint8_t y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto clear_goal() const -> puzzle;
     [[nodiscard]] auto try_add_column() const -> std::optional<puzzle>;
     [[nodiscard]] auto try_remove_column() const -> std::optional<puzzle>;
     [[nodiscard]] auto try_add_row() const -> std::optional<puzzle>;
     [[nodiscard]] auto try_remove_row() const -> std::optional<puzzle>;
-    [[nodiscard]] auto try_add_block(const block& b) const -> std::optional<puzzle>;
-    [[nodiscard]] auto try_remove_block(int x, int y) const -> std::optional<puzzle>;
-    [[nodiscard]] auto try_toggle_target(int x, int y) const -> std::optional<puzzle>;
-    [[nodiscard]] auto try_toggle_wall(int x, int y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_add_block(block b) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_remove_block(uint8_t x, uint8_t y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_toggle_target(uint8_t x, uint8_t y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_toggle_wall(uint8_t x, uint8_t y) const -> std::optional<puzzle>;
 
     // Playing
-
-    [[nodiscard]] auto try_move_block_at(int x, int y, direction dir) const
-        -> std::optional<puzzle>;
+    [[nodiscard]] auto try_move_block_at(uint8_t x, uint8_t y, direction dir) const -> std::optional<puzzle>;
 
     // Statespace
+    [[nodiscard]] auto try_move_block_at_fast(uint64_t bitmap, uint8_t block_idx,
+                                              direction dir) const -> std::optional<puzzle>;
+    static auto sorted_replace(std::array<uint16_t, MAX_BLOCKS> blocks, uint8_t idx,
+                               uint16_t new_val) -> std::array<uint16_t, MAX_BLOCKS>;
+    auto blocks_bitmap() const -> uint64_t;
+    static inline auto bitmap_set_bit(uint64_t bitmap, uint8_t x, uint8_t y) -> uint64_t;
+    static inline auto bitmap_get_bit(uint64_t bitmap, uint8_t x, uint8_t y) -> bool;
+    static auto bitmap_clear_block(uint64_t bitmap, block b) -> uint64_t;
+    static auto bitmap_check_collision(uint64_t bitmap, block b) -> bool;
+    static auto bitmap_check_collision(uint64_t bitmap, block b, direction dir) -> bool;
 
-    [[nodiscard]] auto find_adjacent_puzzles() const -> std::vector<puzzle>;
+    template <typename F>
+    auto for_each_adjacent(F&& callback) const -> void
+    {
+        const uint64_t bitmap = blocks_bitmap();
+        const bool r = get_restricted();
+        for (uint8_t idx = 0; idx < MAX_BLOCKS; idx++) {
+            const block b = block(repr.cooked.blocks[idx]);
+            if (!b.valid()) {
+                break;
+            }
+            if (b.get_immovable()) {
+                continue;
+            }
+            const int dirs = r ? b.principal_dirs() : nor | eas | sou | wes;
+            for (const direction d : {nor, eas, sou, wes}) {
+                if (dirs & d) {
+                    if (auto moved = try_move_block_at_fast(bitmap, idx, d)) {
+                        callback(*moved);
+                    }
+                }
+            }
+        }
+    }
+
     [[nodiscard]] auto explore_state_space() const
         -> std::pair<std::vector<puzzle>, std::vector<std::pair<size_t, size_t>>>;
 };
 
-// Provide hash functions so we can use State and <State, State> as hash-set
-// keys for masses and springs.
-template <>
-struct std::hash<puzzle>
+// Hash functions for sets and maps
+
+struct puzzle_hasher
 {
     auto operator()(const puzzle& s) const noexcept -> size_t
     {
@@ -314,30 +439,44 @@ struct std::hash<puzzle>
     }
 };
 
-template <>
-struct std::hash<std::pair<puzzle, puzzle>>
+struct link_hasher
 {
     auto operator()(const std::pair<puzzle, puzzle>& s) const noexcept -> size_t
     {
-        const size_t h1 = std::hash<puzzle>{}(s.first);
-        const size_t h2 = std::hash<puzzle>{}(s.second);
-
-        return h1 + h2 + h1 * h2;
-        // return (h1 ^ h2) + 0x9e3779b9 + (std::min(h1, h2) << 6) + (std::max(h1, h2) >> 2);
+        size_t h = 0;
+        if (s.first < s.second) {
+            puzzle::hash_combine(h, s.first, s.second);
+        } else {
+            puzzle::hash_combine(h, s.second, s.first);
+        }
+        return h;
     }
 };
 
-template <>
-struct std::equal_to<std::pair<puzzle, puzzle>>
+struct link_equal_to
 {
-    auto operator()(const std::pair<puzzle, puzzle>& a,
-                    const std::pair<puzzle, puzzle>& b) const noexcept -> bool
+    auto operator()(const std::pair<puzzle, puzzle>& a, const std::pair<puzzle, puzzle>& b) const noexcept -> bool
     {
-        return (a.first == b.first && a.second == b.second) ||
-            (a.first == b.second && a.second == b.first);
+        return (a.first == b.first && a.second == b.second) || (a.first == b.second && a.second == b.first);
     }
 };
 
-using win_condition = std::function<bool(const puzzle&)>;
+template <typename T, typename... Rest>
+auto puzzle::hash_combine(std::size_t& seed, const T& v, const Rest&... rest) -> void
+{
+    auto h = []<typename HashedType>(const HashedType& val) -> std::size_t
+    {
+        if constexpr (std::is_same_v<std::decay_t<HashedType>, puzzle>) {
+            return puzzle_hasher{}(val);
+        } else if constexpr (std::is_same_v<std::decay_t<HashedType>, std::pair<puzzle, puzzle>>) {
+            return link_hasher{}(val);
+        } else {
+            return std::hash<std::decay_t<HashedType>>{}(val);
+        }
+    };
+
+    seed ^= h(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    (hash_combine(seed, rest), ...);
+}
 
 #endif

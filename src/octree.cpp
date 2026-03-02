@@ -5,7 +5,7 @@
 #include <raymath.h>
 
 #ifdef TRACY
-    #include <tracy/Tracy.hpp>
+#include <tracy/Tracy.hpp>
 #endif
 
 auto octree::node::child_count() const -> int
@@ -32,9 +32,8 @@ auto octree::create_empty_leaf(const Vector3& box_min, const Vector3& box_max) -
 auto octree::get_octant(const int node_idx, const Vector3& pos) const -> int
 {
     const node& n = nodes[node_idx];
-    auto [cx, cy, cz] =
-        Vector3((n.box_min.x + n.box_max.x) / 2.0f, (n.box_min.y + n.box_max.y) / 2.0f,
-                (n.box_min.z + n.box_max.z) / 2.0f);
+    auto [cx, cy, cz] = Vector3((n.box_min.x + n.box_max.x) / 2.0f, (n.box_min.y + n.box_max.y) / 2.0f,
+                                (n.box_min.z + n.box_max.z) / 2.0f);
 
     // The octant is encoded as a 3-bit integer "zyx". The node area is split
     // along all 3 axes, if a position is right of an axis, this bit is set to 1.
@@ -54,13 +53,11 @@ auto octree::get_octant(const int node_idx, const Vector3& pos) const -> int
     return octant;
 }
 
-auto octree::get_child_bounds(const int node_idx, const int octant) const
-    -> std::pair<Vector3, Vector3>
+auto octree::get_child_bounds(const int node_idx, const int octant) const -> std::pair<Vector3, Vector3>
 {
     const node& n = nodes[node_idx];
-    auto [cx, cy, cz] =
-        Vector3((n.box_min.x + n.box_max.x) / 2.0f, (n.box_min.y + n.box_max.y) / 2.0f,
-                (n.box_min.z + n.box_max.z) / 2.0f);
+    auto [cx, cy, cz] = Vector3((n.box_min.x + n.box_max.x) / 2.0f, (n.box_min.y + n.box_max.y) / 2.0f,
+                                (n.box_min.z + n.box_max.z) / 2.0f);
 
     Vector3 min = Vector3Zero();
     Vector3 max = Vector3Zero();
@@ -84,13 +81,11 @@ auto octree::insert(const int node_idx, const int mass_id, const Vector3& pos, c
     // infoln("Inserting position ({}, {}, {}) into octree at node {} (depth {})", pos.x, pos.y,
     // pos.z, node_idx, depth);
     if (depth > MAX_DEPTH) {
-        errln("MAX_DEPTH! node={} box_min=({},{},{}) box_max=({},{},{}) pos=({},{},{})", node_idx,
-              nodes[node_idx].box_min.x, nodes[node_idx].box_min.y, nodes[node_idx].box_min.z,
-              nodes[node_idx].box_max.x, nodes[node_idx].box_max.y, nodes[node_idx].box_max.z,
-              pos.x, pos.y, pos.z);
-
-        // This runs from inside the physics thread so it won't exit cleanly
-        exit(1);
+        throw std::runtime_error(std::format("MAX_DEPTH! node={} box_min=({},{},{}) box_max=({},{},{}) pos=({},{},{})",
+                                             node_idx, nodes[node_idx].box_min.x, nodes[node_idx].box_min.y,
+                                             nodes[node_idx].box_min.z, nodes[node_idx].box_max.x,
+                                             nodes[node_idx].box_max.y, nodes[node_idx].box_max.z, pos.x, pos.y,
+                                             pos.z));
     }
 
     // NOTE: Do not store a nodes[node_idx] reference as the nodes vector might reallocate during
@@ -152,12 +147,9 @@ auto octree::insert(const int node_idx, const int mass_id, const Vector3& pos, c
 
     // Update the center of mass
     const float new_mass = nodes[node_idx].mass_total + mass;
-    nodes[node_idx].mass_center.x =
-        (nodes[node_idx].mass_center.x * nodes[node_idx].mass_total + pos.x) / new_mass;
-    nodes[node_idx].mass_center.y =
-        (nodes[node_idx].mass_center.y * nodes[node_idx].mass_total + pos.y) / new_mass;
-    nodes[node_idx].mass_center.z =
-        (nodes[node_idx].mass_center.z * nodes[node_idx].mass_total + pos.z) / new_mass;
+    nodes[node_idx].mass_center.x = (nodes[node_idx].mass_center.x * nodes[node_idx].mass_total + pos.x) / new_mass;
+    nodes[node_idx].mass_center.y = (nodes[node_idx].mass_center.y * nodes[node_idx].mass_total + pos.y) / new_mass;
+    nodes[node_idx].mass_center.z = (nodes[node_idx].mass_center.z * nodes[node_idx].mass_total + pos.z) / new_mass;
     nodes[node_idx].mass_total = new_mass;
 }
 

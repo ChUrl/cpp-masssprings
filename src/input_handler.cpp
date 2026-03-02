@@ -162,11 +162,12 @@ auto input_handler::select_block() -> void
 auto input_handler::start_add_block() -> void
 {
     const puzzle& current = state.get_current_state();
-    if (!editing || current.try_get_block(hov_x, hov_y) || has_block_add_xy) {
+    if (!editing || current.try_get_block(hov_x, hov_y) || has_block_add_xy || current.block_count() >=
+        puzzle::MAX_BLOCKS) {
         return;
     }
 
-    if (hov_x >= 0 && hov_x < current.width && hov_y >= 0 && hov_y < current.height) {
+    if (hov_x >= 0 && hov_x < current.get_width() && hov_y >= 0 && hov_y < current.get_height()) {
         block_add_x = hov_x;
         block_add_y = hov_y;
         has_block_add_xy = true;
@@ -187,7 +188,8 @@ auto input_handler::clear_add_block() -> void
 auto input_handler::add_block() -> void
 {
     const puzzle& current = state.get_current_state();
-    if (!editing || current.try_get_block(hov_x, hov_y) || !has_block_add_xy) {
+    if (!editing || current.try_get_block(hov_x, hov_y) || !has_block_add_xy || current.block_count() >=
+        puzzle::MAX_BLOCKS) {
         return;
     }
 
@@ -276,7 +278,7 @@ auto input_handler::toggle_camera_projection() const -> void
 auto input_handler::move_block_nor() -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, nor);
+    const std::optional<puzzle>& next = current.try_move_block_at_fast(sel_x, sel_y, nor);
     if (!next) {
         return;
     }
@@ -288,7 +290,7 @@ auto input_handler::move_block_nor() -> void
 auto input_handler::move_block_wes() -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, wes);
+    const std::optional<puzzle>& next = current.try_move_block_at_fast(sel_x, sel_y, wes);
     if (!next) {
         return;
     }
@@ -300,7 +302,7 @@ auto input_handler::move_block_wes() -> void
 auto input_handler::move_block_sou() -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, sou);
+    const std::optional<puzzle>& next = current.try_move_block_at_fast(sel_x, sel_y, sou);
     if (!next) {
         return;
     }
@@ -312,7 +314,7 @@ auto input_handler::move_block_sou() -> void
 auto input_handler::move_block_eas() -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, eas);
+    const std::optional<puzzle>& next = current.try_move_block_at_fast(sel_x, sel_y, eas);
     if (!next) {
         return;
     }
@@ -323,7 +325,7 @@ auto input_handler::move_block_eas() -> void
 
 auto input_handler::print_state() const -> void
 {
-    infoln("State: \"{}\"", state.get_current_state().state);
+    infoln("State: \"{}\"", state.get_current_state().string_repr());
 }
 
 auto input_handler::load_previous_preset() -> void
@@ -332,7 +334,7 @@ auto input_handler::load_previous_preset() -> void
         return;
     }
 
-    const auto handler = [&]()
+    const auto handler = [&]
     {
         block_add_x = -1;
         block_add_y = -1;
@@ -353,7 +355,7 @@ auto input_handler::load_next_preset() -> void
         return;
     }
 
-    const auto handler = [&]()
+    const auto handler = [&]
     {
         block_add_x = -1;
         block_add_y = -1;
@@ -370,7 +372,7 @@ auto input_handler::load_next_preset() -> void
 
 auto input_handler::goto_starting_state() -> void
 {
-    const auto handler = [&]()
+    const auto handler = [&]
     {
         state.goto_starting_state();
         sel_x = 0;
@@ -387,7 +389,7 @@ auto input_handler::populate_graph() const -> void
 
 auto input_handler::clear_graph() -> void
 {
-    const auto handler = [&]()
+    const auto handler = [&]
     {
         state.clear_graph_and_add_current();
     };
@@ -433,7 +435,7 @@ auto input_handler::goto_previous_state() const -> void
 auto input_handler::toggle_restricted_movement() const -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_toggle_restricted();
+    const std::optional<puzzle>& next = current.toggle_restricted();
 
     if (!editing || !next) {
         return;
@@ -471,7 +473,7 @@ auto input_handler::remove_board_column() const -> void
     const puzzle& current = state.get_current_state();
     const std::optional<puzzle>& next = current.try_remove_column();
 
-    if (!editing || current.width <= puzzle::MIN_WIDTH || !next) {
+    if (!editing || current.get_width() <= puzzle::MIN_WIDTH || !next) {
         return;
     }
 
@@ -483,7 +485,7 @@ auto input_handler::add_board_column() const -> void
     const puzzle& current = state.get_current_state();
     const std::optional<puzzle>& next = current.try_add_column();
 
-    if (!editing || current.width >= puzzle::MAX_WIDTH || !next) {
+    if (!editing || current.get_width() >= puzzle::MAX_WIDTH || !next) {
         return;
     }
 
@@ -495,7 +497,7 @@ auto input_handler::remove_board_row() const -> void
     const puzzle& current = state.get_current_state();
     const std::optional<puzzle>& next = current.try_remove_row();
 
-    if (!editing || current.height <= puzzle::MIN_HEIGHT || !next) {
+    if (!editing || current.get_height() <= puzzle::MIN_HEIGHT || !next) {
         return;
     }
 
@@ -507,7 +509,7 @@ auto input_handler::add_board_row() const -> void
     const puzzle& current = state.get_current_state();
     const std::optional<puzzle>& next = current.try_add_row();
 
-    if (!editing || current.height >= puzzle::MAX_HEIGHT || !next) {
+    if (!editing || current.get_height() >= puzzle::MAX_HEIGHT || !next) {
         return;
     }
 
@@ -528,7 +530,7 @@ auto input_handler::toggle_editing() -> void
 auto input_handler::clear_goal() const -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_clear_goal();
+    const std::optional<puzzle>& next = current.clear_goal();
 
     if (!editing || !next) {
         return;

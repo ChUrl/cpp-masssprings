@@ -91,7 +91,7 @@ auto state_manager::parse_preset_file(const std::string& _preset_file) -> bool
     std::vector<std::string> comment_lines;
     std::vector<std::string> preset_lines;
     while (std::getline(file, line)) {
-        if (line.starts_with("F") || line.starts_with("R")) {
+        if (line.starts_with("S")) {
             preset_lines.push_back(line);
         } else if (line.starts_with("#")) {
             comment_lines.push_back(line);
@@ -105,10 +105,11 @@ auto state_manager::parse_preset_file(const std::string& _preset_file) -> bool
 
     preset_states.clear();
     for (const auto& preset : preset_lines) {
+        // Each char is a bit
         const puzzle& p = puzzle(preset);
 
         if (const std::optional<std::string>& reason = p.try_get_invalid_reason()) {
-            preset_states = {puzzle(4, 5, 9, 9, false)};
+            preset_states = {puzzle(4, 5, 0, 0, true, false)};
             infoln("Preset file \"{}\" contained invalid presets: {}", preset_file, *reason);
             return false;
         }
@@ -135,7 +136,7 @@ auto state_manager::append_preset_file(const std::string& preset_name) -> bool
         return false;
     }
 
-    file << "\n# " << preset_name << "\n" << get_current_state().state << std::flush;
+    file << "\n# " << preset_name << "\n" << get_current_state().string_repr() << std::flush;
 
     infoln("Refreshing presets...");
     if (parse_preset_file(preset_file)) {
@@ -189,7 +190,7 @@ auto state_manager::update_current_state(const puzzle& p) -> void
         move_history.emplace_back(previous_state_index);
     }
 
-    if (p.won()) {
+    if (p.goal_reached()) {
         winning_indices.insert(current_state_index);
     }
 
@@ -297,6 +298,7 @@ auto state_manager::populate_graph() -> void
     const puzzle s = get_starting_state();
     const puzzle p = get_current_state();
 
+
     // Clear the graph first so we don't add duplicates somehow
     synced_clear_statespace();
 
@@ -340,7 +342,7 @@ auto state_manager::populate_winning_indices() -> void
 {
     winning_indices.clear();
     for (const auto& [state, index] : state_indices) {
-        if (state.won()) {
+        if (state.goal_reached()) {
             winning_indices.insert(index);
         }
     }
@@ -429,12 +431,12 @@ auto state_manager::get_links() const -> const std::vector<std::pair<size_t, siz
     return links;
 }
 
-auto state_manager::get_winning_indices() const -> const std::unordered_set<size_t>&
+auto state_manager::get_winning_indices() const -> const boost::unordered_flat_set<size_t>&
 {
     return winning_indices;
 }
 
-auto state_manager::get_visit_counts() const -> const std::unordered_map<size_t, int>&
+auto state_manager::get_visit_counts() const -> const boost::unordered_flat_map<size_t, int>&
 {
     return visit_counts;
 }
@@ -444,7 +446,7 @@ auto state_manager::get_winning_path() const -> const std::vector<size_t>&
     return winning_path;
 }
 
-auto state_manager::get_path_indices() const -> const std::unordered_set<size_t>&
+auto state_manager::get_path_indices() const -> const boost::unordered_flat_set<size_t>&
 {
     return path_indices;
 }

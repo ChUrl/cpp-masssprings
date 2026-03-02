@@ -89,7 +89,7 @@ private:
 
     grid board_grid =
         grid(0, MENU_HEIGHT, GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT,
-             state.get_current_state().width, state.get_current_state().height, BOARD_PADDING);
+             state.get_current_state().get_width(), state.get_current_state().get_height(), BOARD_PADDING);
 
     grid graph_overlay_grid = grid(GetScreenWidth() / 2, MENU_HEIGHT, 200, 100, 1, 4, MENU_PAD);
 
@@ -100,7 +100,7 @@ private:
 
     std::string message_title;
     std::string message_message;
-    std::function<void(void)> yes_no_handler;
+    std::function<void()> yes_no_handler;
     bool ok_message = false;
     bool yes_no_message = false;
     bool save_window = false;
