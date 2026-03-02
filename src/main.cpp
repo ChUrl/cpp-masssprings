@@ -14,25 +14,21 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-// TODO: Manual movement is now completely broken
-
 // TODO: Add state space generation time to debug overlay
 
-// TODO: Improve solver
-//       - Implement state discovery/enumeration
-//         - Find all possible initial board states (single one for each
-//           possible statespace). Currently wer're just finding all states
-//           given the initial state
-//         - Would allow to generate random puzzles with a certain move count
+// TODO: Implement state discovery/enumeration
+//       - Find all possible initial board states (single one for each possible statespace).
+//         Currently wer're just finding all states given the initial state
+//       - Would allow to generate random puzzles with a certain move count
 
-// TODO: Move selection accordingly when undoing moves (need to diff two states
-//       and get the moved blocks)
+// TODO: Move selection accordingly when undoing moves (need to diff two states and get the moved blocks)
 
 // TODO: Click states in the graph to display them in the board
 
 // For profiling explore_state_space
 auto main2(int argc, char* argv[]) -> int
 {
+    // Supercompo
     const puzzle p = puzzle(
         "S:[4x5] G:[1,3] M:[F] B:[{_ 2X2 _ _} {1x1 _ _ 1x1} {1x2 2x1 _ 1x2} {_ 2x1 _ _} {1x1 2x1 _ 1x1}]");
 

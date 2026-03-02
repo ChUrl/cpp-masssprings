@@ -21,7 +21,7 @@ auto mass_spring_system::calculate_spring_force(const size_t s) -> void
     const Vector3 delta_vel = a_vel - b_vel;
 
     const float sq_len = Vector3DotProduct(delta_pos, delta_pos);
-    const float inv_len = rsqrt(sq_len);
+    const float inv_len = 1.0f / sqrt(sq_len);
     const float len = sq_len * inv_len;
 
     const float hooke = SPRING_CONSTANT * (len - REST_LENGTH);

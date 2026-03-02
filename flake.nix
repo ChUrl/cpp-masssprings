@@ -27,6 +27,7 @@ rec {
             config = "x86_64-w64-mingw32";
           };
           config.allowUnfree = true;
+          overlays = [];
         };
 
         # ===========================================================================================
@@ -190,7 +191,15 @@ rec {
             raylib
             raygui
             thread-pool
-            boost
+
+            # Disable stacktrace since that's platform dependant and won't cross compile to windows
+            # https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/libraries/boost/generic.nix#L43
+            (boost.override {
+              enableShared = false;
+              extraB2Args = [
+                "--without-stacktrace"
+              ];
+            })
           ];
 
           cmakeFlags = [

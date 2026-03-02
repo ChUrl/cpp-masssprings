@@ -11,6 +11,7 @@
 #define NOUSER // All USER defines and routines
 #endif
 #define BS_THREAD_POOL_NATIVE_EXTENSIONS
+// ReSharper disable once CppUnusedIncludeDirective
 #include <BS_thread_pool.hpp>
 #if defined(_WIN32) // raylib uses these names as function parameters
 #undef near
