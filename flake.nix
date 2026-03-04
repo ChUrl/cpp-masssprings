@@ -105,20 +105,21 @@ rec {
             abbr -a cmake-release "${cmakeRelease}"
             abbr -a build-debug "${buildDebug}"
             abbr -a build-release "${buildRelease}"
-            abbr -a debug "${buildDebug} && ./cmake-build-debug/masssprings"
-            abbr -a release "${buildRelease} && ./cmake-build-release/masssprings"
             abbr -a debug-clean "${cmakeDebug} && ${buildDebug} && ./cmake-build-debug/masssprings"
             abbr -a release-clean "${cmakeRelease} && ${buildRelease} && ./cmake-build-release/masssprings"
+            abbr -a debug "${buildDebug} && ./cmake-build-debug/masssprings"
+            abbr -a release "${buildRelease} && ./cmake-build-release/masssprings"
 
-            abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"
-            abbr -a runperf "${buildRelease} && perf record -g ./cmake-build-release/masssprings && hotspot ./perf.data"
-            abbr -a runtracy "tracy -a 127.0.0.1 &; ${buildRelease} && sudo -E ./cmake-build-release/masssprings"
-            abbr -a runvalgrind "${buildDebug} && valgrind --leak-check=full --show-reachable=no --show-leak-kinds=definite,indirect,possible --track-origins=no --suppressions=valgrind.supp --log-file=valgrind.log ./cmake-build-debug/masssprings && cat valgrind.log"
+            abbr -a run "${buildRelease} && ./cmake-build-release/masssprings"
+            abbr -a run-clusters "${buildRelease} && ./cmake-build-release/masssprings --output=clusters.puzzle --space=rh --w=6 --h=6 --gx=4 --gy=2 --blocks=4"
             abbr -a runtests "${buildDebug} && ./cmake-build-debug/tests"
             abbr -a runbenchs "${buildRelease} && sudo cpupower frequency-set --governor performance && ./cmake-build-release/benchmarks; sudo cpupower frequency-set --governor powersave"
-
-            abbr -a clusters-rh "${buildRelease} && ./cmake-build-release/masssprings --output=clusters.puzzle --space=rh --w=6 --h=6 --gx=4 --gy=2 --blocks=4"
-            abbr -a clusters "${buildRelease} && ./cmake-build-release/masssprings clusters.puzzle"
+            abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"
+            abbr -a runvalgrind "${buildDebug} && valgrind --leak-check=full --show-reachable=no --show-leak-kinds=definite,indirect,possible --track-origins=no --suppressions=valgrind.supp --log-file=valgrind.log ./cmake-build-debug/masssprings && cat valgrind.log"
+            abbr -a runperf "${buildRelease} && perf record -g ./cmake-build-release/masssprings && hotspot ./perf.data"
+            abbr -a runperf-graph "${buildRelease} && perf record -g ./cmake-build-release/benchmarks --benchmark_filter='explore_state_space' && hotspot ./perf.data"
+            abbr -a runperf-space "${buildRelease} && perf record -g ./cmake-build-release/benchmarks --benchmark_filter='explore_rush_hour_puzzle_space' && hotspot ./perf.data"
+            abbr -a runtracy "tracy -a 127.0.0.1 &; ${buildRelease} && sudo -E ./cmake-build-release/masssprings"
 
             abbr -a runclion "clion ./CMakeLists.txt 2>/dev/null 1>&2 & disown;"
           '';
@@ -247,6 +248,9 @@ rec {
           nativeBuildInputs = with pkgs; [
             gcc
             cmake
+
+            # Fix the working directory so the auxiliary files are always available
+            makeWrapper
           ];
 
           cmakeFlags = [
@@ -263,11 +267,14 @@ rec {
           '';
 
           installPhase = ''
+            mkdir -p $out/lib
+            cp ./${pname} $out/lib/
+            cp $src/default.puzzle $out/lib/
+            cp -r $src/fonts $out/lib/fonts
+            cp -r $src/shader $out/lib/shader
+
             mkdir -p $out/bin
-            cp ./${pname} $out/bin/
-            cp $src/default.puzzle $out/bin/
-            cp -r $src/fonts $out/bin/fonts
-            cp -r $src/shader $out/bin/shader
+            makeWrapper $out/lib/${pname} $out/bin/${pname} --chdir "$out/lib"
           '';
         };
 
