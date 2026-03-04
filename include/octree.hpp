@@ -2,9 +2,10 @@
 #define OCTREE_HPP_
 
 #include <array>
+#include <vector>
+
 #include <raylib.h>
 #include <raymath.h>
-#include <vector>
 
 class octree
 {

@@ -3,68 +3,14 @@
 #include <algorithm>
 #include <boost/unordered/unordered_flat_map.hpp>
 
-auto puzzle::block::create_repr(const uint8_t x, const uint8_t y, const uint8_t w, const uint8_t h, const bool t,
+auto puzzle::block::create_repr(const uint8_t x,
+                                const uint8_t y,
+                                const uint8_t w,
+                                const uint8_t h,
+                                const bool t,
                                 const bool i) -> uint16_t
 {
     return block().set_x(x).set_y(y).set_width(w).set_height(h).set_target(t).set_immovable(i).repr & ~INVALID;
-}
-
-auto puzzle::block::set_x(const uint8_t x) const -> block
-{
-    if (x > 7) {
-        throw std::invalid_argument("Block x-position out of bounds");
-    }
-
-    block b = *this;
-    set_bits(b.repr, X_S, X_E, x);
-    return b;
-}
-
-auto puzzle::block::set_y(const uint8_t y) const -> block
-{
-    if (y > 7) {
-        throw std::invalid_argument("Block y-position out of bounds");
-    }
-
-    block b = *this;
-    set_bits(b.repr, Y_S, Y_E, y);
-    return b;
-}
-
-auto puzzle::block::set_width(const uint8_t width) const -> block
-{
-    if (width - 1 > 7) {
-        throw std::invalid_argument("Block width out of bounds");
-    }
-
-    block b = *this;
-    set_bits(b.repr, WIDTH_S, WIDTH_E, width - 1u);
-    return b;
-}
-
-auto puzzle::block::set_height(const uint8_t height) const -> block
-{
-    if (height - 1 > 7) {
-        throw std::invalid_argument("Block height out of bounds");
-    }
-
-    block b = *this;
-    set_bits(b.repr, HEIGHT_S, HEIGHT_E, height - 1u);
-    return b;
-}
-
-auto puzzle::block::set_target(const bool target) const -> block
-{
-    block b = *this;
-    set_bits(b.repr, TARGET_S, TARGET_E, target);
-    return b;
-}
-
-auto puzzle::block::set_immovable(const bool immovable) const -> block
-{
-    block b = *this;
-    set_bits(b.repr, IMMOVABLE_S, IMMOVABLE_E, immovable);
-    return b;
 }
 
 auto puzzle::block::unpack_repr() const -> std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>
@@ -79,46 +25,29 @@ auto puzzle::block::unpack_repr() const -> std::tuple<uint8_t, uint8_t, uint8_t,
     return {x, y, w, h, t, i};
 }
 
-auto puzzle::block::get_x() const -> uint8_t
+auto puzzle::block::hash() const -> size_t
 {
-    return get_bits(repr, X_S, X_E);
+    return std::hash<uint16_t>{}(repr);
 }
 
-auto puzzle::block::get_y() const -> uint8_t
+auto puzzle::block::position_independent_hash() const -> size_t
 {
-    return get_bits(repr, Y_S, Y_E);
-}
-
-auto puzzle::block::get_width() const -> uint8_t
-{
-    return get_bits(repr, WIDTH_S, WIDTH_E) + 1u;
-}
-
-auto puzzle::block::get_height() const -> uint8_t
-{
-    return get_bits(repr, HEIGHT_S, HEIGHT_E) + 1u;
-}
-
-auto puzzle::block::get_target() const -> bool
-{
-    return get_bits(repr, TARGET_S, TARGET_E);
-}
-
-auto puzzle::block::get_immovable() const -> bool
-{
-    return get_bits(repr, IMMOVABLE_S, IMMOVABLE_E);
+    uint16_t r = repr;
+    clear_bits(r, X_S, X_E);
+    clear_bits(r, Y_S, Y_E);
+    return std::hash<uint16_t>{}(r);
 }
 
 auto puzzle::block::valid() const -> bool
 {
-    const auto [x, y, w, h, t, i] = unpack_repr();
-
-    if (t && i) {
+    // This means the first bit is set, marking the block as empty
+    if (repr & INVALID) {
         return false;
     }
 
-    // This means the first bit is set, marking the block as empty
-    if (repr & INVALID) {
+    const auto [x, y, w, h, t, i] = unpack_repr();
+
+    if (t && i) {
         return false;
     }
 
@@ -171,8 +100,13 @@ auto puzzle::create_meta(const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bo
     return m;
 }
 
-auto puzzle::create_repr(const uint8_t w, const uint8_t h, const uint8_t tx, const uint8_t ty, const bool r,
-                         const bool g, const std::array<uint16_t, MAX_BLOCKS>& b) -> repr_cooked
+auto puzzle::create_repr(const uint8_t w,
+                         const uint8_t h,
+                         const uint8_t tx,
+                         const uint8_t ty,
+                         const bool r,
+                         const bool g,
+                         const std::array<uint16_t, MAX_BLOCKS>& b) -> repr_cooked
 {
     repr_cooked repr = puzzle().set_width(w).set_height(h).set_goal_x(tx).set_goal_y(ty).set_restricted(r).set_goal(g).
                                 set_blocks(b).repr.cooked;
@@ -180,7 +114,9 @@ auto puzzle::create_repr(const uint8_t w, const uint8_t h, const uint8_t tx, con
     return repr;
 }
 
-auto puzzle::create_repr(const uint64_t byte_0, const uint64_t byte_1, const uint64_t byte_2,
+auto puzzle::create_repr(const uint64_t byte_0,
+                         const uint64_t byte_1,
+                         const uint64_t byte_2,
                          const uint64_t byte_3) -> repr_cooked
 {
     repr_u repr{};
@@ -197,64 +133,6 @@ auto puzzle::create_repr(const std::string& string_repr) -> repr_cooked
     }
 
     return *repr;
-}
-
-auto puzzle::set_restricted(const bool restricted) const -> puzzle
-{
-    uint16_t meta = repr.cooked.meta;
-    set_bits(meta, RESTRICTED_S, RESTRICTED_E, restricted);
-    return puzzle(meta, repr.cooked.blocks);
-}
-
-auto puzzle::set_width(const uint8_t width) const -> puzzle
-{
-    if (width - 1 > MAX_WIDTH) {
-        throw "Board width out of bounds";
-    }
-
-    uint16_t meta = repr.cooked.meta;
-    set_bits(meta, WIDTH_S, WIDTH_E, width - 1u);
-    return puzzle(meta, repr.cooked.blocks);
-}
-
-auto puzzle::set_height(const uint8_t height) const -> puzzle
-{
-    if (height - 1 > MAX_HEIGHT) {
-        throw "Board height out of bounds";
-    }
-
-    uint16_t meta = repr.cooked.meta;
-    set_bits(meta, HEIGHT_S, HEIGHT_E, height - 1u);
-    return puzzle(meta, repr.cooked.blocks);
-}
-
-auto puzzle::set_goal(const bool goal) const -> puzzle
-{
-    uint16_t meta = repr.cooked.meta;
-    set_bits(meta, GOAL_S, GOAL_E, goal);
-    return puzzle(meta, repr.cooked.blocks);
-}
-
-auto puzzle::set_goal_x(const uint8_t target_x) const -> puzzle
-{
-    if (target_x >= MAX_WIDTH) {
-        throw "Board target x out of bounds";
-    }
-
-    uint16_t meta = repr.cooked.meta;
-    set_bits(meta, GOAL_X_S, GOAL_X_E, target_x);
-    return puzzle(meta, repr.cooked.blocks);
-}
-
-auto puzzle::set_goal_y(const uint8_t target_y) const -> puzzle
-{
-    if (target_y >= MAX_HEIGHT) {
-        throw "Board target y out of bounds";
-    }
-
-    uint16_t meta = repr.cooked.meta;
-    set_bits(meta, GOAL_Y_S, GOAL_Y_E, target_y);
-    return puzzle(meta, repr.cooked.blocks);
 }
 
 auto puzzle::set_blocks(std::array<uint16_t, MAX_BLOCKS> blocks) const -> puzzle
@@ -275,36 +153,6 @@ auto puzzle::unpack_meta() const -> std::tuple<uint8_t, uint8_t, uint8_t, uint8_
     const bool g = get_goal();
 
     return {w, h, tx, ty, r, g};
-}
-
-auto puzzle::get_restricted() const -> bool
-{
-    return get_bits(repr.cooked.meta, RESTRICTED_S, RESTRICTED_E);
-}
-
-auto puzzle::get_width() const -> uint8_t
-{
-    return get_bits(repr.cooked.meta, WIDTH_S, WIDTH_E) + 1u;
-}
-
-auto puzzle::get_height() const -> uint8_t
-{
-    return get_bits(repr.cooked.meta, HEIGHT_S, HEIGHT_E) + 1u;
-}
-
-auto puzzle::get_goal() const -> bool
-{
-    return get_bits(repr.cooked.meta, GOAL_S, GOAL_E);
-}
-
-auto puzzle::get_goal_x() const -> uint8_t
-{
-    return get_bits(repr.cooked.meta, GOAL_X_S, GOAL_X_E);
-}
-
-auto puzzle::get_goal_y() const -> uint8_t
-{
-    return get_bits(repr.cooked.meta, GOAL_Y_S, GOAL_Y_E);
 }
 
 auto puzzle::hash() const -> size_t
@@ -542,7 +390,7 @@ auto puzzle::try_get_invalid_reason() const -> std::optional<std::string>
 
     const auto [w, h, gx, gy, r, g] = unpack_meta();
 
-    traceln("Validating puzzle \"{}\"", string_repr());
+    // traceln("Validating puzzle \"{}\"", string_repr());
 
     const std::optional<block>& b = try_get_target_block();
     if (get_goal() && !b) {
@@ -896,64 +744,8 @@ auto puzzle::try_move_block_at(const uint8_t x, const uint8_t y, const direction
     return p;
 }
 
-auto puzzle::try_move_block_at_fast(const uint64_t bitmap, const uint8_t block_idx,
-                                    const direction dir) const -> std::optional<puzzle>
-{
-    const block b = block(repr.cooked.blocks[block_idx]);
-    const auto [bx, by, bw, bh, bt, bi] = b.unpack_repr();
-    if (bi) {
-        return std::nullopt;
-    }
-
-    const auto [w, h, gx, gy, r, g] = unpack_meta();
-    const int dirs = r ? b.principal_dirs() : nor | eas | sou | wes;
-
-    // Get target block
-    int _target_x = bx;
-    int _target_y = by;
-    switch (dir) {
-    case nor:
-        if (!(dirs & nor) || _target_y < 1) {
-            return std::nullopt;
-        }
-        --_target_y;
-        break;
-    case eas:
-        if (!(dirs & eas) || _target_x + bw >= w) {
-            return std::nullopt;
-        }
-        ++_target_x;
-        break;
-    case sou:
-        if (!(dirs & sou) || _target_y + bh >= h) {
-            return std::nullopt;
-        }
-        ++_target_y;
-        break;
-    case wes:
-        if (!(dirs & wes) || _target_x < 1) {
-            return std::nullopt;
-        }
-        --_target_x;
-        break;
-    }
-
-    // Check collisions
-    const uint64_t bm = bitmap_clear_block(bitmap, b);
-    if (bitmap_check_collision(bm, b, dir)) {
-        return std::nullopt;
-    }
-
-    // Replace block
-    const std::array<uint16_t, MAX_BLOCKS> blocks = sorted_replace(repr.cooked.blocks, block_idx,
-                                                                   block::create_repr(
-                                                                       _target_x, _target_y, bw, bh, bt));
-
-    // This constructor doesn't sort
-    return puzzle(std::make_tuple(w, h, gx, gy, r, g), blocks);
-}
-
-auto puzzle::sorted_replace(std::array<uint16_t, MAX_BLOCKS> blocks, const uint8_t idx,
+auto puzzle::sorted_replace(std::array<uint16_t, MAX_BLOCKS> blocks,
+                            const uint8_t idx,
                             const uint16_t new_val) -> std::array<uint16_t, MAX_BLOCKS>
 {
     // Remove old entry
@@ -987,101 +779,80 @@ auto puzzle::blocks_bitmap() const -> uint64_t
         }
 
         auto [x, y, w, h, t, im] = b.unpack_repr();
+        const uint8_t width = get_width();
 
         for (int dy = 0; dy < h; ++dy) {
             for (int dx = 0; dx < w; ++dx) {
-                bitmap |= 1ULL << ((y + dy) * 8 + (x + dx));
+                bitmap_set_bit(bitmap, width, x + dx, y + dy);
             }
         }
     }
     return bitmap;
 }
 
-inline auto puzzle::bitmap_set_bit(const uint64_t bitmap, const uint8_t x, const uint8_t y) -> uint64_t
+auto puzzle::blocks_bitmap_h() const -> uint64_t
 {
-    return bitmap & ~(1ULL << (y * 8 + x));
-}
+    uint64_t bitmap = 0;
+    for (uint8_t i = 0; i < MAX_BLOCKS; ++i) {
+        block b(repr.cooked.blocks[i]);
+        if (!b.valid()) {
+            break;
+        }
+        const int dirs = b.principal_dirs();
+        if (!(dirs & eas)) {
+            continue;
+        }
 
-inline auto puzzle::bitmap_get_bit(const uint64_t bitmap, const uint8_t x, const uint8_t y) -> bool
-{
-    return bitmap & (1ULL << (y * 8 + x));
-}
+        auto [x, y, w, h, t, im] = b.unpack_repr();
+        const uint8_t width = get_width();
 
-auto puzzle::bitmap_clear_block(uint64_t bitmap, const block b) -> uint64_t
-{
-    const auto [x, y, w, h, t, i] = b.unpack_repr();
-
-    for (int dy = 0; dy < h; ++dy) {
-        for (int dx = 0; dx < w; ++dx) {
-            bitmap = bitmap_set_bit(bitmap, x + dx, y + dy);
+        for (int dy = 0; dy < h; ++dy) {
+            for (int dx = 0; dx < w; ++dx) {
+                bitmap_set_bit(bitmap, width, x + dx, y + dy);
+            }
         }
     }
-
     return bitmap;
 }
 
-auto puzzle::bitmap_check_collision(const uint64_t bitmap, const block b) -> bool
+auto puzzle::blocks_bitmap_v() const -> uint64_t
 {
-    const auto [x, y, w, h, t, i] = b.unpack_repr();
+    uint64_t bitmap = 0;
+    for (uint8_t i = 0; i < MAX_BLOCKS; ++i) {
+        block b(repr.cooked.blocks[i]);
+        if (!b.valid()) {
+            break;
+        }
+        const int dirs = b.principal_dirs();
+        if (!(dirs & sou)) {
+            continue;
+        }
 
-    for (int dy = 0; dy < h; ++dy) {
-        for (int dx = 0; dx < w; ++dx) {
-            if (bitmap_get_bit(bitmap, x + dx, y + dy)) {
-                return true; // collision
+        auto [x, y, w, h, t, im] = b.unpack_repr();
+        const uint8_t width = get_width();
+
+        for (int dy = 0; dy < h; ++dy) {
+            for (int dx = 0; dx < w; ++dx) {
+                bitmap_set_bit(bitmap, width, x + dx, y + dy);
             }
         }
     }
-
-    return false;
-}
-
-auto puzzle::bitmap_check_collision(const uint64_t bitmap, const block b, const direction dir) -> bool
-{
-    const auto [x, y, w, h, t, i] = b.unpack_repr();
-
-    switch (dir) {
-    case nor: // Check the row above: (x...x+w-1, y-1)
-        for (int dx = 0; dx < w; ++dx) {
-            if (bitmap_get_bit(bitmap, x + dx, y - 1)) {
-                return true;
-            }
-        }
-        break;
-    case sou: // Check the row below: (x...x+w-1, y+h)
-        for (int dx = 0; dx < w; ++dx) {
-            if (bitmap_get_bit(bitmap, x + dx, y + h)) {
-                return true;
-            }
-        }
-        break;
-    case wes: // Check the column left: (x-1, y...y+h-1)
-        for (int dy = 0; dy < h; ++dy) {
-            if (bitmap_get_bit(bitmap, x - 1, y + dy)) {
-                return true;
-            }
-        }
-        break;
-    case eas: // Check the column right: (x+w, y...y+h-1)
-        for (int dy = 0; dy < h; ++dy) {
-            if (bitmap_get_bit(bitmap, x + w, y + dy)) {
-                return true;
-            }
-        }
-        break;
-    }
-    return false;
+    return bitmap;
 }
 
 auto puzzle::explore_state_space() const -> std::pair<std::vector<puzzle>, std::vector<std::pair<size_t, size_t>>>
 {
-    const std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-
     std::vector<puzzle> state_pool;
     boost::unordered_flat_map<puzzle, std::size_t, puzzle_hasher> state_indices;
     std::vector<std::pair<size_t, size_t>> links;
 
     // Buffer for all states we want to call GetNextStates() on
     std::vector<size_t> queue; // indices into state_pool
+
+    #ifdef WIP
+    // Store an index to the blocks array of a state for each occupied bitmap cell
+    std::array<uint8_t, 64> bitmap_block_indices;
+    #endif
 
     // Start with the current state
     state_indices.emplace(*this, 0);
@@ -1095,6 +866,24 @@ auto puzzle::explore_state_space() const -> std::pair<std::vector<puzzle>, std::
         // Make a copy because references might be invalidated when inserting into the vector
         const puzzle current = state_pool[current_idx];
 
+        #ifdef WIP
+        // Build bitmap-block indices
+        for (size_t i = 0; i < MAX_BLOCKS; ++i) {
+            const block b = block(current.repr.cooked.blocks[i]);
+            const auto [bx, by, bw, bh, bt, bi] = b.unpack_repr();
+            if (!b.valid()) {
+                break;
+            }
+
+            for (uint8_t x = bx; x < bx + bw; ++x) {
+                for (uint8_t y = by; y < by + bh; ++y) {
+                    bitmap_block_indices[y * current.get_width() + x] = i;
+                }
+            }
+        }
+        #endif
+
+        // TODO: I can just dispatch different functions depending on if the board is restricted or contains walls
         current.for_each_adjacent([&](const puzzle& p)
         {
             auto [it, inserted] = state_indices.emplace(p, state_pool.size());
@@ -1106,10 +895,239 @@ auto puzzle::explore_state_space() const -> std::pair<std::vector<puzzle>, std::
         });
     }
 
-    const std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
-
-    infoln("Explored puzzle. Took {} ms.", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-    infoln("State space has size {} with {} transitions.", state_pool.size(), links.size());
-
     return {std::move(state_pool), std::move(links)};
+}
+
+auto puzzle::get_cluster_id_and_solution() const -> std::pair<puzzle, bool>
+{
+    const auto& [puzzles, moves] = explore_state_space();
+    bool solution = false;
+    puzzle min = puzzles[0];
+    for (size_t i = 0; i < puzzles.size(); ++i) {
+        if (puzzles[i] < min) {
+            min = puzzles[i];
+        }
+        if (puzzles[i].goal_reached()) {
+            solution = true;
+        }
+    }
+    return {min, solution};
+}
+
+auto puzzle::bitmap_find_first_empty(const uint64_t bitmap, int& x, int& y) const -> bool
+{
+    x = 0;
+    y = 0;
+
+    // Bitmap is empty of first slot is empty
+    if (bitmap_is_empty(bitmap) || !(bitmap & 1u)) {
+        return true;
+    }
+
+    // Bitmap is full
+    if (bitmap_is_full(bitmap)) {
+        return false;
+    }
+
+    // Find the next more significant empty bit (we know the first slot is full)
+    int ls_set = 0;
+    bool next_set = true;
+    while (next_set && ls_set < get_width() * get_height() - 1) {
+        next_set = bitmap & (1ul << (ls_set + 1));
+        ++ls_set;
+    }
+
+    x = ls_set % get_width();
+    y = ls_set / get_width();
+    return true;
+}
+
+auto puzzle::generate_block_sequences(
+    const boost::unordered_flat_set<block, block_hasher2, block_equal2>& permitted_blocks,
+    const block target_block,
+    const size_t max_blocks,
+    std::vector<block>& current_sequence,
+    const int current_area,
+    const int board_area,
+    const std::function<void(const std::vector<block>&)>& callback) -> void
+{
+    if (!current_sequence.empty()) {
+        callback(current_sequence);
+    }
+
+    if (current_sequence.size() == max_blocks) {
+        return;
+    }
+
+    for (const block b : permitted_blocks) {
+        const int new_area = current_area + b.get_width() * b.get_height();
+        if (new_area > board_area) {
+            continue;
+        }
+
+        // Explore all sequences with the block placed, then continue the loop
+        current_sequence.push_back(b);
+        generate_block_sequences(permitted_blocks,
+                                 target_block,
+                                 max_blocks,
+                                 current_sequence,
+                                 new_area,
+                                 board_area,
+                                 callback);
+        current_sequence.pop_back();
+    }
+}
+
+auto puzzle::place_block_sequence(const puzzle& p,
+                                  const uint64_t& bitmap,
+                                  const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>& p_repr,
+                                  const std::vector<block>& sequence,
+                                  const block target_block,
+                                  const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t>& target_block_pos_range,
+                                  const bool has_target,
+                                  const size_t index,
+                                  const std::function<void(const puzzle&)>& callback) -> void
+{
+    if (index == sequence.size()) {
+        // All blocks placed
+        callback(p);
+        return;
+    }
+
+    if (!has_target && p.get_restricted()) {
+        // Place target block (restricted movement)
+        const auto [txs, tys, txe, tye] = target_block_pos_range;
+        for (int tx = txs; tx <= txe; ++tx) {
+            for (int ty = tys; ty <= tye; ++ty) {
+                block t = target_block;
+                t = t.set_x(tx);
+                t = t.set_y(ty);
+
+                if (!p.covers(t)) {
+                    continue;
+                }
+
+                const std::array<uint16_t, MAX_BLOCKS> blocks = sorted_replace(p.repr.cooked.blocks, 0, t.repr);
+                const puzzle next_p = puzzle(p_repr, blocks);
+
+                uint64_t next_bm = bitmap;
+                next_p.bitmap_set_block(next_bm, t);
+
+                // Place the remaining blocks for each possible target block configuration
+                // traceln("Generating block sequence for target at {},{}", tx, ty);
+                next_p.place_block_sequence(next_p,
+                                            next_bm,
+                                            p_repr,
+                                            sequence,
+                                            target_block,
+                                            target_block_pos_range,
+                                            true,
+                                            index,
+                                            callback);
+            }
+        }
+
+        return;
+    }
+
+
+    if (!has_target && !p.get_restricted()) {
+        // Place target block (free movement)
+
+        // TODO
+    }
+
+    int x, y;
+    if (!p.bitmap_find_first_empty(bitmap, x, y)) {
+        // No space remaining
+        callback(p);
+        return;
+    }
+
+    block b = sequence[index];
+    b = b.set_x(static_cast<uint8_t>(x));
+    b = b.set_y(static_cast<uint8_t>(y));
+
+    // Place the next block and call the resulting subtree, then remove the block and continue here
+    if (!p.bitmap_check_collision(bitmap, b) && p.covers(b)) {
+        // Shift the sequence by 1 (index + 1), because the target block is inserted separately
+        const std::array<uint16_t, MAX_BLOCKS> blocks = sorted_replace(p.repr.cooked.blocks, index + 1, b.repr);
+        const puzzle next_p = puzzle(p_repr, blocks);
+
+        uint64_t next_bm = bitmap;
+        next_p.bitmap_set_block(next_bm, b);
+
+        next_p.place_block_sequence(next_p,
+                                    next_bm,
+                                    p_repr,
+                                    sequence,
+                                    target_block,
+                                    target_block_pos_range,
+                                    true,
+                                    index + 1,
+                                    callback);
+    }
+
+    // Create an empty cell and call the resulting subtree (without advancing the block index)
+    uint64_t next_bm = bitmap;
+    bitmap_set_bit(next_bm, p.get_width(), b.get_x(), b.get_y());
+    p.place_block_sequence(p, next_bm, p_repr, sequence, target_block, target_block_pos_range, true, index, callback);
+}
+
+auto puzzle::explore_puzzle_space(const boost::unordered_flat_set<block, block_hasher2, block_equal2>& permitted_blocks,
+                                  const block target_block,
+                                  const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t>& target_block_pos_range,
+                                  const size_t max_blocks,
+                                  const std::optional<BS::thread_pool<>* const> thread_pool) const ->
+    boost::unordered_flat_set<puzzle, puzzle_hasher>
+{
+    const auto [w, h, gx, gy, r, g] = unpack_meta();
+
+    // Implemented in the slowest, stupidest way for now:
+    // 1. Iterate through all possible permitted_blocks permutations using recursive tree descent
+    // 2. Find the cluster id of the permutation by populating the entire state space
+    //    - We could do some preprocessing to quickly reduce the numeric value
+    //      of the state and check if its already contained in visited_clusters,
+    //      this could save some state space calculations.
+    // 3. Add it to visited_clusters if unseen
+
+    std::mutex mtx;
+
+    boost::unordered_flat_set<puzzle, puzzle_hasher> visited_clusters;
+
+    // TODO: Can't even parallelize this. Or just start at different initial puzzles?
+    const puzzle empty_puzzle = puzzle(w, h, gx, gy, r, g);
+    const auto board_repr = std::make_tuple(w, h, gx, gy, r, g);
+    std::vector<block> current_sequence;
+    int total = 0;
+    generate_block_sequences(permitted_blocks,
+                             target_block,
+                             max_blocks - 1, // Make space for the target block
+                             current_sequence,
+                             target_block.get_width() * target_block.get_height(), // Starting area
+                             get_width() * get_height(),
+                             [&](const std::vector<block>& sequence)
+                             {
+                                 place_block_sequence(empty_puzzle,
+                                                      0,
+                                                      board_repr,
+                                                      sequence,
+                                                      target_block,
+                                                      target_block_pos_range,
+                                                      false,
+                                                      0,
+                                                      [&](const puzzle& p)
+                                                      {
+                                                          const auto [cluster_id, winnable] = p.get_cluster_id_and_solution();
+                                                          std::lock_guard<std::mutex> lock(mtx);
+                                                          ++total;
+                                                          if (winnable) {
+                                                              visited_clusters.emplace(cluster_id);
+                                                          }
+                                                      });
+                             });
+
+    infoln("Found {} of {} clusters with a solution", visited_clusters.size(), total);
+
+    return visited_clusters;
 }

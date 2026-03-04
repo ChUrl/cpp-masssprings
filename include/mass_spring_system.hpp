@@ -4,6 +4,7 @@
 #include "octree.hpp"
 #include "config.hpp"
 
+#include <optional>
 #include <raylib.h>
 
 class mass_spring_system
@@ -20,11 +21,6 @@ public:
             : a(_a), b(_b) {}
     };
 
-private:
-    #ifdef THREADPOOL
-    BS::thread_pool<> threads;
-    #endif
-
 public:
     static constexpr int SMALL_TASK_BLOCK_SIZE = 256;
     static constexpr int LARGE_TASK_BLOCK_SIZE = 256;
@@ -40,21 +36,12 @@ public:
     std::vector<spring> springs;
 
 public:
-    mass_spring_system()
-    #ifdef THREADPOOL
-        : threads(std::thread::hardware_concurrency() - 2, set_mass_springs_pool_thread_name)
-    #endif
-    {}
+    mass_spring_system() {}
 
     mass_spring_system(const mass_spring_system& copy) = delete;
     auto operator=(const mass_spring_system& copy) -> mass_spring_system& = delete;
     mass_spring_system(mass_spring_system& move) = delete;
     auto operator=(mass_spring_system&& move) -> mass_spring_system& = delete;
-
-private:
-    #ifdef THREADPOOL
-    static auto set_mass_springs_pool_thread_name(size_t idx) -> void;
-    #endif
 
 public:
     auto clear() -> void;
@@ -63,14 +50,14 @@ public:
 
     auto clear_forces() -> void;
     auto calculate_spring_force(size_t s) -> void;
-    auto calculate_spring_forces() -> void;
-    auto calculate_repulsion_forces() -> void;
+    auto calculate_spring_forces(std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt) -> void;
+    auto calculate_repulsion_forces(std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt) -> void;
     auto integrate_velocity(size_t m, float dt) -> void;
     auto integrate_position(size_t m, float dt) -> void;
     auto verlet_update(size_t m, float dt) -> void;
-    auto update(float dt) -> void;
+    auto update(float dt, std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt) -> void;
 
-    auto center_masses() -> void;
+    auto center_masses(std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt) -> void;
 };
 
 #endif

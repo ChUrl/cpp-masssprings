@@ -1,8 +1,8 @@
 #ifndef RENDERER_HPP_
 #define RENDERER_HPP_
 
-#include "orbit_camera.hpp"
 #include "config.hpp"
+#include "orbit_camera.hpp"
 #include "input_handler.hpp"
 #include "state_manager.hpp"
 #include "user_interface.hpp"
@@ -18,7 +18,7 @@ private:
     user_interface& gui;
 
     const orbit_camera& camera;
-    RenderTexture render_target =
+    RenderTexture graph_target =
         LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT);
 
     // TODO: Those should be moved to the user_interface.h
@@ -81,7 +81,7 @@ public:
 
     ~renderer()
     {
-        UnloadRenderTexture(render_target);
+        UnloadRenderTexture(graph_target);
         UnloadRenderTexture(klotski_target);
         UnloadRenderTexture(menu_target);
 

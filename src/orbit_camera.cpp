@@ -4,10 +4,6 @@
 #include <raylib.h>
 #include <raymath.h>
 
-#ifdef TRACY
-    #include <tracy/Tracy.hpp>
-#endif
-
 auto orbit_camera::rotate(const Vector2 last_mouse, const Vector2 mouse) -> void
 {
     const auto [dx, dy] = Vector2Subtract(mouse, last_mouse);

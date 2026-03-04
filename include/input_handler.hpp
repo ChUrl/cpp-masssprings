@@ -1,5 +1,5 @@
-#ifndef INPUT_HPP_
-#define INPUT_HPP_
+#ifndef INPUT_HANDLER_HPP_
+#define INPUT_HANDLER_HPP_
 
 #include "orbit_camera.hpp"
 #include "state_manager.hpp"

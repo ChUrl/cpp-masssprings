@@ -7,10 +7,6 @@
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
 
-#ifdef TRACY
-#include <tracy/Tracy.hpp>
-#endif
-
 auto user_interface::grid::update_bounds(const int _x, const int _y, const int _width, const int _height,
                                          const int _columns, const int _rows) -> void
 {
@@ -639,13 +635,13 @@ auto user_interface::draw_save_preset_popup() -> void
 
     // Returns the pressed button index
     const int button = GuiTextInputBox(popup_bounds(), "Save as Preset", "Enter Preset Name", "Ok;Cancel",
-                                       preset_name.data(), 255, nullptr);
+                                       preset_comment.data(), 255, nullptr);
     if (button == 1) {
-        state.append_preset_file(preset_name.data());
+        state.save_current_to_preset_file(preset_comment.data());
     }
     if (button == 0 || button == 1 || button == 2) {
         save_window = false;
-        TextCopy(preset_name.data(), "\0");
+        TextCopy(preset_comment.data(), "\0");
     }
 }
 

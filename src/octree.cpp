@@ -4,10 +4,6 @@
 #include <cfloat>
 #include <raymath.h>
 
-#ifdef TRACY
-#include <tracy/Tracy.hpp>
-#endif
-
 auto octree::node::child_count() const -> int
 {
     int child_count = 0;

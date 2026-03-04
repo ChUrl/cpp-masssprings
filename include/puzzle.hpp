@@ -1,16 +1,24 @@
 #ifndef PUZZLE_HPP_
 #define PUZZLE_HPP_
 
+#include "config.hpp"
 #include "util.hpp"
 
 #include <array>
 #include <cstddef>
-#include <format>
 #include <functional>
 #include <ranges>
 #include <string>
 #include <vector>
-#include <bits/fs_fwd.h>
+#include <boost/unordered/unordered_flat_set.hpp>
+
+// #define RUNTIME_CHECKS
+
+// Forward declare to use in puzzle member functions
+struct block_hasher;
+struct block_hasher2;
+struct block_equal2;
+struct puzzle_hasher;
 
 /*
  * 8x8 board
@@ -125,29 +133,33 @@ public:
         }
 
     private:
-        [[nodiscard]] static auto create_repr(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool t = false,
-                                              bool i = false) -> uint16_t;
-
         // Repr setters
-        [[nodiscard]] auto set_x(uint8_t x) const -> block;
-        [[nodiscard]] auto set_y(uint8_t y) const -> block;
-        [[nodiscard]] auto set_width(uint8_t width) const -> block;
-        [[nodiscard]] auto set_height(uint8_t height) const -> block;
-        [[nodiscard]] auto set_target(bool target) const -> block;
-        [[nodiscard]] auto set_immovable(bool immovable) const -> block;
+        [[nodiscard]] static auto create_repr(uint8_t x,
+                                              uint8_t y,
+                                              uint8_t w,
+                                              uint8_t h,
+                                              bool t = false,
+                                              bool i = false) -> uint16_t;
+        [[nodiscard]] inline auto set_x(uint8_t x) const -> block;
+        [[nodiscard]] inline auto set_y(uint8_t y) const -> block;
+        [[nodiscard]] inline auto set_width(uint8_t width) const -> block;
+        [[nodiscard]] inline auto set_height(uint8_t height) const -> block;
+        [[nodiscard]] inline auto set_target(bool target) const -> block;
+        [[nodiscard]] inline auto set_immovable(bool immovable) const -> block;
 
     public:
-        [[nodiscard]] auto unpack_repr() const -> std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>;
-
         // Repr getters
-        [[nodiscard]] auto get_x() const -> uint8_t;
-        [[nodiscard]] auto get_y() const -> uint8_t;
-        [[nodiscard]] auto get_width() const -> uint8_t;
-        [[nodiscard]] auto get_height() const -> uint8_t;
-        [[nodiscard]] auto get_target() const -> bool;
-        [[nodiscard]] auto get_immovable() const -> bool;
+        [[nodiscard]] auto unpack_repr() const -> std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>;
+        [[nodiscard]] inline auto get_x() const -> uint8_t;
+        [[nodiscard]] inline auto get_y() const -> uint8_t;
+        [[nodiscard]] inline auto get_width() const -> uint8_t;
+        [[nodiscard]] inline auto get_height() const -> uint8_t;
+        [[nodiscard]] inline auto get_target() const -> bool;
+        [[nodiscard]] inline auto get_immovable() const -> bool;
 
         // Util
+        [[nodiscard]] auto hash() const -> size_t;
+        [[nodiscard]] auto position_independent_hash() const -> size_t;
         [[nodiscard]] auto valid() const -> bool;
         [[nodiscard]] auto principal_dirs() const -> uint8_t;
         [[nodiscard]] auto covers(int _x, int _y) const -> bool;
@@ -199,7 +211,8 @@ private:
         // repr_cooked() = delete;
         // repr_cooked(const repr_cooked& copy) = delete;
         // repr_cooked(repr_cooked&& move) = delete;
-    } __attribute__((packed));
+    }
+        PACKED;
 
     /**
      * With gcc, were allowed to acces the members arbitrarily, even if they're not active (not the ones last written):
@@ -247,7 +260,12 @@ public:
         }
     }
 
-    puzzle(const uint8_t w, const uint8_t h, const uint8_t tx, const uint8_t ty, const bool r, const bool g,
+    puzzle(const uint8_t w,
+           const uint8_t h,
+           const uint8_t tx,
+           const uint8_t ty,
+           const bool r,
+           const bool g,
            const std::array<uint16_t, MAX_BLOCKS>& b)
         : repr(create_repr(w, h, tx, ty, r, g, b))
     {
@@ -256,6 +274,14 @@ public:
         }
         if (tx >= MAX_WIDTH || ty >= MAX_HEIGHT) {
             throw std::invalid_argument("Goal out of bounds");
+        }
+    }
+
+    puzzle(const uint8_t w, const uint8_t h)
+        : repr(create_repr(w, h, 0, 0, false, false, invalid_blocks()))
+    {
+        if (w < MIN_WIDTH || w > MAX_WIDTH || h < MIN_HEIGHT || h > MAX_HEIGHT) {
+            throw std::invalid_argument("Board size out of bounds");
         }
     }
 
@@ -331,33 +357,38 @@ private:
         return blocks;
     }
 
-    [[nodiscard]] static auto create_meta(const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>& meta) -> uint16_t;
-    [[nodiscard]] static auto create_repr(uint8_t w, uint8_t h, uint8_t tx, uint8_t ty, bool r, bool g,
-                                          const std::array<uint16_t, MAX_BLOCKS>& b) -> repr_cooked;
-
-    [[nodiscard]] static auto create_repr(uint64_t byte_0, uint64_t byte_1, uint64_t byte_2,
-                                          uint64_t byte_3) -> repr_cooked;
-
-    [[nodiscard]] static auto create_repr(const std::string& string_repr) -> repr_cooked;
-
     // Repr setters
-    [[nodiscard]] auto set_restricted(bool restricted) const -> puzzle;
-    [[nodiscard]] auto set_width(uint8_t width) const -> puzzle;
-    [[nodiscard]] auto set_height(uint8_t height) const -> puzzle;
-    [[nodiscard]] auto set_goal(bool goal) const -> puzzle;
-    [[nodiscard]] auto set_goal_x(uint8_t target_x) const -> puzzle;
-    [[nodiscard]] auto set_goal_y(uint8_t target_y) const -> puzzle;
+    [[nodiscard]] static auto create_meta(
+        const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>& meta) -> uint16_t;
+    [[nodiscard]] static auto create_repr(uint8_t w,
+                                          uint8_t h,
+                                          uint8_t tx,
+                                          uint8_t ty,
+                                          bool r,
+                                          bool g,
+                                          const std::array<uint16_t, MAX_BLOCKS>& b) -> repr_cooked;
+    [[nodiscard]] static auto create_repr(uint64_t byte_0,
+                                          uint64_t byte_1,
+                                          uint64_t byte_2,
+                                          uint64_t byte_3) -> repr_cooked;
+    [[nodiscard]] static auto create_repr(const std::string& string_repr) -> repr_cooked;
+    [[nodiscard]] inline auto set_restricted(bool restricted) const -> puzzle;
+    [[nodiscard]] inline auto set_width(uint8_t width) const -> puzzle;
+    [[nodiscard]] inline auto set_height(uint8_t height) const -> puzzle;
+    [[nodiscard]] inline auto set_goal(bool goal) const -> puzzle;
+    [[nodiscard]] inline auto set_goal_x(uint8_t target_x) const -> puzzle;
+    [[nodiscard]] inline auto set_goal_y(uint8_t target_y) const -> puzzle;
     [[nodiscard]] auto set_blocks(std::array<uint16_t, MAX_BLOCKS> blocks) const -> puzzle;
 
 public:
     // Repr getters
     [[nodiscard]] auto unpack_meta() const -> std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>;
-    [[nodiscard]] auto get_restricted() const -> bool;
-    [[nodiscard]] auto get_width() const -> uint8_t;
-    [[nodiscard]] auto get_height() const -> uint8_t;
-    [[nodiscard]] auto get_goal() const -> bool;
-    [[nodiscard]] auto get_goal_x() const -> uint8_t;
-    [[nodiscard]] auto get_goal_y() const -> uint8_t;
+    [[nodiscard]] inline auto get_restricted() const -> bool;
+    [[nodiscard]] inline auto get_width() const -> uint8_t;
+    [[nodiscard]] inline auto get_height() const -> uint8_t;
+    [[nodiscard]] inline auto get_goal() const -> bool;
+    [[nodiscard]] inline auto get_goal_x() const -> uint8_t;
+    [[nodiscard]] inline auto get_goal_y() const -> uint8_t;
 
     // Util
     [[nodiscard]] auto hash() const -> size_t;
@@ -390,19 +421,46 @@ public:
     [[nodiscard]] auto try_move_block_at(uint8_t x, uint8_t y, direction dir) const -> std::optional<puzzle>;
 
     // Statespace
-    [[nodiscard]] auto try_move_block_at_fast(uint64_t bitmap, uint8_t block_idx,
-                                              direction dir) const -> std::optional<puzzle>;
-    static auto sorted_replace(std::array<uint16_t, MAX_BLOCKS> blocks, uint8_t idx,
-                               uint16_t new_val) -> std::array<uint16_t, MAX_BLOCKS>;
-    auto blocks_bitmap() const -> uint64_t;
-    static inline auto bitmap_set_bit(uint64_t bitmap, uint8_t x, uint8_t y) -> uint64_t;
-    static inline auto bitmap_get_bit(uint64_t bitmap, uint8_t x, uint8_t y) -> bool;
-    static auto bitmap_clear_block(uint64_t bitmap, block b) -> uint64_t;
-    static auto bitmap_check_collision(uint64_t bitmap, block b) -> bool;
-    static auto bitmap_check_collision(uint64_t bitmap, block b, direction dir) -> bool;
+    [[nodiscard]] INLINE inline auto try_move_block_at_fast(uint64_t bitmap,
+                                                            uint8_t block_idx,
+                                                            direction dir,
+                                                            bool check_collision = true) const -> std::optional<puzzle>;
+    [[nodiscard]] static auto sorted_replace(std::array<uint16_t, MAX_BLOCKS> blocks,
+                                             uint8_t idx,
+                                             uint16_t new_val) -> std::array<uint16_t, MAX_BLOCKS>;
+    [[nodiscard]] auto blocks_bitmap() const -> uint64_t;
+    [[nodiscard]] auto blocks_bitmap_h() const -> uint64_t;
+    [[nodiscard]] auto blocks_bitmap_v() const -> uint64_t;
+    static INLINE inline auto bitmap_clear_bit(uint64_t& bitmap, uint8_t w, uint8_t x, uint8_t y) -> void;
+    static INLINE inline auto bitmap_set_bit(uint64_t& bitmap, uint8_t w, uint8_t x, uint8_t y) -> void;
+    [[nodiscard]] static INLINE inline auto bitmap_get_bit(uint64_t bitmap, uint8_t w, uint8_t x, uint8_t y) -> bool;
+    INLINE inline auto bitmap_clear_block(uint64_t& bitmap, block b) const -> void;
+    INLINE inline auto bitmap_set_block(uint64_t& bitmap, block b) const -> void;
+    [[nodiscard]] INLINE inline auto bitmap_is_empty(uint64_t bitmap) const -> bool;
+    [[nodiscard]] INLINE inline auto bitmap_is_full(uint64_t bitmap) const -> bool;
+
+    /**
+     * Checks if b would collide with any block on the board.
+     *
+     * @param bitmap Board occupancy map
+     * @param b Hypothetical block to check collision with
+     * @return True if b would collide with any other block on the board
+     */
+    [[nodiscard]] INLINE inline auto bitmap_check_collision(uint64_t bitmap, block b) const -> bool;
+
+    /**
+     * Checks if b would collide with any block on the board after moving in direction dir.
+     *
+     * @param bitmap Board occupancy map
+     * @param b Existing block to check collision with
+     * @param dir Direction in which the block should be moved
+     * @return True if b would collide with any other block on the board after moving in direction dir
+     */
+    [[nodiscard]] INLINE inline auto bitmap_check_collision(uint64_t bitmap, block b, direction dir) const -> bool;
 
     template <typename F>
-    auto for_each_adjacent(F&& callback) const -> void
+    // ReSharper disable once CppRedundantInlineSpecifier
+    INLINE inline auto for_each_adjacent(F&& callback) const -> void
     {
         const uint64_t bitmap = blocks_bitmap();
         const bool r = get_restricted();
@@ -427,9 +485,444 @@ public:
 
     [[nodiscard]] auto explore_state_space() const
         -> std::pair<std::vector<puzzle>, std::vector<std::pair<size_t, size_t>>>;
+
+    // Determines to which cluster a puzzle belongs. Clusters are identified by the
+    // state with the numerically smallest binary representation.
+    [[nodiscard]] auto get_cluster_id_and_solution() const -> std::pair<puzzle, bool>;
+
+    [[nodiscard]] auto bitmap_find_first_empty(uint64_t bitmap, int& x, int& y) const -> bool;
+
+    static auto generate_block_sequences(
+        const boost::unordered_flat_set<block, block_hasher2, block_equal2>& permitted_blocks,
+        block target_block,
+        size_t max_blocks,
+        std::vector<block>& current_sequence,
+        int current_area,
+        int board_area,
+        const std::function<void(const std::vector<block>&)>& callback) -> void;
+
+    static auto place_block_sequence(const puzzle& p,
+                                     const uint64_t& bitmap,
+                                     const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, bool, bool>& p_repr,
+                                     const std::vector<block>& sequence,
+                                     block target_block,
+                                     const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t>& target_block_pos_range,
+                                     bool has_target,
+                                     size_t index,
+                                     const std::function<void(const puzzle&)>& callback) -> void;
+
+    [[nodiscard]] auto explore_puzzle_space(
+        const boost::unordered_flat_set<block, block_hasher2, block_equal2>& permitted_blocks,
+        block target_block,
+        const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t>& target_block_pos_range,
+        size_t max_blocks,
+        std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt) const -> boost::unordered_flat_set<
+        puzzle, puzzle_hasher>;
 };
 
-// Hash functions for sets and maps
+// Inline functions definitions
+#ifndef REGION_INLINE_DEFS
+
+inline auto puzzle::block::set_x(const uint8_t x) const -> block
+{
+    #ifdef RUNTIME_CHECKS
+    if (x > 7) {
+        throw std::invalid_argument("Block x-position out of bounds");
+    }
+    #endif
+
+    block b = *this;
+    set_bits(b.repr, X_S, X_E, x);
+    return b;
+}
+
+inline auto puzzle::block::set_y(const uint8_t y) const -> block
+{
+    #ifdef RUNTIME_CHECKS
+    if (y > 7) {
+        throw std::invalid_argument("Block y-position out of bounds");
+    }
+    #endif
+
+    block b = *this;
+    set_bits(b.repr, Y_S, Y_E, y);
+    return b;
+}
+
+inline auto puzzle::block::set_width(const uint8_t width) const -> block
+{
+    #ifdef RUNTIME_CHECKS
+    if (width - 1 > 7) {
+        throw std::invalid_argument("Block width out of bounds");
+    }
+    #endif
+
+    block b = *this;
+    set_bits(b.repr, WIDTH_S, WIDTH_E, width - 1u);
+    return b;
+}
+
+inline auto puzzle::block::set_height(const uint8_t height) const -> block
+{
+    #ifdef RUNTIME_CHECKS
+    if (height - 1 > 7) {
+        throw std::invalid_argument("Block height out of bounds");
+    }
+    #endif
+
+    block b = *this;
+    set_bits(b.repr, HEIGHT_S, HEIGHT_E, height - 1u);
+    return b;
+}
+
+inline auto puzzle::block::set_target(const bool target) const -> block
+{
+    block b = *this;
+    set_bits(b.repr, TARGET_S, TARGET_E, target);
+    return b;
+}
+
+inline auto puzzle::block::set_immovable(const bool immovable) const -> block
+{
+    block b = *this;
+    set_bits(b.repr, IMMOVABLE_S, IMMOVABLE_E, immovable);
+    return b;
+}
+
+inline auto puzzle::block::get_x() const -> uint8_t
+{
+    return get_bits(repr, X_S, X_E);
+}
+
+inline auto puzzle::block::get_y() const -> uint8_t
+{
+    return get_bits(repr, Y_S, Y_E);
+}
+
+inline auto puzzle::block::get_width() const -> uint8_t
+{
+    return get_bits(repr, WIDTH_S, WIDTH_E) + 1u;
+}
+
+inline auto puzzle::block::get_height() const -> uint8_t
+{
+    return get_bits(repr, HEIGHT_S, HEIGHT_E) + 1u;
+}
+
+inline auto puzzle::block::get_target() const -> bool
+{
+    return get_bits(repr, TARGET_S, TARGET_E);
+}
+
+inline auto puzzle::block::get_immovable() const -> bool
+{
+    return get_bits(repr, IMMOVABLE_S, IMMOVABLE_E);
+}
+
+inline auto puzzle::set_restricted(const bool restricted) const -> puzzle
+{
+    uint16_t meta = repr.cooked.meta;
+    set_bits(meta, RESTRICTED_S, RESTRICTED_E, restricted);
+    return puzzle(meta, repr.cooked.blocks);
+}
+
+inline auto puzzle::set_width(const uint8_t width) const -> puzzle
+{
+    #ifdef RUNTIME_CHECKS
+    if (width - 1 > MAX_WIDTH) {
+        throw "Board width out of bounds";
+    }
+    #endif
+
+    uint16_t meta = repr.cooked.meta;
+    set_bits(meta, WIDTH_S, WIDTH_E, width - 1u);
+    return puzzle(meta, repr.cooked.blocks);
+}
+
+inline auto puzzle::set_height(const uint8_t height) const -> puzzle
+{
+    #ifdef RUNTIME_CHECKS
+    if (height - 1 > MAX_HEIGHT) {
+        throw "Board height out of bounds";
+    }
+    #endif
+
+    uint16_t meta = repr.cooked.meta;
+    set_bits(meta, HEIGHT_S, HEIGHT_E, height - 1u);
+    return puzzle(meta, repr.cooked.blocks);
+}
+
+inline auto puzzle::set_goal(const bool goal) const -> puzzle
+{
+    uint16_t meta = repr.cooked.meta;
+    set_bits(meta, GOAL_S, GOAL_E, goal);
+    return puzzle(meta, repr.cooked.blocks);
+}
+
+inline auto puzzle::set_goal_x(const uint8_t target_x) const -> puzzle
+{
+    #ifdef RUNTIME_CHECKS
+    if (target_x >= MAX_WIDTH) {
+        throw "Board target x out of bounds";
+    }
+    #endif
+
+    uint16_t meta = repr.cooked.meta;
+    set_bits(meta, GOAL_X_S, GOAL_X_E, target_x);
+    return puzzle(meta, repr.cooked.blocks);
+}
+
+inline auto puzzle::set_goal_y(const uint8_t target_y) const -> puzzle
+{
+    #ifdef RUNTIME_CHECKS
+    if (target_y >= MAX_HEIGHT) {
+        throw "Board target y out of bounds";
+    }
+    #endif
+
+    uint16_t meta = repr.cooked.meta;
+    set_bits(meta, GOAL_Y_S, GOAL_Y_E, target_y);
+    return puzzle(meta, repr.cooked.blocks);
+}
+
+inline auto puzzle::get_restricted() const -> bool
+{
+    return get_bits(repr.cooked.meta, RESTRICTED_S, RESTRICTED_E);
+}
+
+inline auto puzzle::get_width() const -> uint8_t
+{
+    return get_bits(repr.cooked.meta, WIDTH_S, WIDTH_E) + 1u;
+}
+
+inline auto puzzle::get_height() const -> uint8_t
+{
+    return get_bits(repr.cooked.meta, HEIGHT_S, HEIGHT_E) + 1u;
+}
+
+inline auto puzzle::get_goal() const -> bool
+{
+    return get_bits(repr.cooked.meta, GOAL_S, GOAL_E);
+}
+
+inline auto puzzle::get_goal_x() const -> uint8_t
+{
+    return get_bits(repr.cooked.meta, GOAL_X_S, GOAL_X_E);
+}
+
+inline auto puzzle::get_goal_y() const -> uint8_t
+{
+    return get_bits(repr.cooked.meta, GOAL_Y_S, GOAL_Y_E);
+}
+
+INLINE inline auto puzzle::try_move_block_at_fast(uint64_t bitmap,
+                                                  const uint8_t block_idx,
+                                                  const direction dir,
+                                                  const bool check_collision) const -> std::optional<puzzle>
+{
+    const block b = block(repr.cooked.blocks[block_idx]);
+    const auto [bx, by, bw, bh, bt, bi] = b.unpack_repr();
+    if (bi) {
+        return std::nullopt;
+    }
+
+    const auto [w, h, gx, gy, r, g] = unpack_meta();
+    const int dirs = r ? b.principal_dirs() : nor | eas | sou | wes;
+
+    // Get target block
+    int _target_x = bx;
+    int _target_y = by;
+    switch (dir) {
+    case nor:
+        if (!(dirs & nor) || _target_y < 1) {
+            return std::nullopt;
+        }
+        --_target_y;
+        break;
+    case eas:
+        if (!(dirs & eas) || _target_x + bw >= w) {
+            return std::nullopt;
+        }
+        ++_target_x;
+        break;
+    case sou:
+        if (!(dirs & sou) || _target_y + bh >= h) {
+            return std::nullopt;
+        }
+        ++_target_y;
+        break;
+    case wes:
+        if (!(dirs & wes) || _target_x < 1) {
+            return std::nullopt;
+        }
+        --_target_x;
+        break;
+    }
+
+    // Check collisions
+    if (check_collision) {
+        bitmap_clear_block(bitmap, b);
+        if (bitmap_check_collision(bitmap, b, dir)) {
+            return std::nullopt;
+        }
+    }
+
+    // Replace block
+    const std::array<uint16_t, MAX_BLOCKS> blocks = sorted_replace(repr.cooked.blocks,
+                                                                   block_idx,
+                                                                   block::create_repr(
+                                                                       _target_x,
+                                                                       _target_y,
+                                                                       bw,
+                                                                       bh,
+                                                                       bt));
+
+    // This constructor doesn't sort
+    return puzzle(std::make_tuple(w, h, gx, gy, r, g), blocks);
+}
+
+INLINE inline auto puzzle::bitmap_clear_bit(uint64_t& bitmap, const uint8_t w, const uint8_t x, const uint8_t y) -> void
+{
+    set_bits(bitmap, y * w + x, y * w + x, 0u);
+}
+
+INLINE inline auto puzzle::bitmap_set_bit(uint64_t& bitmap, const uint8_t w, const uint8_t x, const uint8_t y) -> void
+{
+    set_bits(bitmap, y * w + x, y * w + x, 1u);
+}
+
+INLINE inline auto puzzle::bitmap_get_bit(const uint64_t bitmap,
+                                          const uint8_t w,
+                                          const uint8_t x,
+                                          const uint8_t y) -> bool
+{
+    return get_bits(bitmap, y * w + x, y * w + x);
+}
+
+INLINE inline auto puzzle::bitmap_clear_block(uint64_t& bitmap, const block b) const -> void
+{
+    const auto [x, y, w, h, t, i] = b.unpack_repr();
+    const uint8_t width = get_width();
+
+    for (int dy = 0; dy < h; ++dy) {
+        for (int dx = 0; dx < w; ++dx) {
+            bitmap_clear_bit(bitmap, width, x + dx, y + dy);
+        }
+    }
+}
+
+INLINE inline auto puzzle::bitmap_set_block(uint64_t& bitmap, const block b) const -> void
+{
+    const auto [x, y, w, h, t, i] = b.unpack_repr();
+    const uint8_t width = get_width();
+
+    for (int dy = 0; dy < h; ++dy) {
+        for (int dx = 0; dx < w; ++dx) {
+            bitmap_set_bit(bitmap, width, x + dx, y + dy);
+        }
+    }
+}
+
+INLINE inline auto puzzle::bitmap_is_empty(const uint64_t bitmap) const -> bool
+{
+    const uint8_t shift = 64 - get_width() * get_height();
+    return bitmap << shift == 0;
+}
+
+INLINE inline auto puzzle::bitmap_is_full(const uint64_t bitmap) const -> bool
+{
+    const uint8_t shift = 64 - get_width() * get_height();
+    return ((bitmap << shift) >> shift) == ((static_cast<uint64_t>(-1) << shift) >> shift);
+}
+
+INLINE inline auto puzzle::bitmap_check_collision(const uint64_t bitmap, const block b) const -> bool
+{
+    const auto [x, y, w, h, t, i] = b.unpack_repr();
+    const uint8_t width = get_width();
+
+    for (int dy = 0; dy < h; ++dy) {
+        for (int dx = 0; dx < w; ++dx) {
+            if (bitmap_get_bit(bitmap, width, x + dx, y + dy)) {
+                return true; // collision
+            }
+        }
+    }
+
+    return false;
+}
+
+INLINE inline auto puzzle::bitmap_check_collision(const uint64_t bitmap,
+                                                  const block b,
+                                                  const direction dir) const -> bool
+{
+    const auto [x, y, w, h, t, i] = b.unpack_repr();
+    const uint8_t width = get_width();
+
+    switch (dir) {
+    case nor: // Check the row above: (x...x+w-1, y-1)
+        for (int dx = 0; dx < w; ++dx) {
+            if (bitmap_get_bit(bitmap, width, x + dx, y - 1)) {
+                return true;
+            }
+        }
+        break;
+    case sou: // Check the row below: (x...x+w-1, y+h)
+        for (int dx = 0; dx < w; ++dx) {
+            if (bitmap_get_bit(bitmap, width, x + dx, y + h)) {
+                return true;
+            }
+        }
+        break;
+    case wes: // Check the column left: (x-1, y...y+h-1)
+        for (int dy = 0; dy < h; ++dy) {
+            if (bitmap_get_bit(bitmap, width, x - 1, y + dy)) {
+                return true;
+            }
+        }
+        break;
+    case eas: // Check the column right: (x+w, y...y+h-1)
+        for (int dy = 0; dy < h; ++dy) {
+            if (bitmap_get_bit(bitmap, width, x + w, y + dy)) {
+                return true;
+            }
+        }
+        break;
+    }
+    return false;
+}
+
+#endif
+
+// Hash functions for sets and maps.
+// Declared after puzzle class to use puzzle::hash_combine
+#ifndef REGION_HASHERS
+
+struct block_hasher
+{
+    auto operator()(const puzzle::block& b) const noexcept -> size_t
+    {
+        return b.hash();
+    }
+};
+
+struct block_hasher2
+{
+    auto operator()(const puzzle::block& b) const noexcept -> size_t
+    {
+        return b.position_independent_hash();
+    }
+};
+
+struct block_equal2
+{
+    auto operator()(const puzzle::block& a, const puzzle::block& b) const noexcept -> bool
+    {
+        const auto [ax, ay, aw, ah, at, ai] = a.unpack_repr();
+        const auto [bx, by, bw, bh, bt, bi] = b.unpack_repr();
+
+        return aw == bw && ah == bh && at == bt && ai == bi;
+    }
+};
 
 struct puzzle_hasher
 {
@@ -453,7 +946,7 @@ struct link_hasher
     }
 };
 
-struct link_equal_to
+struct link_equal
 {
     auto operator()(const std::pair<puzzle, puzzle>& a, const std::pair<puzzle, puzzle>& b) const noexcept -> bool
     {
@@ -462,9 +955,9 @@ struct link_equal_to
 };
 
 template <typename T, typename... Rest>
-auto puzzle::hash_combine(std::size_t& seed, const T& v, const Rest&... rest) -> void
+auto puzzle::hash_combine(size_t& seed, const T& v, const Rest&... rest) -> void
 {
-    auto h = []<typename HashedType>(const HashedType& val) -> std::size_t
+    auto hasher = []<typename HashedType>(const HashedType& val) -> std::size_t
     {
         if constexpr (std::is_same_v<std::decay_t<HashedType>, puzzle>) {
             return puzzle_hasher{}(val);
@@ -475,8 +968,10 @@ auto puzzle::hash_combine(std::size_t& seed, const T& v, const Rest&... rest) ->
         }
     };
 
-    seed ^= h(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     (hash_combine(seed, rest), ...);
 }
+
+#endif
 
 #endif

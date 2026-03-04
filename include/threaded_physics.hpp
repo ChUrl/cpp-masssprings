@@ -13,10 +13,6 @@
 #include <variant>
 #include <vector>
 
-#ifdef TRACY
-#include <tracy/Tracy.hpp>
-#endif
-
 class threaded_physics
 {
     struct add_mass {};
@@ -65,8 +61,8 @@ public:
     physics_state state;
 
 public:
-    threaded_physics()
-        : physics(physics_thread, std::ref(state)) {}
+    explicit threaded_physics(const std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt)
+        : physics(physics_thread, std::ref(state), std::ref(thread_pool)) {}
 
     threaded_physics(const threaded_physics& copy) = delete;
     auto operator=(const threaded_physics& copy) -> threaded_physics& = delete;
@@ -86,7 +82,7 @@ private:
     static auto set_octree_pool_thread_name(size_t idx) -> void;
     #endif
 
-    static auto physics_thread(physics_state& state) -> void;
+    static auto physics_thread(physics_state& state, std::optional<BS::thread_pool<>* const> thread_pool) -> void;
 
 public:
     auto clear_cmd() -> void;

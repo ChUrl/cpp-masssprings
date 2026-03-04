@@ -6,3 +6,6 @@ cmake-build-release
 /.gdb_history
 /valgrind.log
 .idea
+/perf.data
+/perf.data.old
+/clusters.puzzle

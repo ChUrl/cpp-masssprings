@@ -1,13 +1,8 @@
 #include "mass_spring_system.hpp"
 #include "config.hpp"
-#include "util.hpp"
 
 #include <cfloat>
 #include <cstring>
-
-#ifdef TRACY
-#include <tracy/Tracy.hpp>
-#endif
 
 auto mass_spring_system::calculate_spring_force(const size_t s) -> void
 {
@@ -21,7 +16,7 @@ auto mass_spring_system::calculate_spring_force(const size_t s) -> void
     const Vector3 delta_vel = a_vel - b_vel;
 
     const float sq_len = Vector3DotProduct(delta_pos, delta_pos);
-    const float inv_len = 1.0f / sqrt(sq_len);
+    const float inv_len = rsqrt(sq_len);
     const float len = sq_len * inv_len;
 
     const float hooke = SPRING_CONSTANT * (len - REST_LENGTH);
@@ -57,14 +52,6 @@ auto mass_spring_system::verlet_update(const size_t m, const float dt) -> void
     positions[m] += delta_pos + acc;
     previous_positions[m] = pos;
 }
-
-#ifdef THREADPOOL
-auto mass_spring_system::set_mass_springs_pool_thread_name(size_t idx) -> void
-{
-    BS::this_thread::set_os_thread_name(std::format("repulsion-{}", idx));
-    traceln("Using thread \"{}\"", BS::this_thread::get_os_thread_name().value_or("INVALID NAME"));
-}
-#endif
 
 auto mass_spring_system::clear() -> void
 {
@@ -134,7 +121,7 @@ auto mass_spring_system::clear_forces() -> void
     memset(forces.data(), 0, forces.size() * sizeof(Vector3));
 }
 
-auto mass_spring_system::calculate_spring_forces() -> void
+auto mass_spring_system::calculate_spring_forces(const std::optional<BS::thread_pool<>* const> thread_pool) -> void
 {
     #ifdef TRACY
     ZoneScoped;
@@ -145,16 +132,16 @@ auto mass_spring_system::calculate_spring_forces() -> void
         calculate_spring_force(i);
     };
 
-    #ifdef THREADPOOL
-    threads.submit_loop(0, springs.size(), solve_spring_force, SMALL_TASK_BLOCK_SIZE).wait();
-    #else
-    for (size_t i = 0; i < springs.size(); ++i) {
-        solve_spring_force(i);
+    if (thread_pool) {
+        (*thread_pool)->submit_loop(0, springs.size(), solve_spring_force, SMALL_TASK_BLOCK_SIZE).wait();
+    } else {
+        for (size_t i = 0; i < springs.size(); ++i) {
+            solve_spring_force(i);
+        }
     }
-    #endif
 }
 
-auto mass_spring_system::calculate_repulsion_forces() -> void
+auto mass_spring_system::calculate_repulsion_forces(const std::optional<BS::thread_pool<>* const> thread_pool) -> void
 {
     #ifdef TRACY
     ZoneScoped;
@@ -167,16 +154,16 @@ auto mass_spring_system::calculate_repulsion_forces() -> void
     };
 
     // Calculate forces using Barnes-Hut
-    #ifdef THREADPOOL
-    threads.submit_loop(0, positions.size(), solve_octree, LARGE_TASK_BLOCK_SIZE).wait();
-    #else
-    for (size_t i = 0; i < positions.size(); ++i) {
-        solve_octree(i);
+    if (thread_pool) {
+        (*thread_pool)->submit_loop(0, positions.size(), solve_octree, LARGE_TASK_BLOCK_SIZE).wait();
+    } else {
+        for (size_t i = 0; i < positions.size(); ++i) {
+            solve_octree(i);
+        }
     }
-    #endif
 }
 
-auto mass_spring_system::update(const float dt) -> void
+auto mass_spring_system::update(const float dt, const std::optional<BS::thread_pool<>* const> thread_pool) -> void
 {
     #ifdef TRACY
     ZoneScoped;
@@ -187,16 +174,16 @@ auto mass_spring_system::update(const float dt) -> void
         verlet_update(i, dt);
     };
 
-    #ifdef THREADPOOL
-    threads.submit_loop(0, positions.size(), update, SMALL_TASK_BLOCK_SIZE).wait();
-    #else
-    for (size_t i = 0; i < positions.size(); ++i) {
-        update(i);
+    if (thread_pool) {
+        (*thread_pool)->submit_loop(0, positions.size(), update, SMALL_TASK_BLOCK_SIZE).wait();
+    } else {
+        for (size_t i = 0; i < positions.size(); ++i) {
+            update(i);
+        }
     }
-    #endif
 }
 
-auto mass_spring_system::center_masses() -> void
+auto mass_spring_system::center_masses(const std::optional<BS::thread_pool<>* const> thread_pool) -> void
 {
     Vector3 mean = Vector3Zero();
     for (const Vector3& pos : positions) {
@@ -209,11 +196,11 @@ auto mass_spring_system::center_masses() -> void
         positions[i] -= mean;
     };
 
-    #ifdef THREADPOOL
-    threads.submit_loop(0, positions.size(), center_mass, SMALL_TASK_BLOCK_SIZE).wait();
-    #else
-    for (size_t i = 0; i < positions.size(); ++i) {
-        center_mass(i);
+    if (thread_pool) {
+        (*thread_pool)->submit_loop(0, positions.size(), center_mass, SMALL_TASK_BLOCK_SIZE).wait();
+    } else {
+        for (size_t i = 0; i < positions.size(); ++i) {
+            center_mass(i);
+        }
     }
-    #endif
 }

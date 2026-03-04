@@ -1,5 +1,5 @@
-#ifndef GUI_HPP_
-#define GUI_HPP_
+#ifndef USER_INTERFACE_HPP_
+#define USER_INTERFACE_HPP_
 
 #include "orbit_camera.hpp"
 #include "config.hpp"
@@ -104,7 +104,7 @@ private:
     bool ok_message = false;
     bool yes_no_message = false;
     bool save_window = false;
-    std::array<char, 256> preset_name = {};
+    std::array<char, 256> preset_comment = {};
     bool help_window = false;
 
 public:

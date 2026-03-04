@@ -46,6 +46,46 @@ static auto explore_state_space(benchmark::State& state) -> void
     }
 }
 
+static auto explore_rush_hour_puzzle_space(benchmark::State& state) -> void
+{
+    // ReSharper disable once CppTooWideScope
+    constexpr uint8_t max_blocks = 5;
+
+    constexpr uint8_t board_width = 4;
+    constexpr uint8_t board_height = 5;
+    constexpr uint8_t goal_x = board_width - 1;
+    constexpr uint8_t goal_y = 2;
+    constexpr bool restricted = true;
+
+    const boost::unordered_flat_set<puzzle::block, block_hasher2, block_equal2> permitted_blocks = {
+        puzzle::block(0, 0, 2, 1, false, false),
+        puzzle::block(0, 0, 3, 1, false, false),
+        puzzle::block(0, 0, 1, 2, false, false),
+        puzzle::block(0, 0, 1, 3, false, false)
+    };
+    const puzzle::block target_block = puzzle::block(0, 0, 2, 1, true, false);
+    constexpr std::tuple<uint8_t, uint8_t, uint8_t, uint8_t> target_block_pos_range = {
+        0,
+        goal_y,
+        board_width - 1,
+        goal_y
+    };
+
+    const puzzle p = puzzle(board_width, board_height, goal_x, goal_y, restricted, true);
+
+    for (auto _ : state) {
+        boost::unordered_flat_set<puzzle, puzzle_hasher> result = p.explore_puzzle_space(
+            permitted_blocks,
+            target_block,
+            target_block_pos_range,
+            max_blocks,
+            std::nullopt);
+
+        benchmark::DoNotOptimize(result);
+    }
+}
+
 BENCHMARK(explore_state_space)->DenseRange(0, puzzles.size() - 1)->Unit(benchmark::kMicrosecond);
+BENCHMARK(explore_rush_hour_puzzle_space)->Unit(benchmark::kSecond);
 
 BENCHMARK_MAIN();

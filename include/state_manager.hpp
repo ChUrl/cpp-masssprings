@@ -2,10 +2,10 @@
 #define STATE_MANAGER_HPP_
 
 #include "graph_distances.hpp"
+#include "load_save.hpp"
 #include "threaded_physics.hpp"
 #include "puzzle.hpp"
 
-#include <stack>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
 
@@ -43,10 +43,9 @@ private:
 
 public:
     state_manager(threaded_physics& _physics, const std::string& _preset_file)
-        : physics(_physics)
+        : physics(_physics), preset_file(_preset_file)
     {
-        parse_preset_file(_preset_file);
-        load_preset(0);
+        reload_preset_file();
     }
 
     state_manager(const state_manager& copy) = delete;
@@ -95,15 +94,13 @@ private:
 
 public:
     // Presets
-
-    auto parse_preset_file(const std::string& _preset_file) -> bool;
-    auto append_preset_file(const std::string& preset_name) -> bool;
+    auto save_current_to_preset_file(const std::string& preset_comment) -> void;
+    auto reload_preset_file() -> void;
     auto load_preset(size_t preset) -> void;
     auto load_previous_preset() -> void;
     auto load_next_preset() -> void;
 
     // Update current_state
-
     auto update_current_state(const puzzle& p) -> void;
     auto edit_starting_state(const puzzle& p) -> void;
     auto goto_starting_state() -> void;
@@ -113,7 +110,6 @@ public:
     auto goto_closest_target_state() -> void;
 
     // Update graph
-
     auto populate_graph() -> void;
     auto clear_graph_and_add_current(const puzzle& p) -> void;
     auto clear_graph_and_add_current() -> void;
@@ -122,7 +118,6 @@ public:
     auto populate_winning_path() -> void;
 
     // Index mapping
-
     [[nodiscard]] auto get_index(const puzzle& state) const -> size_t;
     [[nodiscard]] auto get_current_index() const -> size_t;
     [[nodiscard]] auto get_starting_index() const -> size_t;

@@ -5,24 +5,20 @@
 #include <raymath.h>
 #include <rlgl.h>
 
-#ifdef TRACY
-#include <tracy/Tracy.hpp>
-#endif
-
 auto renderer::update_texture_sizes() -> void
 {
     if (!IsWindowResized()) {
         return;
     }
 
-    UnloadRenderTexture(render_target);
+    UnloadRenderTexture(graph_target);
     UnloadRenderTexture(klotski_target);
     UnloadRenderTexture(menu_target);
 
     const int width = GetScreenWidth() / 2;
     const int height = GetScreenHeight() - MENU_HEIGHT;
 
-    render_target = LoadRenderTexture(width, height);
+    graph_target = LoadRenderTexture(width, height);
     klotski_target = LoadRenderTexture(width, height);
     menu_target = LoadRenderTexture(width * 2, MENU_HEIGHT);
 }
@@ -96,7 +92,7 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
         rlUpdateVertexBuffer(color_vbo_id, colors.data(), colors.size() * sizeof(Color), 0);
     }
 
-    BeginTextureMode(render_target);
+    BeginTextureMode(graph_target);
     ClearBackground(RAYWHITE);
     BeginMode3D(camera.camera);
 
@@ -195,7 +191,7 @@ auto renderer::draw_textures(const int fps, const int ups, const size_t mass_cou
     DrawTextureRec(klotski_target.texture,
                    Rectangle(0, 0, klotski_target.texture.width, -klotski_target.texture.height),
                    Vector2(0, MENU_HEIGHT), WHITE);
-    DrawTextureRec(render_target.texture, Rectangle(0, 0, render_target.texture.width, -render_target.texture.height),
+    DrawTextureRec(graph_target.texture, Rectangle(0, 0, graph_target.texture.width, -graph_target.texture.height),
                    Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT), WHITE);
 
     // Draw borders

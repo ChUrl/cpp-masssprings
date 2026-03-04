@@ -9,19 +9,15 @@
 #include <utility>
 #include <vector>
 
-#ifdef TRACY
-#include <tracy/Tracy.hpp>
-#endif
-
 #ifdef ASYNC_OCTREE
 auto threaded_physics::set_octree_pool_thread_name(size_t idx) -> void
 {
     BS::this_thread::set_os_thread_name(std::format("octree-{}", idx));
-    traceln("Using thread \"{}\"", BS::this_thread::get_os_thread_name().value_or("INVALID NAME"));
+    // traceln("Using thread \"{}\"", BS::this_thread::get_os_thread_name().value_or("INVALID NAME"));
 }
 #endif
 
-auto threaded_physics::physics_thread(physics_state& state) -> void
+auto threaded_physics::physics_thread(physics_state& state, const std::optional<BS::thread_pool<>* const> thread_pool) -> void
 {
     mass_spring_system mass_springs;
 
@@ -111,14 +107,14 @@ auto threaded_physics::physics_thread(physics_state& state) -> void
             #endif
 
             mass_springs.clear_forces();
-            mass_springs.calculate_spring_forces();
-            mass_springs.calculate_repulsion_forces();
-            mass_springs.update(TIMESTEP * SIM_SPEED);
+            mass_springs.calculate_spring_forces(thread_pool);
+            mass_springs.calculate_repulsion_forces(thread_pool);
+            mass_springs.update(TIMESTEP * SIM_SPEED, thread_pool);
 
             // This is only helpful if we're drawing a grid at (0, 0, 0). Otherwise, it's just
             // expensive and yields no benefit since we can lock the camera to the center of mass
             // cheaply.
-            // mass_springs.center_masses();
+            // mass_springs.center_masses(thread_pool);
 
             ++loop_iterations;
             physics_accumulator -= std::chrono::duration<double>(TIMESTEP);

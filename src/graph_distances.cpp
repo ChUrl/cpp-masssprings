@@ -2,10 +2,6 @@
 
 #include <queue>
 
-#ifdef TRACY
-    #include <tracy/Tracy.hpp>
-#endif
-
 auto graph_distances::clear() -> void
 {
     distances.clear();

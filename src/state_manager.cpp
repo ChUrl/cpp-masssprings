@@ -2,13 +2,6 @@
 #include "graph_distances.hpp"
 #include "util.hpp"
 
-#include <fstream>
-#include <ios>
-
-#ifdef TRACY
-#include <tracy/Tracy.hpp>
-#endif
-
 auto state_manager::synced_try_insert_state(const puzzle& state) -> size_t
 {
     if (state_indices.contains(state)) {
@@ -77,73 +70,22 @@ auto state_manager::synced_clear_statespace() -> void
     physics.clear_cmd();
 }
 
-auto state_manager::parse_preset_file(const std::string& _preset_file) -> bool
+auto state_manager::save_current_to_preset_file(const std::string& preset_comment) -> void
 {
-    preset_file = _preset_file;
-
-    std::ifstream file(preset_file);
-    if (!file) {
-        infoln("Preset file \"{}\" couldn't be loaded.", preset_file);
-        return false;
+    if (append_preset_file(preset_file, preset_comment, get_current_state())) {
+        current_preset = preset_states.size();
+        reload_preset_file();
     }
-
-    std::string line;
-    std::vector<std::string> comment_lines;
-    std::vector<std::string> preset_lines;
-    while (std::getline(file, line)) {
-        if (line.starts_with("S")) {
-            preset_lines.push_back(line);
-        } else if (line.starts_with("#")) {
-            comment_lines.push_back(line);
-        }
-    }
-
-    if (preset_lines.empty() || comment_lines.size() != preset_lines.size()) {
-        infoln("Preset file \"{}\" couldn't be loaded.", preset_file);
-        return false;
-    }
-
-    preset_states.clear();
-    for (const auto& preset : preset_lines) {
-        // Each char is a bit
-        const puzzle& p = puzzle(preset);
-
-        if (const std::optional<std::string>& reason = p.try_get_invalid_reason()) {
-            preset_states = {puzzle(4, 5, 0, 0, true, false)};
-            infoln("Preset file \"{}\" contained invalid presets: {}", preset_file, *reason);
-            return false;
-        }
-        preset_states.emplace_back(p);
-    }
-    preset_comments = comment_lines;
-
-    infoln("Loaded {} presets from \"{}\".", preset_lines.size(), preset_file);
-
-    return true;
 }
 
-auto state_manager::append_preset_file(const std::string& preset_name) -> bool
+auto state_manager::reload_preset_file() -> void
 {
-    infoln(R"(Saving preset "{}" to "{}")", preset_name, preset_file);
-
-    if (get_current_state().try_get_invalid_reason()) {
-        return false;
+    const auto [presets, comments] = parse_preset_file(preset_file);
+    if (!presets.empty()) {
+        preset_states = presets;
+        preset_comments = comments;
     }
-
-    std::ofstream file(preset_file, std::ios_base::app | std::ios_base::out);
-    if (!file) {
-        infoln("Preset file \"{}\" couldn't be loaded.", preset_file);
-        return false;
-    }
-
-    file << "\n# " << preset_name << "\n" << get_current_state().string_repr() << std::flush;
-
-    infoln("Refreshing presets...");
-    if (parse_preset_file(preset_file)) {
-        load_preset(preset_states.size() - 1);
-    }
-
-    return true;
+    load_preset(current_preset);
 }
 
 auto state_manager::load_preset(const size_t preset) -> void
@@ -298,13 +240,19 @@ auto state_manager::populate_graph() -> void
     const puzzle s = get_starting_state();
     const puzzle p = get_current_state();
 
-
     // Clear the graph first so we don't add duplicates somehow
     synced_clear_statespace();
 
     // Explore the entire statespace starting from the current state
+    const std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+
     const auto& [states, _links] = s.explore_state_space();
     synced_insert_statespace(states, _links);
+
+    const std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+
+    infoln("Explored puzzle. Took {}ms.", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+    infoln("State space has size {} with {} transitions.", state_pool.size(), links.size());
 
     current_state_index = state_indices[p];
     previous_state_index = current_state_index;
