@@ -16,7 +16,6 @@
 #include <tracy/Tracy.hpp>
 #endif
 
-#ifdef THREADPOOL
 #if defined(_WIN32)
 #define NOGDI  // All GDI defines and routines
 #define NOUSER // All USER defines and routines
@@ -27,7 +26,6 @@
 #if defined(_WIN32) // raylib uses these names as function parameters
 #undef near
 #undef far
-#endif
 #endif
 
 // Window
