@@ -273,6 +273,7 @@ rec {
             cp -r $src/fonts $out/lib/fonts
             cp -r $src/shader $out/lib/shader
 
+            # The wrapper enters the correct working dir, so fonts/shaders/presets are available
             mkdir -p $out/bin
             makeWrapper $out/lib/${pname} $out/bin/${pname} --chdir "$out/lib"
           '';
