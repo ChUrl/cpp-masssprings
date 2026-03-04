@@ -254,6 +254,7 @@ rec {
           ];
 
           cmakeFlags = [
+            "-DDISABLE_THREADPOOL=Off"
             "-DDISABLE_TRACY=On"
             "-DDISABLE_BACKWARD=On"
             "-DDISABLE_TESTS=On"
@@ -307,6 +308,7 @@ rec {
 
           cmakeFlags = [
             "-DCMAKE_SYSTEM_NAME=Windows"
+            "-DDISABLE_THREADPOOL=Off"
             "-DDISABLE_TRACY=On"
             "-DDISABLE_BACKWARD=On"
             "-DDISABLE_TESTS=On"

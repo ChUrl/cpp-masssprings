@@ -9,6 +9,7 @@ if(POLICY CMP0167)
     cmake_policy(SET CMP0167 NEW)
 endif()
 
+option(DISABLE_THREADPOOL "Disable additional physics threads" OFF)
 option(DISABLE_BACKWARD "Disable backward stacktrace printer" OFF)
 option(DISABLE_TRACY "Disable the Tracy profiler client" OFF)
 option(DISABLE_TESTS "Disable building tests" OFF)
@@ -39,6 +40,10 @@ set(FLAGS "")
 
 if(WIN32)
     list(APPEND LIBS opengl32 gdi32 winmm)
+endif()
+
+if(NOT DISABLE_THREADPOOL)
+    list(APPEND FLAGS THREADPOOL)
 endif()
 
 if(NOT DISABLE_BACKWARD)

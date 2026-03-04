@@ -3,12 +3,12 @@
 
 #include <raylib.h>
 
-#define THREADPOOL // Enable physics threadpool
 
 // TODO: Using the octree from the last frame completely breaks the physics :/
 // #define ASYNC_OCTREE
 
 // Gets set by CMake
+// #define THREADPOOL // Enable physics threadpool
 // #define BACKWARD   // Enable pretty stack traces
 // #define TRACY      // Enable tracy profiling support
 
