@@ -275,7 +275,7 @@ rec {
 
             # The wrapper enters the correct working dir, so fonts/shaders/presets are available
             mkdir -p $out/bin
-            makeWrapper $out/lib/${pname} $out/bin/${pname} --chdir "$out/lib"
+            makeWrapper $out/lib/${pname} $out/bin/${pname} --chdir "${placeholder "out"}/lib"
           '';
         };
 
