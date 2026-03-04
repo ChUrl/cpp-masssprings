@@ -68,8 +68,9 @@ if(NOT DISABLE_TRACY)
     list(APPEND FLAGS TRACY)
 endif()
 
-# Set this after fetching tracy to hide tracy's warnings
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wno-unused-parameter -Wunreachable-code")
+# Set this after fetching tracy to hide tracy's warnings.
+# We set -Wno-alloc-size-larger-than because it prevents BS::thread_pool from building with current gcc
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wno-unused-parameter -Wunreachable-code -Wno-alloc-size-larger-than")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ggdb -O3 -ffast-math -march=native")
 

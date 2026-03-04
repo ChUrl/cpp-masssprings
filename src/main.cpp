@@ -38,7 +38,7 @@ auto set_pool_thread_name(size_t idx) -> void
     BS::this_thread::set_os_thread_name(std::format("worker-{}", idx));
 }
 
-BS::thread_pool<> threads(std::thread::hardware_concurrency(), set_pool_thread_name);
+BS::thread_pool<> threads(std::thread::hardware_concurrency() - 2, set_pool_thread_name);
 constexpr std::optional<BS::thread_pool<>* const> thread_pool = &threads;
 #else
 constexpr std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt;
