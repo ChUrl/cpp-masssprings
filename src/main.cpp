@@ -10,9 +10,12 @@
 #include "user_interface.hpp"
 
 #include <filesystem>
-#include <boost/program_options.hpp>
 
+#ifndef WIN32
+#include <boost/program_options.hpp>
 namespace po = boost::program_options;
+#endif
+
 
 // TODO: Implement state discovery/enumeration
 //       - Find all possible initial board states (single one for each possible statespace).
@@ -228,6 +231,7 @@ enum class runmode
 
 auto argparse(const int argc, char* argv[]) -> runmode
 {
+#ifndef WIN32
     po::options_description desc("Allowed options");
     desc.add_options()                   //
         ("help", "produce help message") //
@@ -304,6 +308,7 @@ auto argparse(const int argc, char* argv[]) -> runmode
     if (vm.contains("presets")) {
         preset_file = vm["presets"].as<std::string>();
     }
+#endif
 
     return runmode::USER_INTERFACE;
 }

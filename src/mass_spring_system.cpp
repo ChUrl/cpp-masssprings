@@ -16,7 +16,7 @@ auto mass_spring_system::calculate_spring_force(const size_t s) -> void
     const Vector3 delta_vel = a_vel - b_vel;
 
     const float sq_len = Vector3DotProduct(delta_pos, delta_pos);
-    const float inv_len = rsqrt(sq_len);
+    const float inv_len = 1.0f / sqrt(sq_len);
     const float len = sq_len * inv_len;
 
     const float hooke = SPRING_CONSTANT * (len - REST_LENGTH);
@@ -86,15 +86,15 @@ auto mass_spring_system::add_spring(size_t a, size_t b) -> void
     const Vector3& mass_a = positions[a];
     const Vector3& mass_b = positions[b];
 
-    Vector3 offset{
-        static_cast<float>(GetRandomValue(-100, 100)), static_cast<float>(GetRandomValue(-100, 100)),
-        static_cast<float>(GetRandomValue(-100, 100))
-    };
+    Vector3 offset{static_cast<float>(GetRandomValue(-100, 100)),
+                   static_cast<float>(GetRandomValue(-100, 100)),
+                   static_cast<float>(GetRandomValue(-100, 100))};
     offset = Vector3Normalize(offset) * REST_LENGTH;
 
     // If the offset moves the mass closer to the current center of mass, flip it
     if (!tree.nodes.empty()) {
-        const Vector3 mass_center_direction = Vector3Subtract(positions[a], tree.nodes[0].mass_center);
+        const Vector3 mass_center_direction =
+            Vector3Subtract(positions[a], tree.nodes[0].mass_center);
         const float mass_center_distance = Vector3Length(mass_center_direction);
 
         if (mass_center_distance > 0 && Vector3DotProduct(offset, mass_center_direction) < 0.0f) {
@@ -114,26 +114,26 @@ auto mass_spring_system::add_spring(size_t a, size_t b) -> void
 
 auto mass_spring_system::clear_forces() -> void
 {
-    #ifdef TRACY
+#ifdef TRACY
     ZoneScoped;
-    #endif
+#endif
 
     memset(forces.data(), 0, forces.size() * sizeof(Vector3));
 }
 
-auto mass_spring_system::calculate_spring_forces(const std::optional<BS::thread_pool<>* const> thread_pool) -> void
+auto mass_spring_system::calculate_spring_forces(
+    const std::optional<BS::thread_pool<>* const> thread_pool) -> void
 {
-    #ifdef TRACY
+#ifdef TRACY
     ZoneScoped;
-    #endif
+#endif
 
-    const auto solve_spring_force = [&](const int i)
-    {
-        calculate_spring_force(i);
-    };
+    const auto solve_spring_force = [&](const int i) { calculate_spring_force(i); };
 
     if (thread_pool) {
-        (*thread_pool)->submit_loop(0, springs.size(), solve_spring_force, SMALL_TASK_BLOCK_SIZE).wait();
+        (*thread_pool)
+            ->submit_loop(0, springs.size(), solve_spring_force, SMALL_TASK_BLOCK_SIZE)
+            .wait();
     } else {
         for (size_t i = 0; i < springs.size(); ++i) {
             solve_spring_force(i);
@@ -141,11 +141,12 @@ auto mass_spring_system::calculate_spring_forces(const std::optional<BS::thread_
     }
 }
 
-auto mass_spring_system::calculate_repulsion_forces(const std::optional<BS::thread_pool<>* const> thread_pool) -> void
+auto mass_spring_system::calculate_repulsion_forces(
+    const std::optional<BS::thread_pool<>* const> thread_pool) -> void
 {
-    #ifdef TRACY
+#ifdef TRACY
     ZoneScoped;
-    #endif
+#endif
 
     const auto solve_octree = [&](const int i)
     {
@@ -155,7 +156,9 @@ auto mass_spring_system::calculate_repulsion_forces(const std::optional<BS::thre
 
     // Calculate forces using Barnes-Hut
     if (thread_pool) {
-        (*thread_pool)->submit_loop(0, positions.size(), solve_octree, LARGE_TASK_BLOCK_SIZE).wait();
+        (*thread_pool)
+            ->submit_loop(0, positions.size(), solve_octree, LARGE_TASK_BLOCK_SIZE)
+            .wait();
     } else {
         for (size_t i = 0; i < positions.size(); ++i) {
             solve_octree(i);
@@ -163,16 +166,14 @@ auto mass_spring_system::calculate_repulsion_forces(const std::optional<BS::thre
     }
 }
 
-auto mass_spring_system::update(const float dt, const std::optional<BS::thread_pool<>* const> thread_pool) -> void
+auto mass_spring_system::update(const float dt,
+                                const std::optional<BS::thread_pool<>* const> thread_pool) -> void
 {
-    #ifdef TRACY
+#ifdef TRACY
     ZoneScoped;
-    #endif
+#endif
 
-    const auto update = [&](const int i)
-    {
-        verlet_update(i, dt);
-    };
+    const auto update = [&](const int i) { verlet_update(i, dt); };
 
     if (thread_pool) {
         (*thread_pool)->submit_loop(0, positions.size(), update, SMALL_TASK_BLOCK_SIZE).wait();
@@ -183,7 +184,8 @@ auto mass_spring_system::update(const float dt, const std::optional<BS::thread_p
     }
 }
 
-auto mass_spring_system::center_masses(const std::optional<BS::thread_pool<>* const> thread_pool) -> void
+auto mass_spring_system::center_masses(const std::optional<BS::thread_pool<>* const> thread_pool)
+    -> void
 {
     Vector3 mean = Vector3Zero();
     for (const Vector3& pos : positions) {
@@ -191,10 +193,7 @@ auto mass_spring_system::center_masses(const std::optional<BS::thread_pool<>* co
     }
     mean /= static_cast<float>(positions.size());
 
-    const auto center_mass = [&](const int i)
-    {
-        positions[i] -= mean;
-    };
+    const auto center_mass = [&](const int i) { positions[i] -= mean; };
 
     if (thread_pool) {
         (*thread_pool)->submit_loop(0, positions.size(), center_mass, SMALL_TASK_BLOCK_SIZE).wait();
