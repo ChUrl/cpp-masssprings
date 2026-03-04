@@ -1,43 +1,46 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.28)
 project(MassSprings)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Disable boost warning because our cmake/boost are recent enough
 if(POLICY CMP0167)
     cmake_policy(SET CMP0167 NEW)
 endif()
 
 option(DISABLE_BACKWARD "Disable backward stacktrace printer" OFF)
 option(DISABLE_TRACY "Disable the Tracy profiler client" OFF)
-option(DISABLE_TESTS "Disable building and running tests" OFF)
+option(DISABLE_TESTS "Disable building tests" OFF)
+option(DISABLE_BENCH "Disable building benchmarks" OFF)
 
-# Headers + Sources
+# Headers + Sources (excluding main.cpp)
 set(SOURCES
     src/backward.cpp
     src/graph_distances.cpp
     src/input_handler.cpp
+    src/load_save.cpp
     src/mass_spring_system.cpp
     src/octree.cpp
     src/orbit_camera.cpp
+    src/puzzle.cpp
     src/renderer.cpp
     src/state_manager.cpp
     src/threaded_physics.cpp
     src/user_interface.cpp
-    src/puzzle.cpp
 )
 
 # Libraries
+include(FetchContent)
 find_package(raylib REQUIRED)
-find_package(Boost REQUIRED)
-set(LIBS raylib Boost::headers)
+find_package(Boost COMPONENTS program_options REQUIRED)
+set(LIBS raylib Boost::headers Boost::program_options)
 set(FLAGS "")
 
 if(WIN32)
     list(APPEND LIBS opengl32 gdi32 winmm)
 endif()
 
-include(FetchContent)
 if(NOT DISABLE_BACKWARD)
     find_package(Backward REQUIRED)
 
@@ -63,7 +66,7 @@ endif()
 # Set this after fetching tracy to hide tracy's warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wcast-align -Wno-unused-parameter -Wunreachable-code")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ggdb -Ofast -march=native")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ggdb -O3 -ffast-math -march=native")
 
 message("-- CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 message("-- CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
@@ -78,18 +81,21 @@ target_include_directories(masssprings PRIVATE include)
 target_link_libraries(masssprings PRIVATE ${LIBS})
 target_compile_definitions(masssprings PRIVATE ${FLAGS})
 
-# Testing sources
+# Testing
 if(NOT DISABLE_TESTS AND NOT WIN32)
     enable_testing()
 
     FetchContent_Declare(Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.13.0
+                         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+                         GIT_TAG v3.13.0
     )
     FetchContent_MakeAvailable(Catch2)
 
     set(TEST_SOURCES
         test/bits.cpp
+        test/bitmap.cpp
+        test/bitmap_find_first_empty.cpp
+        # test/puzzle.cpp
     )
 
     add_executable(tests ${TEST_SOURCES} ${SOURCES})
@@ -100,8 +106,20 @@ if(NOT DISABLE_TESTS AND NOT WIN32)
     catch_discover_tests(tests)
 endif()
 
+# Benchmarking
+if(NOT DISABLE_BENCH AND NOT WIN32)
+    find_package(benchmark REQUIRED)
+
+    set(BENCH_SOURCES
+        benchmark/state_space.cpp
+    )
+
+    add_executable(benchmarks ${BENCH_SOURCES} ${SOURCES})
+    target_include_directories(benchmarks PRIVATE include)
+    target_link_libraries(benchmarks benchmark raylib)
+endif()
+
 # LTO
-#if(NOT WIN32)
 include(CheckIPOSupported)
 check_ipo_supported(RESULT supported OUTPUT error)
 if(supported)
@@ -110,4 +128,3 @@ if(supported)
 else()
     message(STATUS "IPO / LTO not supported")
 endif()
-#endif()
