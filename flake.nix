@@ -276,7 +276,17 @@ rec {
 
             # The wrapper enters the correct working dir, so fonts/shaders/presets are available
             mkdir -p $out/bin
-            makeWrapper $out/lib/${pname} $out/bin/${pname} --chdir "${placeholder "out"}/lib"
+            makeWrapper $out/lib/${pname} $out/bin/${pname} --chdir "$out/lib"
+
+            # Generate a .desktop file
+            mkdir -p $out/share/applications
+            cat <<INI > $out/share/applications/${pname}.desktop
+            [Desktop Entry]
+            Terminal=true
+            Name=PuzzleSpaces
+            Exec=$out/bin/${pname} %f
+            Type=Application
+            INI
           '';
         };
 
