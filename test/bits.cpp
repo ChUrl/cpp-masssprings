@@ -2,7 +2,7 @@
 #include <catch2/catch_template_test_macros.hpp>
 #include <cstdint>
 
-#include "util.hpp"
+#include "bits.hpp"
 
 // =============================================================================
 // Catch2

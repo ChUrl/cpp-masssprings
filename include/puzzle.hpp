@@ -3,6 +3,7 @@
 
 #include "config.hpp"
 #include "util.hpp"
+#include "bits.hpp"
 
 #include <array>
 #include <cstddef>
@@ -418,12 +419,12 @@ public:
     [[nodiscard]] auto try_toggle_wall(uint8_t x, uint8_t y) const -> std::optional<puzzle>;
 
     // Playing
-    [[nodiscard]] auto try_move_block_at(uint8_t x, uint8_t y, direction dir) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_move_block_at(uint8_t x, uint8_t y, dir dir) const -> std::optional<puzzle>;
 
     // Statespace
     [[nodiscard]] INLINE inline auto try_move_block_at_fast(uint64_t bitmap,
                                                             uint8_t block_idx,
-                                                            direction dir,
+                                                            dir dir,
                                                             bool check_collision = true) const -> std::optional<puzzle>;
     [[nodiscard]] static auto sorted_replace(std::array<uint16_t, MAX_BLOCKS> blocks,
                                              uint8_t idx,
@@ -456,7 +457,7 @@ public:
      * @param dir Direction in which the block should be moved
      * @return True if b would collide with any other block on the board after moving in direction dir
      */
-    [[nodiscard]] INLINE inline auto bitmap_check_collision(uint64_t bitmap, block b, direction dir) const -> bool;
+    [[nodiscard]] INLINE inline auto bitmap_check_collision(uint64_t bitmap, block b, dir dir) const -> bool;
 
     template <typename F>
     // ReSharper disable once CppRedundantInlineSpecifier
@@ -473,7 +474,7 @@ public:
                 continue;
             }
             const int dirs = r ? b.principal_dirs() : nor | eas | sou | wes;
-            for (const direction d : {nor, eas, sou, wes}) {
+            for (const dir d : {nor, eas, sou, wes}) {
                 if (dirs & d) {
                     if (auto moved = try_move_block_at_fast(bitmap, idx, d)) {
                         callback(*moved);
@@ -717,7 +718,7 @@ inline auto puzzle::get_goal_y() const -> uint8_t
 
 INLINE inline auto puzzle::try_move_block_at_fast(uint64_t bitmap,
                                                   const uint8_t block_idx,
-                                                  const direction dir,
+                                                  const dir dir,
                                                   const bool check_collision) const -> std::optional<puzzle>
 {
     const block b = block(repr.cooked.blocks[block_idx]);
@@ -853,7 +854,7 @@ INLINE inline auto puzzle::bitmap_check_collision(const uint64_t bitmap, const b
 
 INLINE inline auto puzzle::bitmap_check_collision(const uint64_t bitmap,
                                                   const block b,
-                                                  const direction dir) const -> bool
+                                                  const dir dir) const -> bool
 {
     const auto [x, y, w, h, t, i] = b.unpack_repr();
     const uint8_t width = get_width();

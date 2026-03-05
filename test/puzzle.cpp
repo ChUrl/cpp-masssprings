@@ -668,7 +668,7 @@ TEST_CASE("try_move_block_at_fast matches try_move_block_at", "[move]")
 
     uint64_t bm = p3->blocks_bitmap();
 
-    for (const direction d : {nor, eas, sou, wes}) {
+    for (const dir d : {nor, eas, sou, wes}) {
         // Block 0 is the first in sorted order
         auto slow = p3->try_move_block_at(1, 1, d);
         auto fast = p3->try_move_block_at_fast(bm, 0, d);

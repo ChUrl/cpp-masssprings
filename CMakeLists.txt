@@ -18,6 +18,7 @@ option(DISABLE_BENCH "Disable building benchmarks" OFF)
 # Headers + Sources (excluding main.cpp)
 set(SOURCES
     src/backward.cpp
+    src/bits.cpp
     src/graph_distances.cpp
     src/input_handler.cpp
     src/load_save.cpp

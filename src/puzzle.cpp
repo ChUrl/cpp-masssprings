@@ -682,7 +682,7 @@ auto puzzle::try_toggle_wall(const uint8_t x, const uint8_t y) const -> std::opt
     return puzzle(w, h, gx, gy, r, g, blocks);
 }
 
-auto puzzle::try_move_block_at(const uint8_t x, const uint8_t y, const direction dir) const -> std::optional<puzzle>
+auto puzzle::try_move_block_at(const uint8_t x, const uint8_t y, const dir dir) const -> std::optional<puzzle>
 {
     const std::optional<block> b = try_get_block(x, y);
     const auto [bx, by, bw, bh, bt, bi] = b->unpack_repr();

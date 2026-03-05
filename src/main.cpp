@@ -16,7 +16,6 @@
 namespace po = boost::program_options;
 #endif
 
-
 // TODO: Implement state discovery/enumeration
 //       - Find all possible initial board states (single one for each possible statespace).
 //         Currently wer're just finding all states given the initial state
@@ -47,8 +46,8 @@ constexpr std::optional<BS::thread_pool<>* const> thread_pool = &threads;
 constexpr std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt;
 #endif
 
-std::string preset_file;
-std::string output_file;
+std::string preset_file = "default.puzzle";
+std::string output_file = "clusters.puzzle";
 int max_blocks = 5;
 int board_width = 6;
 int board_height = 6;
@@ -231,21 +230,21 @@ enum class runmode
 
 auto argparse(const int argc, char* argv[]) -> runmode
 {
-#ifndef WIN32
+    #ifndef WIN32
     po::options_description desc("Allowed options");
-    desc.add_options()                   //
-        ("help", "produce help message") //
-
-        ("presets", po::value<std::string>()->default_value("default.puzzle"), "load presets from file") //
-
-        ("output", po::value<std::string>()->default_value("clusters.puzzle"), "output file for generated clusters") //
-        ("space", po::value<std::string>()->value_name("rh|klotski"), "generate puzzle space with ruleset")          //
-        ("w", po::value<int>()->default_value(6), "board width")                                                     //
-        ("h", po::value<int>()->default_value(6), "board height")                                                    //
-        ("gx", po::value<int>()->default_value(4), "board goal horizontal position")                                 //
-        ("gy", po::value<int>()->default_value(2), "board goal vertical position")                                   //
-        ("free", "allow free block movement")                                                                        //
-        ("blocks", po::value<int>()->default_value(5), "block limit for puzzle space generation")                    //
+    desc.add_options()                                                                                            //
+        ("help", "produce help message")                                                                          //
+        ("presets", po::value<std::string>()->default_value(preset_file), "load presets from file")               //
+        ("output", po::value<std::string>()->default_value(output_file), "output file for generated clusters")    //
+        ("space", po::value<std::string>()->value_name("rh|klotski"), "generate puzzle space with ruleset")       //
+        ("w", po::value<int>()->default_value(board_width)->value_name("[3, 8]"), "board width")                  //
+        ("h", po::value<int>()->default_value(board_height)->value_name("[3, 8"), "board height")                 //
+        ("gx", po::value<int>()->default_value(goal_x)->value_name("[0, w-1]"), "board goal horizontal position") //
+        ("gy", po::value<int>()->default_value(goal_y)->value_name("[0, h-1]"), "board goal vertical position")   //
+        ("free", "allow free block movement")                                                                     //
+        ("blocks",
+         po::value<int>()->default_value(max_blocks)->value_name("[1, 15]"),
+         "block limit for puzzle space generation") //
         ;
 
     po::positional_options_description positional;
@@ -308,7 +307,7 @@ auto argparse(const int argc, char* argv[]) -> runmode
     if (vm.contains("presets")) {
         preset_file = vm["presets"].as<std::string>();
     }
-#endif
+    #endif
 
     return runmode::USER_INTERFACE;
 }
