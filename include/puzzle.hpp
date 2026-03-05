@@ -418,6 +418,21 @@ public:
     [[nodiscard]] auto try_toggle_target(uint8_t x, uint8_t y) const -> std::optional<puzzle>;
     [[nodiscard]] auto try_toggle_wall(uint8_t x, uint8_t y) const -> std::optional<puzzle>;
 
+    // Bitmap
+    [[nodiscard]] auto blocks_bitmap() const -> uint64_t;
+    [[nodiscard]] auto blocks_bitmap_h() const -> uint64_t;
+    [[nodiscard]] auto blocks_bitmap_v() const -> uint64_t;
+    static INLINE inline auto bitmap_clear_bit(uint64_t& bitmap, uint8_t w, uint8_t x, uint8_t y) -> void;
+    static INLINE inline auto bitmap_set_bit(uint64_t& bitmap, uint8_t w, uint8_t x, uint8_t y) -> void;
+    [[nodiscard]] static INLINE inline auto bitmap_get_bit(uint64_t bitmap, uint8_t w, uint8_t x, uint8_t y) -> bool;
+    INLINE inline auto bitmap_clear_block(uint64_t& bitmap, block b) const -> void;
+    INLINE inline auto bitmap_set_block(uint64_t& bitmap, block b) const -> void;
+    [[nodiscard]] INLINE inline auto bitmap_is_empty(uint64_t bitmap) const -> bool;
+    [[nodiscard]] INLINE inline auto bitmap_is_full(uint64_t bitmap) const -> bool;
+    [[nodiscard]] INLINE inline auto bitmap_check_collision(uint64_t bitmap, block b) const -> bool;
+    [[nodiscard]] INLINE inline auto bitmap_check_collision(uint64_t bitmap, block b, dir dir) const -> bool;
+    [[nodiscard]] auto bitmap_find_first_empty(uint64_t bitmap, int& x, int& y) const -> bool;
+
     // Playing
     [[nodiscard]] auto try_move_block_at(uint8_t x, uint8_t y, dir dir) const -> std::optional<puzzle>;
 
@@ -429,35 +444,6 @@ public:
     [[nodiscard]] static auto sorted_replace(std::array<uint16_t, MAX_BLOCKS> blocks,
                                              uint8_t idx,
                                              uint16_t new_val) -> std::array<uint16_t, MAX_BLOCKS>;
-    [[nodiscard]] auto blocks_bitmap() const -> uint64_t;
-    [[nodiscard]] auto blocks_bitmap_h() const -> uint64_t;
-    [[nodiscard]] auto blocks_bitmap_v() const -> uint64_t;
-    static INLINE inline auto bitmap_clear_bit(uint64_t& bitmap, uint8_t w, uint8_t x, uint8_t y) -> void;
-    static INLINE inline auto bitmap_set_bit(uint64_t& bitmap, uint8_t w, uint8_t x, uint8_t y) -> void;
-    [[nodiscard]] static INLINE inline auto bitmap_get_bit(uint64_t bitmap, uint8_t w, uint8_t x, uint8_t y) -> bool;
-    INLINE inline auto bitmap_clear_block(uint64_t& bitmap, block b) const -> void;
-    INLINE inline auto bitmap_set_block(uint64_t& bitmap, block b) const -> void;
-    [[nodiscard]] INLINE inline auto bitmap_is_empty(uint64_t bitmap) const -> bool;
-    [[nodiscard]] INLINE inline auto bitmap_is_full(uint64_t bitmap) const -> bool;
-
-    /**
-     * Checks if b would collide with any block on the board.
-     *
-     * @param bitmap Board occupancy map
-     * @param b Hypothetical block to check collision with
-     * @return True if b would collide with any other block on the board
-     */
-    [[nodiscard]] INLINE inline auto bitmap_check_collision(uint64_t bitmap, block b) const -> bool;
-
-    /**
-     * Checks if b would collide with any block on the board after moving in direction dir.
-     *
-     * @param bitmap Board occupancy map
-     * @param b Existing block to check collision with
-     * @param dir Direction in which the block should be moved
-     * @return True if b would collide with any other block on the board after moving in direction dir
-     */
-    [[nodiscard]] INLINE inline auto bitmap_check_collision(uint64_t bitmap, block b, dir dir) const -> bool;
 
     template <typename F>
     // ReSharper disable once CppRedundantInlineSpecifier
@@ -490,8 +476,6 @@ public:
     // Determines to which cluster a puzzle belongs. Clusters are identified by the
     // state with the numerically smallest binary representation.
     [[nodiscard]] auto get_cluster_id_and_solution() const -> std::pair<puzzle, bool>;
-
-    [[nodiscard]] auto bitmap_find_first_empty(uint64_t bitmap, int& x, int& y) const -> bool;
 
     static auto generate_block_sequences(
         const boost::unordered_flat_set<block, block_hasher2, block_equal2>& permitted_blocks,
@@ -716,72 +700,6 @@ inline auto puzzle::get_goal_y() const -> uint8_t
     return get_bits(repr.cooked.meta, GOAL_Y_S, GOAL_Y_E);
 }
 
-INLINE inline auto puzzle::try_move_block_at_fast(uint64_t bitmap,
-                                                  const uint8_t block_idx,
-                                                  const dir dir,
-                                                  const bool check_collision) const -> std::optional<puzzle>
-{
-    const block b = block(repr.cooked.blocks[block_idx]);
-    const auto [bx, by, bw, bh, bt, bi] = b.unpack_repr();
-    if (bi) {
-        return std::nullopt;
-    }
-
-    const auto [w, h, gx, gy, r, g] = unpack_meta();
-    const int dirs = r ? b.principal_dirs() : nor | eas | sou | wes;
-
-    // Get target block
-    int _target_x = bx;
-    int _target_y = by;
-    switch (dir) {
-    case nor:
-        if (!(dirs & nor) || _target_y < 1) {
-            return std::nullopt;
-        }
-        --_target_y;
-        break;
-    case eas:
-        if (!(dirs & eas) || _target_x + bw >= w) {
-            return std::nullopt;
-        }
-        ++_target_x;
-        break;
-    case sou:
-        if (!(dirs & sou) || _target_y + bh >= h) {
-            return std::nullopt;
-        }
-        ++_target_y;
-        break;
-    case wes:
-        if (!(dirs & wes) || _target_x < 1) {
-            return std::nullopt;
-        }
-        --_target_x;
-        break;
-    }
-
-    // Check collisions
-    if (check_collision) {
-        bitmap_clear_block(bitmap, b);
-        if (bitmap_check_collision(bitmap, b, dir)) {
-            return std::nullopt;
-        }
-    }
-
-    // Replace block
-    const std::array<uint16_t, MAX_BLOCKS> blocks = sorted_replace(repr.cooked.blocks,
-                                                                   block_idx,
-                                                                   block::create_repr(
-                                                                       _target_x,
-                                                                       _target_y,
-                                                                       bw,
-                                                                       bh,
-                                                                       bt));
-
-    // This constructor doesn't sort
-    return puzzle(std::make_tuple(w, h, gx, gy, r, g), blocks);
-}
-
 INLINE inline auto puzzle::bitmap_clear_bit(uint64_t& bitmap, const uint8_t w, const uint8_t x, const uint8_t y) -> void
 {
     set_bits(bitmap, y * w + x, y * w + x, 0u);
@@ -890,6 +808,72 @@ INLINE inline auto puzzle::bitmap_check_collision(const uint64_t bitmap,
         break;
     }
     return false;
+}
+
+INLINE inline auto puzzle::try_move_block_at_fast(uint64_t bitmap,
+                                                  const uint8_t block_idx,
+                                                  const dir dir,
+                                                  const bool check_collision) const -> std::optional<puzzle>
+{
+    const block b = block(repr.cooked.blocks[block_idx]);
+    const auto [bx, by, bw, bh, bt, bi] = b.unpack_repr();
+    if (bi) {
+        return std::nullopt;
+    }
+
+    const auto [w, h, gx, gy, r, g] = unpack_meta();
+    const int dirs = r ? b.principal_dirs() : nor | eas | sou | wes;
+
+    // Get target block
+    int _target_x = bx;
+    int _target_y = by;
+    switch (dir) {
+    case nor:
+        if (!(dirs & nor) || _target_y < 1) {
+            return std::nullopt;
+        }
+        --_target_y;
+        break;
+    case eas:
+        if (!(dirs & eas) || _target_x + bw >= w) {
+            return std::nullopt;
+        }
+        ++_target_x;
+        break;
+    case sou:
+        if (!(dirs & sou) || _target_y + bh >= h) {
+            return std::nullopt;
+        }
+        ++_target_y;
+        break;
+    case wes:
+        if (!(dirs & wes) || _target_x < 1) {
+            return std::nullopt;
+        }
+        --_target_x;
+        break;
+    }
+
+    // Check collisions
+    if (check_collision) {
+        bitmap_clear_block(bitmap, b);
+        if (bitmap_check_collision(bitmap, b, dir)) {
+            return std::nullopt;
+        }
+    }
+
+    // Replace block
+    const std::array<uint16_t, MAX_BLOCKS> blocks = sorted_replace(repr.cooked.blocks,
+                                                                   block_idx,
+                                                                   block::create_repr(
+                                                                       _target_x,
+                                                                       _target_y,
+                                                                       bw,
+                                                                       bh,
+                                                                       bt));
+
+    // This constructor doesn't sort
+    return puzzle(std::make_tuple(w, h, gx, gy, r, g), blocks);
 }
 
 #endif

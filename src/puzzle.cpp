@@ -682,6 +682,105 @@ auto puzzle::try_toggle_wall(const uint8_t x, const uint8_t y) const -> std::opt
     return puzzle(w, h, gx, gy, r, g, blocks);
 }
 
+auto puzzle::blocks_bitmap() const -> uint64_t
+{
+    uint64_t bitmap = 0;
+    for (uint8_t i = 0; i < MAX_BLOCKS; ++i) {
+        block b(repr.cooked.blocks[i]);
+        if (!b.valid()) {
+            break;
+        }
+
+        auto [x, y, w, h, t, im] = b.unpack_repr();
+        const uint8_t width = get_width();
+
+        for (int dy = 0; dy < h; ++dy) {
+            for (int dx = 0; dx < w; ++dx) {
+                bitmap_set_bit(bitmap, width, x + dx, y + dy);
+            }
+        }
+    }
+    return bitmap;
+}
+
+auto puzzle::blocks_bitmap_h() const -> uint64_t
+{
+    uint64_t bitmap = 0;
+    for (uint8_t i = 0; i < MAX_BLOCKS; ++i) {
+        block b(repr.cooked.blocks[i]);
+        if (!b.valid()) {
+            break;
+        }
+        const int dirs = b.principal_dirs();
+        if (!(dirs & eas)) {
+            continue;
+        }
+
+        auto [x, y, w, h, t, im] = b.unpack_repr();
+        const uint8_t width = get_width();
+
+        for (int dy = 0; dy < h; ++dy) {
+            for (int dx = 0; dx < w; ++dx) {
+                bitmap_set_bit(bitmap, width, x + dx, y + dy);
+            }
+        }
+    }
+    return bitmap;
+}
+
+auto puzzle::blocks_bitmap_v() const -> uint64_t
+{
+    uint64_t bitmap = 0;
+    for (uint8_t i = 0; i < MAX_BLOCKS; ++i) {
+        block b(repr.cooked.blocks[i]);
+        if (!b.valid()) {
+            break;
+        }
+        const int dirs = b.principal_dirs();
+        if (!(dirs & sou)) {
+            continue;
+        }
+
+        auto [x, y, w, h, t, im] = b.unpack_repr();
+        const uint8_t width = get_width();
+
+        for (int dy = 0; dy < h; ++dy) {
+            for (int dx = 0; dx < w; ++dx) {
+                bitmap_set_bit(bitmap, width, x + dx, y + dy);
+            }
+        }
+    }
+    return bitmap;
+}
+
+auto puzzle::bitmap_find_first_empty(const uint64_t bitmap, int& x, int& y) const -> bool
+{
+    x = 0;
+    y = 0;
+
+    // Bitmap is empty of first slot is empty
+    if (bitmap_is_empty(bitmap) || !(bitmap & 1u)) {
+        return true;
+    }
+
+    // Bitmap is full
+    if (bitmap_is_full(bitmap)) {
+        return false;
+    }
+
+    // Find the next more significant empty bit (we know the first slot is full)
+    int ls_set = 0;
+    bool next_set = true;
+    while (next_set && ls_set < get_width() * get_height() - 1) {
+        next_set = bitmap & (1ul << (ls_set + 1));
+        ++ls_set;
+    }
+
+    x = ls_set % get_width();
+    y = ls_set / get_width();
+    return true;
+}
+
 auto puzzle::try_move_block_at(const uint8_t x, const uint8_t y, const dir dir) const -> std::optional<puzzle>
 {
     const std::optional<block> b = try_get_block(x, y);
@@ -769,81 +868,10 @@ auto puzzle::sorted_replace(std::array<uint16_t, MAX_BLOCKS> blocks,
     return blocks;
 }
 
-auto puzzle::blocks_bitmap() const -> uint64_t
-{
-    uint64_t bitmap = 0;
-    for (uint8_t i = 0; i < MAX_BLOCKS; ++i) {
-        block b(repr.cooked.blocks[i]);
-        if (!b.valid()) {
-            break;
-        }
-
-        auto [x, y, w, h, t, im] = b.unpack_repr();
-        const uint8_t width = get_width();
-
-        for (int dy = 0; dy < h; ++dy) {
-            for (int dx = 0; dx < w; ++dx) {
-                bitmap_set_bit(bitmap, width, x + dx, y + dy);
-            }
-        }
-    }
-    return bitmap;
-}
-
-auto puzzle::blocks_bitmap_h() const -> uint64_t
-{
-    uint64_t bitmap = 0;
-    for (uint8_t i = 0; i < MAX_BLOCKS; ++i) {
-        block b(repr.cooked.blocks[i]);
-        if (!b.valid()) {
-            break;
-        }
-        const int dirs = b.principal_dirs();
-        if (!(dirs & eas)) {
-            continue;
-        }
-
-        auto [x, y, w, h, t, im] = b.unpack_repr();
-        const uint8_t width = get_width();
-
-        for (int dy = 0; dy < h; ++dy) {
-            for (int dx = 0; dx < w; ++dx) {
-                bitmap_set_bit(bitmap, width, x + dx, y + dy);
-            }
-        }
-    }
-    return bitmap;
-}
-
-auto puzzle::blocks_bitmap_v() const -> uint64_t
-{
-    uint64_t bitmap = 0;
-    for (uint8_t i = 0; i < MAX_BLOCKS; ++i) {
-        block b(repr.cooked.blocks[i]);
-        if (!b.valid()) {
-            break;
-        }
-        const int dirs = b.principal_dirs();
-        if (!(dirs & sou)) {
-            continue;
-        }
-
-        auto [x, y, w, h, t, im] = b.unpack_repr();
-        const uint8_t width = get_width();
-
-        for (int dy = 0; dy < h; ++dy) {
-            for (int dx = 0; dx < w; ++dx) {
-                bitmap_set_bit(bitmap, width, x + dx, y + dy);
-            }
-        }
-    }
-    return bitmap;
-}
-
 auto puzzle::explore_state_space() const -> std::pair<std::vector<puzzle>, std::vector<std::pair<size_t, size_t>>>
 {
     std::vector<puzzle> state_pool;
-    boost::unordered_flat_map<puzzle, std::size_t, puzzle_hasher> state_indices;
+    boost::unordered_flat_map<puzzle, size_t, puzzle_hasher> state_indices;
     std::vector<std::pair<size_t, size_t>> links;
 
     // Buffer for all states we want to call GetNextStates() on
@@ -912,34 +940,6 @@ auto puzzle::get_cluster_id_and_solution() const -> std::pair<puzzle, bool>
         }
     }
     return {min, solution};
-}
-
-auto puzzle::bitmap_find_first_empty(const uint64_t bitmap, int& x, int& y) const -> bool
-{
-    x = 0;
-    y = 0;
-
-    // Bitmap is empty of first slot is empty
-    if (bitmap_is_empty(bitmap) || !(bitmap & 1u)) {
-        return true;
-    }
-
-    // Bitmap is full
-    if (bitmap_is_full(bitmap)) {
-        return false;
-    }
-
-    // Find the next more significant empty bit (we know the first slot is full)
-    int ls_set = 0;
-    bool next_set = true;
-    while (next_set && ls_set < get_width() * get_height() - 1) {
-        next_set = bitmap & (1ul << (ls_set + 1));
-        ++ls_set;
-    }
-
-    x = ls_set % get_width();
-    y = ls_set / get_width();
-    return true;
 }
 
 auto puzzle::generate_block_sequences(
