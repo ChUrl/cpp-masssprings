@@ -1,6 +1,10 @@
+// ReSharper disable CppTooWideScope
 #include "puzzle.hpp"
 
+#include <random>
+#include <unordered_set>
 #include <benchmark/benchmark.h>
+#include <boost/unordered/unordered_flat_map.hpp>
 
 static std::vector<std::string> puzzles = {
     // 0: RushHour 1
@@ -35,6 +39,113 @@ static std::vector<std::string> puzzles = {
     "S:[4x5] G:[1,3] M:[F] B:[{_ 2X2 _ _} {1x1 _ _ 1x1} {1x2 2x1 _ 1x2} {_ 2x1 _ _} {1x1 2x1 _ 1x1}]",
 };
 
+template <uint8_t N>
+struct uint_hasher
+{
+    int64_t nums;
+
+    auto operator()(const std::array<uint64_t, N>& ints) const noexcept -> size_t
+    {
+        size_t h = 0;
+        for (size_t i = 0; i < N; ++i) {
+            puzzle::hash_combine(h, ints[i]);
+        }
+        return h;
+    }
+};
+
+template <uint8_t N>
+static auto unordered_set_uint64(benchmark::State& state) -> void
+{
+    std::random_device random_device;
+    std::mt19937 generator(random_device());
+    std::uniform_int_distribution<uint64_t> distribution(
+        std::numeric_limits<std::uint64_t>::min(),
+        std::numeric_limits<std::uint64_t>::max()
+    );
+
+    std::unordered_set<std::array<uint64_t, N>, uint_hasher<N>> set;
+    std::array<uint64_t, N> ints;
+    for (size_t i = 0; i < N; ++i) {
+        ints[i] = distribution(generator);
+    }
+
+    for (auto _ : state) {
+        for (size_t i = 0; i < 100000; ++i) {
+            set.emplace(ints);
+        }
+
+        benchmark::DoNotOptimize(set);
+    }
+}
+
+template <uint8_t N>
+static auto unordered_flat_set_uint64(benchmark::State& state) -> void
+{
+    std::random_device random_device;
+    std::mt19937 generator(random_device());
+    std::uniform_int_distribution<uint64_t> distribution(
+        std::numeric_limits<std::uint64_t>::min(),
+        std::numeric_limits<std::uint64_t>::max()
+    );
+
+    boost::unordered_flat_set<std::array<uint64_t, N>, uint_hasher<N>> set;
+    std::array<uint64_t, N> ints;
+    for (size_t i = 0; i < N; ++i) {
+        ints[i] = distribution(generator);
+    }
+
+    for (auto _ : state) {
+        for (size_t i = 0; i < 100000; ++i) {
+            set.emplace(ints);
+        }
+
+        benchmark::DoNotOptimize(set);
+    }
+}
+
+static auto unordered_flat_set_block_hasher(benchmark::State& state) -> void
+{
+    boost::unordered_flat_set<puzzle::block, block_hasher> set;
+    const puzzle::block b = puzzle::block(2, 3, 1, 2, true, false);
+
+    for (auto _ : state) {
+        for (size_t i = 0; i < 100000; ++i) {
+            set.emplace(b);
+        }
+
+        benchmark::DoNotOptimize(set);
+    }
+}
+
+static auto unordered_falt_set_block_hasher2(benchmark::State& state) -> void
+{
+    boost::unordered_flat_set<puzzle::block, block_hasher2, block_equal2> set;
+    const puzzle::block b = puzzle::block(2, 3, 1, 2, true, false);
+
+    for (auto _ : state) {
+        for (size_t i = 0; i < 100000; ++i) {
+            set.emplace(b);
+        }
+
+        benchmark::DoNotOptimize(set);
+    }
+}
+
+static auto unordered_flat_set_puzzle_hasher(benchmark::State& state) -> void
+{
+    boost::unordered_flat_set<puzzle, puzzle_hasher> set;
+    const puzzle p = puzzle(puzzles[0]);
+
+    for (auto _ : state) {
+        for (size_t i = 0; i < 100000; ++i) {
+            set.emplace(p);
+        }
+
+        benchmark::DoNotOptimize(set);
+    }
+}
+
 static auto explore_state_space(benchmark::State& state) -> void
 {
     const puzzle p = puzzle(puzzles[state.range(0)]);
@@ -48,7 +159,6 @@ static auto explore_state_space(benchmark::State& state) -> void
 
 static auto explore_rush_hour_puzzle_space(benchmark::State& state) -> void
 {
-    // ReSharper disable once CppTooWideScope
     constexpr uint8_t max_blocks = 5;
 
     constexpr uint8_t board_width = 4;
@@ -85,6 +195,15 @@ static auto explore_rush_hour_puzzle_space(benchmark::State& state) -> void
     }
 }
 
+BENCHMARK(unordered_set_uint64<4>)->Unit(benchmark::kMicrosecond);
+BENCHMARK(unordered_set_uint64<8>)->Unit(benchmark::kMicrosecond);
+BENCHMARK(unordered_set_uint64<16>)->Unit(benchmark::kMicrosecond);
+BENCHMARK(unordered_flat_set_uint64<4>)->Unit(benchmark::kMicrosecond);
+BENCHMARK(unordered_flat_set_uint64<8>)->Unit(benchmark::kMicrosecond);
+BENCHMARK(unordered_flat_set_uint64<16>)->Unit(benchmark::kMicrosecond);
+BENCHMARK(unordered_flat_set_block_hasher)->Unit(benchmark::kMicrosecond);
+BENCHMARK(unordered_falt_set_block_hasher2)->Unit(benchmark::kMicrosecond);
+BENCHMARK(unordered_flat_set_puzzle_hasher)->Unit(benchmark::kMicrosecond);
 BENCHMARK(explore_state_space)->DenseRange(0, puzzles.size() - 1)->Unit(benchmark::kMicrosecond);
 BENCHMARK(explore_rush_hour_puzzle_space)->Unit(benchmark::kSecond);
 

@@ -9,3 +9,5 @@ cmake-build-release
 /perf.data
 /perf.data.old
 /clusters.puzzle
+/benchs.json
+/benchs.old.json
