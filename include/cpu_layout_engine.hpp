@@ -13,7 +13,7 @@
 #include <variant>
 #include <vector>
 
-class threaded_physics
+class cpu_layout_engine
 {
     struct add_mass
     {};
@@ -64,17 +64,17 @@ public:
     physics_state state;
 
 public:
-    explicit threaded_physics(
+    explicit cpu_layout_engine(
         const std::optional<BS::thread_pool<>* const> _thread_pool = std::nullopt)
         : thread_pool(_thread_pool), physics(physics_thread, std::ref(state), std::ref(thread_pool))
     {}
 
-    threaded_physics(const threaded_physics& copy) = delete;
-    auto operator=(const threaded_physics& copy) -> threaded_physics& = delete;
-    threaded_physics(threaded_physics&& move) = delete;
-    auto operator=(threaded_physics&& move) -> threaded_physics& = delete;
+    cpu_layout_engine(const cpu_layout_engine& copy) = delete;
+    auto operator=(const cpu_layout_engine& copy) -> cpu_layout_engine& = delete;
+    cpu_layout_engine(cpu_layout_engine&& move) = delete;
+    auto operator=(cpu_layout_engine&& move) -> cpu_layout_engine& = delete;
 
-    ~threaded_physics()
+    ~cpu_layout_engine()
     {
         state.running = false;
         state.data_ready_cnd.notify_all();

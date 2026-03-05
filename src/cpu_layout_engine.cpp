@@ -1,6 +1,6 @@
-#include "threaded_physics.hpp"
+#include "cpu_layout_engine.hpp"
 #include "config.hpp"
-#include "mass_spring_system.hpp"
+#include "cpu_spring_system.hpp"
 #include "util.hpp"
 
 #include <chrono>
@@ -10,16 +10,16 @@
 #include <vector>
 
 #ifdef ASYNC_OCTREE
-auto threaded_physics::set_octree_pool_thread_name(size_t idx) -> void
+auto cpu_layout_engine::set_octree_pool_thread_name(size_t idx) -> void
 {
     BS::this_thread::set_os_thread_name(std::format("octree-{}", idx));
     // traceln("Using thread \"{}\"", BS::this_thread::get_os_thread_name().value_or("INVALID NAME"));
 }
 #endif
 
-auto threaded_physics::physics_thread(physics_state& state, const std::optional<BS::thread_pool<>* const> thread_pool) -> void
+auto cpu_layout_engine::physics_thread(physics_state& state, const std::optional<BS::thread_pool<>* const> thread_pool) -> void
 {
-    mass_spring_system mass_springs;
+    cpu_spring_system mass_springs;
 
     #ifdef ASYNC_OCTREE
     BS::this_thread::set_os_thread_name("physics");
@@ -154,7 +154,7 @@ auto threaded_physics::physics_thread(physics_state& state, const std::optional<
                 loop_iterations = 0;
                 ups_accumulator = std::chrono::duration<double>(0);
             }
-            if (mass_springs.tree.nodes.empty()) {
+            if (mass_springs.tree.empty()) {
                 state.mass_center = Vector3Zero();
             } else {
                 state.mass_center = mass_springs.tree.nodes[0].mass_center;
@@ -181,7 +181,7 @@ auto threaded_physics::physics_thread(physics_state& state, const std::optional<
     }
 }
 
-auto threaded_physics::clear_cmd() -> void
+auto cpu_layout_engine::clear_cmd() -> void
 {
     {
         #ifdef TRACY
@@ -193,7 +193,7 @@ auto threaded_physics::clear_cmd() -> void
     }
 }
 
-auto threaded_physics::add_mass_cmd() -> void
+auto cpu_layout_engine::add_mass_cmd() -> void
 {
     {
         #ifdef TRACY
@@ -205,7 +205,7 @@ auto threaded_physics::add_mass_cmd() -> void
     }
 }
 
-auto threaded_physics::add_spring_cmd(const size_t a, const size_t b) -> void
+auto cpu_layout_engine::add_spring_cmd(const size_t a, const size_t b) -> void
 {
     {
         #ifdef TRACY
@@ -217,7 +217,7 @@ auto threaded_physics::add_spring_cmd(const size_t a, const size_t b) -> void
     }
 }
 
-auto threaded_physics::add_mass_springs_cmd(const size_t num_masses,
+auto cpu_layout_engine::add_mass_springs_cmd(const size_t num_masses,
                                             const std::vector<std::pair<size_t, size_t>>& springs) -> void
 {
     {

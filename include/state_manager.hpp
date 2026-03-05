@@ -3,7 +3,7 @@
 
 #include "graph_distances.hpp"
 #include "load_save.hpp"
-#include "threaded_physics.hpp"
+#include "cpu_layout_engine.hpp"
 #include "puzzle.hpp"
 
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -12,7 +12,7 @@
 class state_manager
 {
 private:
-    threaded_physics& physics;
+    cpu_layout_engine& physics;
 
     std::string preset_file;
     size_t current_preset = 0;
@@ -42,7 +42,7 @@ private:
     bool edited = false;
 
 public:
-    state_manager(threaded_physics& _physics, const std::string& _preset_file)
+    state_manager(cpu_layout_engine& _physics, const std::string& _preset_file)
         : physics(_physics), preset_file(_preset_file)
     {
         reload_preset_file();

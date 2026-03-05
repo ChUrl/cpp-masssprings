@@ -7,7 +7,7 @@
 #include <optional>
 #include <raylib.h>
 
-class mass_spring_system
+class cpu_spring_system
 {
 public:
     class spring
@@ -36,12 +36,12 @@ public:
     std::vector<spring> springs;
 
 public:
-    mass_spring_system() {}
+    cpu_spring_system() {}
 
-    mass_spring_system(const mass_spring_system& copy) = delete;
-    auto operator=(const mass_spring_system& copy) -> mass_spring_system& = delete;
-    mass_spring_system(mass_spring_system& move) = delete;
-    auto operator=(mass_spring_system&& move) -> mass_spring_system& = delete;
+    cpu_spring_system(const cpu_spring_system& copy) = delete;
+    auto operator=(const cpu_spring_system& copy) -> cpu_spring_system& = delete;
+    cpu_spring_system(cpu_spring_system& move) = delete;
+    auto operator=(cpu_spring_system&& move) -> cpu_spring_system& = delete;
 
 public:
     auto clear() -> void;

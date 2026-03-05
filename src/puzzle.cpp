@@ -1127,7 +1127,7 @@ auto puzzle::explore_puzzle_space(const boost::unordered_flat_set<block, block_h
                                                       });
                              });
 
-    infoln("Found {} of {} clusters with a solution", visited_clusters.size(), total);
+    // infoln("Found {} of {} clusters with a solution", visited_clusters.size(), total);
 
     return visited_clusters;
 }

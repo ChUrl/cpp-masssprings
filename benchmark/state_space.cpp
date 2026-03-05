@@ -177,7 +177,7 @@ static auto explore_rush_hour_puzzle_space(benchmark::State& state) -> void
     constexpr std::tuple<uint8_t, uint8_t, uint8_t, uint8_t> target_block_pos_range = {
         0,
         goal_y,
-        board_width - 1,
+        goal_x,
         goal_y
     };
 

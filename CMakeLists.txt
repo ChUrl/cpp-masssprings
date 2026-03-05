@@ -19,16 +19,16 @@ option(DISABLE_BENCH "Disable building benchmarks" OFF)
 set(SOURCES
     src/backward.cpp
     src/bits.cpp
+    src/cpu_layout_engine.cpp
+    src/cpu_spring_system.cpp
     src/graph_distances.cpp
     src/input_handler.cpp
     src/load_save.cpp
-    src/mass_spring_system.cpp
     src/octree.cpp
     src/orbit_camera.cpp
     src/puzzle.cpp
     src/renderer.cpp
     src/state_manager.cpp
-    src/threaded_physics.cpp
     src/user_interface.cpp
 )
 

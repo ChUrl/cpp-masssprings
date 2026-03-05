@@ -4,7 +4,7 @@
 
 #include "config.hpp"
 #include "input_handler.hpp"
-#include "threaded_physics.hpp"
+#include "cpu_layout_engine.hpp"
 #include "renderer.hpp"
 #include "state_manager.hpp"
 #include "user_interface.hpp"
@@ -66,7 +66,7 @@ auto ui_mode() -> int
     InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + MENU_HEIGHT, "MassSprings");
 
     // Game setup
-    threaded_physics physics(thread_pool);
+    cpu_layout_engine physics(thread_pool);
     state_manager state(physics, preset_file);
     orbit_camera camera;
     input_handler input(state, camera);
@@ -169,7 +169,12 @@ auto rush_hour_puzzle_space() -> int
         puzzle::block(0, 0, 1, 3, false, false)
     };
     const puzzle::block target_block = puzzle::block(0, 0, 2, 1, true, false);
-    const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t> target_block_pos_range = {0, goal_y, board_width - 1, goal_y};
+    const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t> target_block_pos_range = {
+        0,
+        goal_y,
+        board_width - target_block.get_width() - 1,
+        goal_y
+    };
 
     infoln("Exploring Rush-Hour puzzle space:");
     infoln("- Size:       {}x{}", board_width, board_height);
