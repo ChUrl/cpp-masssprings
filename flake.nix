@@ -190,6 +190,25 @@ rec {
           '';
         };
 
+        libmorton = stdenv.mkDerivation {
+          pname = "libmorton";
+          version = "0.2.12-unstable-2023-05-24";
+
+          src = pkgs.fetchFromGitHub {
+            owner = "Forceflow";
+            repo = "libmorton";
+            rev = "7923faa88d7e564020b2d5d408bf8c186ecbe363";
+            hash = "sha256-5LHiWu2GIuDmfM2gXGbRsFasE7AmVCSRphNdFElbbjk=";
+          };
+
+          # Header-only library
+          dontBuild = true;
+          installPhase = ''
+            mkdir -p $out
+            mv ./include $out/include
+          '';
+        };
+
         # ===========================================================================================
         # Specify dependencies
         # https://nixos.org/manual/nixpkgs/stable/#ssec-stdenv-dependencies-overview
@@ -225,6 +244,7 @@ rec {
           raylib
           raygui
           thread-pool
+          libmorton
           boost
 
           # Debugging/Testing/Profiling
@@ -305,6 +325,7 @@ rec {
             raylib
             raygui
             thread-pool
+            libmorton
 
             # Disable stacktrace since that's platform dependant and won't cross compile to windows
             # https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/libraries/boost/generic.nix#L43
@@ -375,6 +396,7 @@ rec {
                 raylib
                 raygui
                 thread-pool
+                libmorton
                 boost
 
                 # Debugging/Testing/Profiling
