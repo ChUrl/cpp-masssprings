@@ -66,11 +66,11 @@ constexpr float TIMESTEP = 1.0 / TARGET_UPS; // Update interval in seconds
 constexpr float SIM_SPEED = 4.0;             // How large each update should be
 constexpr float MASS = 1.0;                  // Mass spring system
 constexpr float SPRING_K = 4.0;              // Mass spring system
-constexpr float DAMPENING_K = 1.0;           // Mass spring system
+constexpr float DAMPENING_K = 1.5;           // Mass spring system
 constexpr float REST_LENGTH = 3.0;           // Mass spring system
 constexpr float VERLET_DAMPENING = 0.1;      // [0, 1]
 constexpr float BH_FORCE = 2.5;              // Barnes-Hut [1.0, 3.0]
-constexpr float THETA = 0.8;                 // Barnes-Hut [0.5, 1.0]
+constexpr float THETA = 1.0;                 // Barnes-Hut [0.5, 1.0]
 constexpr float SOFTENING = 0.05;            // Barnes-Hut [0.01, 1.0]
 
 // Graph Drawing

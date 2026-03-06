@@ -40,7 +40,9 @@ auto cpu_spring_system::add_spring(size_t a, size_t b) -> void
     Vector3 offset{static_cast<float>(GetRandomValue(-100, 100)),
         static_cast<float>(GetRandomValue(-100, 100)),
         static_cast<float>(GetRandomValue(-100, 100))};
-    offset = Vector3Normalize(offset) * REST_LENGTH;
+
+    // By spawning the masses close together, we "explode" them naturally, so they cluster faster (also looks cool)
+    offset = Vector3Normalize(offset) * REST_LENGTH * 0.1;
 
     // If the offset moves the mass closer to the current center of mass, flip it
     if (!tree.empty()) {
