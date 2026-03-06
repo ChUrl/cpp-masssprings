@@ -332,7 +332,13 @@ auto main(const int argc, char* argv[]) -> int
     #endif
 
     infoln("Using background thread for physics.");
-    infoln("Using octree-barnes-hut for graph layout.");
+    infoln("Using linear octree + Barnes-Hut for graph layout.");
+
+    #ifdef ASYNC_OCTREE
+    infoln("Using asynchronous octree build.");
+    #else
+    infoln("Using synchronous octree build.");
+    #endif
 
     #ifdef THREADPOOL
     infoln("Additional thread-pool enabled ({} threads).", threads.get_thread_count());

@@ -3,8 +3,9 @@
 
 #include <raylib.h>
 
-// TODO: Using the octree from the last frame completely breaks the physics :/
-// #define ASYNC_OCTREE
+// Calculate the octree parallel to the layout calculation.
+// Layout uses the octree from last frame.
+#define ASYNC_OCTREE
 
 // Gets set by CMake
 // #define THREADPOOL // Enable physics threadpool

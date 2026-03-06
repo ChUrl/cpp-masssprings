@@ -44,10 +44,10 @@ private:
 public:
     octree() = default;
 
-    octree(const octree& copy) = delete;
-    auto operator=(const octree& copy) -> octree& = delete;
-    octree(octree&& move) = delete;
-    auto operator=(octree&& move) -> octree& = delete;
+    // octree(const octree& copy) = delete;
+    // auto operator=(const octree& copy) -> octree& = delete;
+    // octree(octree&& move) = delete;
+    // auto operator=(octree&& move) -> octree& = delete;
 
 private:
     [[nodiscard]] INLINE static inline auto get_octant(const Vector3& box_min,

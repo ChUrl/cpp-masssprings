@@ -90,16 +90,16 @@ auto cpu_layout_engine::physics_thread(physics_state& state, const std::optional
 
             // Start building the octree for the next physics update.
             // Move the snapshot into the closure so it doesn't get captured by reference (don't use [&])
-            octree_future = octree_thread.submit_task([&tree_buffer, positions = std::move(positions)]()
+            octree_future = octree_thread.submit_task([&tree_buffer, &thread_pool, positions = std::move(positions)]()
             {
-                octree::build_octree(tree_buffer, positions);
+                octree::build_octree_morton(tree_buffer, positions, thread_pool);
             });
 
             // Rebuild the tree synchronously if we changed the number of masses to not use
             // an empty tree from the last frame in the frame where the graph was generated
             if (last_mass_count != mass_springs.positions.size()) {
                 traceln("Rebuilding octree synchronously because graph size changed");
-                octree::build_octree(mass_springs.tree, mass_springs.positions);
+                octree::build_octree_morton(mass_springs.tree, mass_springs.positions, thread_pool);
                 last_mass_count = mass_springs.positions.size();
             }
             #else

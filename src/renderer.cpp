@@ -67,7 +67,10 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
             // TODO: This would benefit greatly from a spatial data structure.
             //       Would it be worth to copy the octree from the physics thread?
             input.collision_mass = -1;
-            if (input.mouse_in_graph_pane()) {
+            if (input.mouse_in_graph_pane() && IsKeyDown(KEY_Q)) {
+                #ifdef TRACY
+                ZoneNamedN(mass_collisions, "MassCollisions", true);
+                #endif
                 const Ray ray = GetScreenToWorldRayEx(
                     GetMousePosition() - Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT),
                     camera.camera, graph_target.texture.width, graph_target.texture.height);
