@@ -185,11 +185,17 @@ rec {
           # Header-only library
           dontBuild = true;
           installPhase = ''
+            runHook preInstall
+
             mkdir -p $out
-            mv ./include $out/include
+            cp -rv ./include $out/include
+
+            runHook postInstall
           '';
         };
 
+        # We can use the pkgs.stdenv for Linux+Windows because it's a header only library.
+        # The build is required to create the pkg-config/cmake configuration files.
         libmorton = stdenv.mkDerivation {
           pname = "libmorton";
           version = "0.2.12-unstable-2023-05-24";
@@ -201,13 +207,6 @@ rec {
             hash = "sha256-5LHiWu2GIuDmfM2gXGbRsFasE7AmVCSRphNdFElbbjk=";
           };
 
-          # Header-only library
-          # dontBuild = true;
-          # installPhase = ''
-          #   mkdir -p $out
-          #   mv ./include $out/include
-          # '';
-
           nativeBuildInputs = with pkgs; [cmake];
 
           cmakeFlags = [
@@ -215,6 +214,41 @@ rec {
             "-DCMAKE_INSTALL_INCLUDEDIR=include"
             "-DCMAKE_INSTALL_DATADIR=share"
           ];
+        };
+
+        glew-windows = windowsPkgs.stdenv.mkDerivation rec {
+          pname = "glew-windows";
+          version = "2.2.0";
+
+          src = pkgs.fetchurl {
+            url = "https://github.com/nigels-com/glew/releases/download/glew-${version}/glew-${version}.tgz";
+            hash = "sha256-1PyCiTz7ABCVeNChojN/uMozWzzsz5e5flzH8I5DU+E=";
+          };
+
+          nativeBuildInputs = with pkgs; [
+            cmake
+            ninja
+            pkg-config
+          ];
+
+          preConfigure = ''
+            cd build/cmake
+          '';
+
+          cmakeFlags = [
+            "-DBUILD_UTILS=OFF"
+            "-DGLEW_OSMESA=OFF"
+            "-DBUILD_SHARED_LIBS=ON"
+            "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+          ];
+
+          installPhase = ''
+            runHook preInstall
+
+            cmake --install . --prefix "$out"
+
+            runHook postInstall
+          '';
         };
 
         # ===========================================================================================
@@ -250,8 +284,8 @@ rec {
         buildInputs = with pkgs; [
           # C/C++:
           raylib
-          glew
           raygui
+          glew
           thread-pool
           libmorton
           boost
@@ -297,11 +331,13 @@ rec {
           '';
 
           installPhase = ''
+            runHook preInstall
+
             mkdir -p $out/lib
             cp ./${pname} $out/lib/
-            cp $src/default.puzzle $out/lib/
-            cp -r $src/fonts $out/lib/fonts
-            cp -r $src/shader $out/lib/shader
+            cp -rv $src/default.puzzle $out/lib/
+            cp -rv $src/fonts $out/lib/fonts
+            cp -rv $src/shader $out/lib/shader
 
             # The wrapper enters the correct working dir, so fonts/shaders/presets are available
             mkdir -p $out/bin
@@ -316,6 +352,8 @@ rec {
             Exec=$out/bin/${pname} %f
             Type=Application
             INI
+
+            runHook postInstall
           '';
         };
 
@@ -333,6 +371,7 @@ rec {
           buildInputs = with windowsPkgs; [
             raylib
             raygui
+            glew-windows
             thread-pool
             libmorton
 
@@ -356,11 +395,15 @@ rec {
           ];
 
           installPhase = ''
+            runHook preInstall
+
             mkdir -p $out/bin
-            cp ./${pname}.exe $out/bin/
-            cp $src/default.puzzle $out/bin/
-            cp -r $src/fonts $out/bin/fonts
-            cp -r $src/shader $out/bin/shader
+            cp -rv ./${pname}.exe $out/bin/
+            cp -rv $src/default.puzzle $out/bin/
+            cp -rv $src/fonts $out/bin/fonts
+            cp -rv $src/shader $out/bin/shader
+
+            runHook postInstall
           '';
         };
       in rec {
@@ -404,6 +447,7 @@ rec {
                 # C/C++:
                 raylib
                 raygui
+                glew
                 thread-pool
                 libmorton
                 boost
