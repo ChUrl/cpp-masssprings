@@ -35,6 +35,7 @@ set(SOURCES
 # Libraries
 include(FetchContent)
 find_package(raylib REQUIRED)
+find_package(libmorton REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
 set(LIBS raylib Boost::headers Boost::program_options)
 set(FLAGS "")
@@ -52,6 +53,8 @@ if(NOT DISABLE_BACKWARD)
 
     list(APPEND LIBS Backward::Backward)
     list(APPEND FLAGS BACKWARD)
+
+    message("-- BACKWARD: Enabled")
 endif()
 
 if(NOT DISABLE_TRACY)
@@ -67,6 +70,8 @@ if(NOT DISABLE_TRACY)
 
     list(APPEND LIBS TracyClient)
     list(APPEND FLAGS TRACY)
+
+    message("-- TRACY: Enabled")
 endif()
 
 # Set this after fetching tracy to hide tracy's warnings.
@@ -111,6 +116,8 @@ if(NOT DISABLE_TESTS AND NOT WIN32)
 
     include(Catch)
     catch_discover_tests(tests)
+
+    message("-- TESTS: Enabled")
 endif()
 
 # Benchmarking
@@ -124,14 +131,16 @@ if(NOT DISABLE_BENCH AND NOT WIN32)
     add_executable(benchmarks ${BENCH_SOURCES} ${SOURCES})
     target_include_directories(benchmarks PRIVATE include)
     target_link_libraries(benchmarks benchmark raylib)
+
+    message("-- BENCHMARKS: Enabled")
 endif()
 
 # LTO
 include(CheckIPOSupported)
 check_ipo_supported(RESULT supported OUTPUT error)
 if(supported)
-    message(STATUS "IPO / LTO enabled")
+    message("-- IPO/LTO: Enabled")
     set_property(TARGET masssprings PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 else()
-    message(STATUS "IPO / LTO not supported")
+    message("-- IPO/LTO: Disabled")
 endif()

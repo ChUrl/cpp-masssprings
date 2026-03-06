@@ -7,6 +7,10 @@
 #define INLINE __attribute__((always_inline))
 #define PACKED __attribute__((packed))
 
+#define STARTTIME const auto start = std::chrono::high_resolution_clock::now()
+#define ENDTIME(msg) const auto end = std::chrono::high_resolution_clock::now(); \
+     infoln("{}. Took {}ms.", msg, std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())
+
 // std::variant visitor
 
 // https://en.cppreference.com/w/cpp/utility/variant/visit
@@ -92,28 +96,32 @@ template <typename... Args>
 auto traceln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
     std::cout << std::format("[{}TRACE{}]: ", ansi_bold_fg(fg::cyan), ansi_reset()) << std::format(
-        fmt, std::forward<Args>(args)...) << std::endl;
+        fmt,
+        std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto infoln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
     std::cout << std::format("[{}INFO{}]: ", ansi_bold_fg(fg::blue), ansi_reset()) << std::format(
-        fmt, std::forward<Args>(args)...) << std::endl;
+        fmt,
+        std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto warnln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
     std::cout << std::format("[{}WARNING{}]: ", ansi_bold_fg(fg::yellow), ansi_reset()) << std::format(
-        fmt, std::forward<Args>(args)...) << std::endl;
+        fmt,
+        std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto errln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
     std::cout << std::format("[{}ERROR{}]: ", ansi_bold_fg(fg::red), ansi_reset()) << std::format(
-        fmt, std::forward<Args>(args)...) << std::endl;
+        fmt,
+        std::forward<Args>(args)...) << std::endl;
 }
 
 #endif

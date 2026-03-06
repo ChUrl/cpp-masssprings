@@ -45,7 +45,7 @@ auto cpu_spring_system::add_spring(size_t a, size_t b) -> void
     // If the offset moves the mass closer to the current center of mass, flip it
     if (!tree.empty()) {
         const Vector3 mass_center_direction =
-            Vector3Subtract(positions[a], tree.nodes[0].mass_center);
+            Vector3Subtract(positions[a], tree.root().mass_center);
         const float mass_center_distance = Vector3Length(mass_center_direction);
 
         if (mass_center_distance > 0 && Vector3DotProduct(offset, mass_center_direction) < 0.0f) {
@@ -126,7 +126,7 @@ auto cpu_spring_system::calculate_repulsion_forces(
 
     const auto solve_octree = [&](const int i)
     {
-        const Vector3 force = tree.calculate_force(0, positions[i]);
+        const Vector3 force = tree.calculate_force_morton(0, positions[i], i);
         forces[i] += force;
     };
 

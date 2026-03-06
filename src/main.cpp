@@ -11,7 +11,7 @@
 
 #include <filesystem>
 
-#ifndef WIN32
+#if not defined(_WIN32)
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 #endif
@@ -235,7 +235,7 @@ enum class runmode
 
 auto argparse(const int argc, char* argv[]) -> runmode
 {
-    #ifndef WIN32
+    #if not defined(_WIN32)
     po::options_description desc("Allowed options");
     desc.add_options()                                                                                            //
         ("help", "produce help message")                                                                          //

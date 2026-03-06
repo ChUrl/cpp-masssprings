@@ -135,7 +135,7 @@ rec {
         # Define custom dependencies
         # ===========================================================================================
 
-        raygui = stdenv.mkDerivation (finalAttrs: {
+        raygui = stdenv.mkDerivation rec {
           pname = "raygui";
           version = "4.0-unstable-2026-02-24";
 
@@ -163,13 +163,13 @@ rec {
             Name: raygui
             Description: Simple and easy-to-use immediate-mode gui library
             URL: https://github.com/raysan5/raygui
-            Version: ${finalAttrs.version}
+            Version: ${version}
             Cflags: -I"{includedir}"
             EOF
 
             runHook postInstall
           '';
-        });
+        };
 
         thread-pool = stdenv.mkDerivation {
           pname = "thread-pool";
@@ -202,11 +202,19 @@ rec {
           };
 
           # Header-only library
-          dontBuild = true;
-          installPhase = ''
-            mkdir -p $out
-            mv ./include $out/include
-          '';
+          # dontBuild = true;
+          # installPhase = ''
+          #   mkdir -p $out
+          #   mv ./include $out/include
+          # '';
+
+          nativeBuildInputs = with pkgs; [cmake];
+
+          cmakeFlags = [
+            "-DBUILD_TESTING=OFF"
+            "-DCMAKE_INSTALL_INCLUDEDIR=include"
+            "-DCMAKE_INSTALL_DATADIR=share"
+          ];
         };
 
         # ===========================================================================================

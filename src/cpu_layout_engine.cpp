@@ -103,7 +103,7 @@ auto cpu_layout_engine::physics_thread(physics_state& state, const std::optional
                 last_mass_count = mass_springs.positions.size();
             }
             #else
-            octree::build_octree(mass_springs.tree, mass_springs.positions);
+            octree::build_octree_morton(mass_springs.tree, mass_springs.positions);
             #endif
 
             mass_springs.clear_forces();
@@ -157,7 +157,7 @@ auto cpu_layout_engine::physics_thread(physics_state& state, const std::optional
             if (mass_springs.tree.empty()) {
                 state.mass_center = Vector3Zero();
             } else {
-                state.mass_center = mass_springs.tree.nodes[0].mass_center;
+                state.mass_center = mass_springs.tree.root().mass_center;
             }
 
             state.masses.clear();
