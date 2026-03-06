@@ -1,7 +1,3 @@
-#include <chrono>
-#include <mutex>
-#include <raylib.h>
-
 #include "config.hpp"
 #include "input_handler.hpp"
 #include "cpu_layout_engine.hpp"
@@ -9,6 +5,10 @@
 #include "state_manager.hpp"
 #include "user_interface.hpp"
 
+#include <chrono>
+#include <mutex>
+#include <GL/glew.h>
+#include <raylib.h>
 #include <filesystem>
 
 #if not defined(_WIN32)
@@ -64,6 +64,13 @@ auto ui_mode() -> int
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
     InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + MENU_HEIGHT, "MassSprings");
+
+    // GLEW setup
+    glewExperimental = GL_TRUE;
+    const GLenum glew_err = glewInit();
+    if (glew_err != GLEW_OK) {
+        TraceLog(LOG_FATAL, "Failed to initialize GLEW: %s", glewGetErrorString(glew_err));
+    }
 
     // Game setup
     cpu_layout_engine physics(thread_pool);

@@ -75,8 +75,9 @@ constexpr float SOFTENING = 0.05;            // Barnes-Hut [0.01, 1.0]
 
 // Graph Drawing
 static const Color EDGE_COLOR = Fade(BLUE, 0.3);
+constexpr int DRAW_EDGES_LIMIT = 5'000'000;
 constexpr float VERTEX_SIZE = 0.75;
-constexpr int DRAW_VERTICES_LIMIT = 1000000;
+constexpr int DRAW_VERTICES_LIMIT = 1'000'000;
 static const Color VERTEX_COLOR = Fade(BLUE, 0.8);
 constexpr Color VERTEX_VISITED_COLOR = ORANGE;
 constexpr Color VERTEX_START_COLOR = ORANGE;

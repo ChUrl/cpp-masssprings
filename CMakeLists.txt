@@ -35,9 +35,10 @@ set(SOURCES
 # Libraries
 include(FetchContent)
 find_package(raylib REQUIRED)
+find_package(GLEW REQUIRED)
 find_package(libmorton REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
-set(LIBS raylib Boost::headers Boost::program_options)
+set(LIBS raylib GLEW::GLEW Boost::headers Boost::program_options)
 set(FLAGS "")
 
 if(WIN32)

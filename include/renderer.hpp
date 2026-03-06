@@ -24,10 +24,15 @@ private:
     RenderTexture klotski_target = LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT);
     RenderTexture menu_target = LoadRenderTexture(GetScreenWidth(), MENU_HEIGHT);
 
-    // Batching
+    // Edges
+    unsigned int edge_vao_id = 0;
+    unsigned int edge_vbo_id = 0;
+    std::vector<Vector3> edge_vertices;
+    Shader edge_shader = LoadShader("shader/edge_vertex.glsl", "shader/edge_fragment.glsl");
+    int edge_color_loc = -1;
     std::vector<std::pair<Vector3, Vector3>> connections;
 
-    // Instancing
+    // Vertex instancing
     static constexpr int INSTANCE_COLOR_ATTR = 5;
     std::vector<Matrix> transforms;
     std::vector<Color> colors;
@@ -37,30 +42,45 @@ private:
     unsigned int color_vbo_id = 0;
 
 public:
-    renderer(const orbit_camera& _camera,
-             const state_manager& _state,
-             input_handler& _input,
-             user_interface& _gui)
+    // TODO: I am allocating HUGE vertex buffers instead of resizing dynamically...
+    //       Edges: 5'000'000 * 2 * 12 Byte ~= 115 MB
+    //       Verts: 1'000'000 * 16 Byte ~= 15 MB
+    //       This is also allocated on the CPU by the vectors
+    renderer(const orbit_camera& _camera, const state_manager& _state, input_handler& _input, user_interface& _gui)
         : state(_state), input(_input), gui(_gui), camera(_camera)
     {
+        // Edges
+        edge_shader.locs[SHADER_LOC_VERTEX_POSITION] = GetShaderLocationAttrib(edge_shader, "vertexPosition");
+        edge_shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(edge_shader, "mvp");
+        edge_shader.locs[SHADER_LOC_COLOR_DIFFUSE] = GetShaderLocation(edge_shader, "colDiffuse");
+        edge_color_loc = GetShaderLocation(edge_shader, "colDiffuse");
+
+        edge_vertices.reserve(DRAW_EDGES_LIMIT * 2);
+
+        edge_vao_id = rlLoadVertexArray();
+        edge_vbo_id = rlLoadVertexBuffer(nullptr, DRAW_EDGES_LIMIT * 2 * sizeof(Vector3), true);
+
+        rlEnableVertexArray(edge_vao_id);
+        rlEnableVertexBuffer(edge_vbo_id);
+
+        rlSetVertexAttribute(0, 3, RL_FLOAT, false, sizeof(Vector3), 0);
+        rlEnableVertexAttribute(0);
+
+        rlDisableVertexBuffer();
+        rlDisableVertexArray();
+
+        // Vertex instancing
         instancing_shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(instancing_shader, "mvp");
         instancing_shader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocationAttrib(
             instancing_shader,
             "instanceTransform");
         instancing_shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(instancing_shader, "viewPos");
 
-        // infoln("LOC vertexPosition: {}",
-        //        rlGetLocationAttrib(instancing_shader.id, "vertexPosition"));
-        // infoln("LOC instanceTransform: {}",
-        //        rlGetLocationAttrib(instancing_shader.id, "instanceTransform"));
-        // infoln("LOC instanceColor: {}", rlGetLocationAttrib(instancing_shader.id, "instanceColor"));
-
-        // vertex_mat.maps[MATERIAL_MAP_DIFFUSE].color = VERTEX_COLOR;
         vertex_mat.shader = instancing_shader;
 
         transforms.reserve(DRAW_VERTICES_LIMIT);
         colors.reserve(DRAW_VERTICES_LIMIT);
-        color_vbo_id = rlLoadVertexBuffer(colors.data(), DRAW_VERTICES_LIMIT * sizeof(Color), true);
+        color_vbo_id = rlLoadVertexBuffer(nullptr, DRAW_VERTICES_LIMIT * sizeof(Color), true);
 
         rlEnableVertexArray(cube_instance.vaoId);
         rlEnableVertexBuffer(color_vbo_id);
@@ -83,12 +103,19 @@ public:
         UnloadRenderTexture(klotski_target);
         UnloadRenderTexture(menu_target);
 
+        // Edges
+        rlUnloadVertexArray(edge_vao_id);
+        rlUnloadVertexBuffer(edge_vbo_id);
+        UnloadShader(edge_shader);
+
         // Instancing
         UnloadMaterial(vertex_mat);
         UnloadMesh(cube_instance);
 
         // I think the shader already gets unloaded with the material?
         // UnloadShader(instancing_shader);
+
+        rlUnloadVertexBuffer(color_vbo_id);
     }
 
 private:

@@ -250,6 +250,7 @@ rec {
         buildInputs = with pkgs; [
           # C/C++:
           raylib
+          glew
           raygui
           thread-pool
           libmorton

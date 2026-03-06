@@ -4,6 +4,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
+#include <GL/glew.h>
 
 auto renderer::update_texture_sizes() -> void
 {
@@ -34,10 +35,24 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
         return;
     }
 
-    // Prepare connection batching
+    // Prepare edge buffer
     {
         #ifdef TRACY
-        ZoneNamedN(prepare_connections, "PrepareConnectionsBatching", true);
+        ZoneNamedN(prepare_edge_buffers, "PrepareEdgeBuffers", true);
+        #endif
+
+        edge_vertices.clear();
+        for (const auto& [from, to] : state.get_links()) {
+            edge_vertices.push_back(masses[from]);
+            edge_vertices.push_back(masses[to]);
+        }
+        rlUpdateVertexBuffer(edge_vbo_id, edge_vertices.data(), edge_vertices.size() * sizeof(Vector3), 0);
+    }
+
+    // Prepare connection drawing
+    {
+        #ifdef TRACY
+        ZoneNamedN(prepare_connections, "PrepareConnectionsDrawing", true);
         #endif
 
         connections.clear();
@@ -47,7 +62,6 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
                 const Vector3& current_mass = masses[state.get_current_index()];
                 const Vector3& winning_mass = masses[_state];
                 connections.emplace_back(current_mass, winning_mass);
-                DrawLine3D(current_mass, winning_mass, Fade(TARGET_BLOCK_COLOR, 0.5));
             }
         }
     }
@@ -73,24 +87,26 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
                 #endif
                 const Ray ray = GetScreenToWorldRayEx(
                     GetMousePosition() - Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT),
-                    camera.camera, graph_target.texture.width, graph_target.texture.height);
-                RayCollision collision; // Ray collision hit info
+                    camera.camera,
+                    graph_target.texture.width,
+                    graph_target.texture.height);
+                // Ray collision hit info
 
                 size_t mass = 0;
                 for (const auto& [x, y, z] : masses) {
-                    collision = GetRayCollisionBox(ray,
-                                                   BoundingBox{
-                                                       {
-                                                           x - VERTEX_SIZE / 2.0f,
-                                                           y - VERTEX_SIZE / 2.0f,
-                                                           z - VERTEX_SIZE / 2.0f
-                                                       },
-                                                       {
-                                                           x + VERTEX_SIZE / 2.0f,
-                                                           y + VERTEX_SIZE / 2.0f,
-                                                           z + VERTEX_SIZE / 2.0f
-                                                       }
-                                                   });
+                    const RayCollision collision = GetRayCollisionBox(ray,
+                                                                      BoundingBox{
+                                                                          {
+                                                                              x - VERTEX_SIZE / 2.0f,
+                                                                              y - VERTEX_SIZE / 2.0f,
+                                                                              z - VERTEX_SIZE / 2.0f
+                                                                          },
+                                                                          {
+                                                                              x + VERTEX_SIZE / 2.0f,
+                                                                              y + VERTEX_SIZE / 2.0f,
+                                                                              z + VERTEX_SIZE / 2.0f
+                                                                          }
+                                                                      });
                     if (collision.hit) {
                         input.collision_mass = mass;
                         break;
@@ -160,23 +176,53 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
     ClearBackground(RAYWHITE);
     BeginMode3D(camera.camera);
 
-    // Draw springs (batched)
+    rlDrawRenderBatchActive();
+
+    // Draw edges
     {
         #ifdef TRACY
         ZoneNamedN(draw_springs, "DrawSprings", true);
         #endif
 
-        rlBegin(RL_LINES);
-        for (const auto& [from, to] : state.get_links()) {
-            if (masses.size() > from && masses.size() > to) {
-                const auto& [ax, ay, az] = masses[from];
-                const auto& [bx, by, bz] = masses[to];
-                rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
-                rlVertex3f(ax, ay, az);
-                rlVertex3f(bx, by, bz);
-            }
-        }
-        rlEnd();
+        rlEnableShader(edge_shader.id);
+
+        Matrix modelview = rlGetMatrixModelview();
+        Matrix projection = rlGetMatrixProjection();
+        Matrix mvp = MatrixMultiply(modelview, projection);
+        rlSetUniformMatrix(edge_shader.locs[SHADER_LOC_MATRIX_MVP], mvp);
+
+        const std::array<float, 4> edge_color = {
+            EDGE_COLOR.r / 255.0f,
+            EDGE_COLOR.g / 255.0f,
+            EDGE_COLOR.b / 255.0f,
+            EDGE_COLOR.a / 255.0f
+        };
+        rlSetUniform(edge_color_loc, edge_color.data(), SHADER_UNIFORM_VEC4, 1);
+
+        glBindVertexArray(edge_vao_id);
+        glDrawArrays(GL_LINES, 0, edge_vertices.size());
+        glBindVertexArray(0);
+
+        rlDisableShader();
+
+        // This draws triangles:
+        // rlEnableVertexArray(edge_vao_id);
+        // rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
+        // rlDrawVertexArray(0, edge_vertices.size());
+        // rlDisableVertexArray();
+
+        // This is fucking slow:
+        // rlBegin(RL_LINES);
+        // for (const auto& [from, to] : state.get_links()) {
+        //     if (masses.size() > from && masses.size() > to) {
+        //         const auto& [ax, ay, az] = masses[from];
+        //         const auto& [bx, by, bz] = masses[to];
+        //         rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
+        //         rlVertex3f(ax, ay, az);
+        //         rlVertex3f(bx, by, bz);
+        //     }
+        // }
+        // rlEnd();
     }
 
     // Draw masses (instanced)
