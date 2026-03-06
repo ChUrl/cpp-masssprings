@@ -28,7 +28,6 @@ auto cpu_layout_engine::physics_thread(physics_state& state, const std::optional
     std::future<void> octree_future;
     octree tree_buffer;
     size_t last_mass_count = 0;
-    infoln("Using asynchronous octree builder.");
     #endif
 
     const auto visitor = overloads{
