@@ -24,8 +24,10 @@ auto octree::root() const -> const node&
     return nodes[0];
 }
 
-// Replaced the 50 line recursive octree insertion with this bitch to gain 5 UPS, FML
-auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& positions) -> void
+// Replaced the 50 line recursive octree insertion with this morton bitch to gain 5 UPS, FML
+auto octree::build_octree_morton(octree& t,
+                                 const std::vector<Vector3>& positions,
+                                 const std::optional<BS::thread_pool<>*>& thread_pool) -> void
 {
     #ifdef TRACY
     ZoneScoped;
@@ -65,10 +67,21 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
         Vector3 pos;
     };
 
+    // Calculate morton code for each node
     std::vector<sort_node> sort_container;
-    sort_container.reserve(positions.size());
-    for (uint32_t i = 0; i < positions.size(); ++i) {
-        sort_container.emplace_back(pos_to_morton(positions[i], root_min, root_max), i, positions[i]);
+    sort_container.resize(positions.size());
+
+    const auto calculate_morton = [&](const uint32_t i)
+    {
+        sort_container[i] = {pos_to_morton(positions[i], root_min, root_max), i, positions[i]};
+    };
+
+    if (thread_pool) {
+        (*thread_pool)->submit_loop(0, positions.size(), calculate_morton, SMALL_TASK_BLOCK_SIZE).wait();
+    } else {
+        for (uint32_t i = 0; i < positions.size(); ++i) {
+            calculate_morton(i);
+        }
     }
 
     // Sort the list by morton codes. Because positions close to each other have similar morten codes,
@@ -123,7 +136,7 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
     // Leaves at MAX_DEPTH: 1 particle per leaf in morton order (close particles close together)
     auto& leafs = tree_levels[MAX_DEPTH];
     leafs.reserve(sort_container.size());
-    const float leaf_size = root_extent / static_cast<float>(MAX_DEPTH);
+    const float leaf_size = root_extent / static_cast<float>(1u << MAX_DEPTH);
     for (const auto& [code, id, pos] : sort_container) {
         node leaf;
         leaf.leaf = true;
@@ -198,12 +211,12 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
                 const node& child = tree_levels[child_depth][child_local];
 
                 // Which octant of this parent does it belong to?
-                // IMPORTANT: octant comes from the NEXT level after current_depth (i.e. current_depth+1),
+                // Octant comes from the NEXT level after current_depth,
                 // but the child might skip levels due to compression.
-                // We must use the child's "first level under the parent" which is (current_depth+1).
+                // We must use the child's first level under the parent (current_depth+1).
                 const int oct = octant_at_level(leaves[k].leaf_code, current_depth + 1, MAX_DEPTH);
 
-                // Store *global* child reference: we only have an int slot, so we need a single index space.
+                // Store global child reference: we only have an int slot, so we need a single index space.
                 parent.children[oct] = (child_depth << 24) | (child_local & 0x00FFFFFF);
 
                 mass_total += child.mass_total;
@@ -277,7 +290,7 @@ auto octree::calculate_force_morton(const int node_idx, const Vector3& pos, cons
     float fz = 0.0f;
 
     std::vector<int> stack;
-    stack.reserve(128);
+    stack.reserve(512);
     stack.push_back(node_idx);
 
     constexpr float theta2 = THETA * THETA;

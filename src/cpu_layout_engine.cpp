@@ -103,7 +103,7 @@ auto cpu_layout_engine::physics_thread(physics_state& state, const std::optional
                 last_mass_count = mass_springs.positions.size();
             }
             #else
-            octree::build_octree_morton(mass_springs.tree, mass_springs.positions);
+            octree::build_octree_morton(mass_springs.tree, mass_springs.positions, thread_pool);
             #endif
 
             mass_springs.clear_forces();

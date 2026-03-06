@@ -22,9 +22,6 @@ public:
     };
 
 public:
-    static constexpr int SMALL_TASK_BLOCK_SIZE = 256;
-    static constexpr int LARGE_TASK_BLOCK_SIZE = 256;
-
     octree tree;
 
     // This is the main ownership of all the states/masses/springs.

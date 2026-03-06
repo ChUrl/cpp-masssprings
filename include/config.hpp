@@ -91,4 +91,9 @@ constexpr Color BLOCK_COLOR = DARKBLUE;
 constexpr Color TARGET_BLOCK_COLOR = RED;
 constexpr Color WALL_COLOR = BLACK;
 
+// Threadpool
+static constexpr int SMALL_TASK_BLOCK_SIZE = 256; // Weirdly larger blocks decrease performance...
+static constexpr int LARGE_TASK_BLOCK_SIZE = 256;
+
+
 #endif

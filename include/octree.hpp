@@ -2,6 +2,7 @@
 #define OCTREE_HPP_
 
 #include "util.hpp"
+#include "config.hpp"
 
 #include <array>
 #include <vector>
@@ -98,7 +99,9 @@ public:
     [[nodiscard]] auto root() const -> const node&;
 
     // Morton/linear octree implementation
-    static auto build_octree_morton(octree& t, const std::vector<Vector3>& positions) -> void;
+    static auto build_octree_morton(octree& t,
+                                    const std::vector<Vector3>& positions,
+                                    const std::optional<BS::thread_pool<>*>& thread_pool) -> void;
     [[nodiscard]] auto calculate_force_morton(int node_idx, const Vector3& pos, int self_id) const -> Vector3;
 };
 
