@@ -42,6 +42,7 @@ auto input_handler::init_handlers() -> void
     register_key_pressed_handler(KEY_C, &input_handler::clear_graph);
     register_key_pressed_handler(KEY_I, &input_handler::toggle_mark_solutions);
     register_key_pressed_handler(KEY_O, &input_handler::toggle_connect_solutions);
+    register_key_pressed_handler(KEY_Z, &input_handler::toggle_color_by_distance);
 
     register_key_pressed_handler(KEY_TAB, &input_handler::toggle_editing);
     register_key_pressed_handler(KEY_F, &input_handler::toggle_restricted_movement);
@@ -142,12 +143,17 @@ auto input_handler::camera_zoom() const -> void
 
 auto input_handler::camera_fov() const -> void
 {
-    if (!mouse_in_graph_pane() || !IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_LEFT_SHIFT)) {
+    if (!mouse_in_graph_pane() || !IsKeyDown(KEY_LEFT_CONTROL)) {
         return;
     }
 
     const float wheel = GetMouseWheelMove();
-    camera.fov -= wheel * FOV_SPEED;
+
+    if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        camera.fov -= wheel * FOV_SPEED * FOV_MULTIPLIER;
+    } else {
+        camera.fov -= wheel * FOV_SPEED;
+    }
 }
 
 auto input_handler::select_block() -> void
@@ -405,6 +411,11 @@ auto input_handler::toggle_mark_solutions() -> void
 auto input_handler::toggle_connect_solutions() -> void
 {
     connect_solutions = !connect_solutions;
+}
+
+auto input_handler::toggle_color_by_distance() -> void
+{
+    color_by_distance = !color_by_distance;
 }
 
 auto input_handler::toggle_mark_path() -> void

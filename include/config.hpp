@@ -3,7 +3,6 @@
 
 #include <raylib.h>
 
-
 // TODO: Using the octree from the last frame completely breaks the physics :/
 // #define ASYNC_OCTREE
 
@@ -46,12 +45,14 @@ constexpr int FONT_SIZE = 26;
 // Camera Controls
 constexpr float CAMERA_FOV = 90.0;
 constexpr float FOV_SPEED = 1.0;
+constexpr float FOV_MULTIPLIER = 4.0;
 constexpr float MIN_FOV = 10.0;
-constexpr float MAX_FOV = 180.0;
+constexpr float MAX_PERSP_FOV = 120.0;
+constexpr float MAX_ORTHO_FOV = 540.0;
 constexpr float CAMERA_DISTANCE = 150.0;
-constexpr float ZOOM_SPEED = 2.5;
 constexpr float MIN_CAMERA_DISTANCE = 2.0;
 constexpr float MAX_CAMERA_DISTANCE = 2000.0;
+constexpr float ZOOM_SPEED = 2.5;
 constexpr float ZOOM_MULTIPLIER = 4.0;
 constexpr float PAN_SPEED = 2.0;
 constexpr float PAN_MULTIPLIER = 10.0;
@@ -63,26 +64,26 @@ constexpr float TARGET_UPS = 90;             // How often to update physics
 constexpr float TIMESTEP = 1.0 / TARGET_UPS; // Update interval in seconds
 constexpr float SIM_SPEED = 4.0;             // How large each update should be
 constexpr float MASS = 1.0;                  // Mass spring system
-constexpr float SPRING_CONSTANT = 5.0;       // Mass spring system
-constexpr float DAMPENING_CONSTANT = 1.0;    // Mass spring system
+constexpr float SPRING_K = 4.0;              // Mass spring system
+constexpr float DAMPENING_K = 1.0;           // Mass spring system
 constexpr float REST_LENGTH = 3.0;           // Mass spring system
-constexpr float VERLET_DAMPENING = 0.05;     // [0, 1]
+constexpr float VERLET_DAMPENING = 0.1;      // [0, 1]
 constexpr float BH_FORCE = 2.5;              // Barnes-Hut [1.0, 3.0]
 constexpr float THETA = 0.8;                 // Barnes-Hut [0.5, 1.0]
-constexpr float SOFTENING = 0.01;            // Barnes-Hut [0.01, 1.0]
+constexpr float SOFTENING = 0.05;            // Barnes-Hut [0.01, 1.0]
 
 // Graph Drawing
-static const Color EDGE_COLOR = Fade(PURPLE, 0.75);
+static const Color EDGE_COLOR = Fade(BLUE, 0.3);
 constexpr float VERTEX_SIZE = 0.75;
-static const Color VERTEX_COLOR = Fade(BLUE, 0.5);
-constexpr Color VERTEX_VISITED_COLOR = DARKPURPLE;
-constexpr Color VERTEX_PATH_COLOR = GREEN;
-constexpr Color VERTEX_TARGET_COLOR = RED;
-constexpr Color VERTEX_START_COLOR = ORANGE;
-constexpr Color VERTEX_CURRENT_COLOR = DARKBLUE;
-static const Color VERTEX_CLOSEST_COLOR = Fade(PINK, 0.85);
-static const Color VERTEX_FARTHEST_COLOR = Fade(BLUE, 0.5);
 constexpr int DRAW_VERTICES_LIMIT = 1000000;
+static const Color VERTEX_COLOR = Fade(BLUE, 0.8);
+constexpr Color VERTEX_VISITED_COLOR = ORANGE;
+constexpr Color VERTEX_START_COLOR = ORANGE;
+constexpr Color VERTEX_CURRENT_COLOR = ORANGE;
+constexpr Color VERTEX_PATH_COLOR = GREEN;
+constexpr Color VERTEX_TARGET_COLOR = GREEN;
+static const Color VERTEX_CLOSEST_COLOR = Fade(PINK, 1.0);
+static const Color VERTEX_FARTHEST_COLOR = Fade(DARKBLUE, 0.8);
 
 // Klotski Drawing
 constexpr int BOARD_PADDING = 10;
@@ -96,6 +97,5 @@ constexpr Color WALL_COLOR = BLACK;
 // Threadpool
 static constexpr int SMALL_TASK_BLOCK_SIZE = 256; // Weirdly larger blocks decrease performance...
 static constexpr int LARGE_TASK_BLOCK_SIZE = 256;
-
 
 #endif

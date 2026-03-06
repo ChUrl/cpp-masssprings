@@ -75,6 +75,7 @@ public:
     bool mark_path = false;
     bool mark_solutions = false;
     bool connect_solutions = false;
+    bool color_by_distance = false;
 
     // Camera
     bool camera_lock = true;
@@ -139,6 +140,7 @@ public:
     auto clear_graph() -> void;
     auto toggle_mark_solutions() -> void;
     auto toggle_connect_solutions() -> void;
+    auto toggle_color_by_distance() -> void;
     auto toggle_mark_path() -> void;
     auto goto_optimal_next_state() const -> void;
     auto goto_most_distant_state() const -> void;

@@ -104,7 +104,7 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
                 } else if (state.get_visit_counts().at(mass) > 0) {
                     // Visited vertex
                     c = VERTEX_VISITED_COLOR;
-                } else if (distances.size() == masses.size()) {
+                } else if (input.color_by_distance && distances.size() == masses.size()) {
                     c = lerp_color(VERTEX_FARTHEST_COLOR,
                                    VERTEX_CLOSEST_COLOR,
                                    static_cast<float>(distances[mass]));

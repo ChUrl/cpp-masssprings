@@ -63,7 +63,11 @@ auto orbit_camera::update(const Vector3& current_target, const Vector3& mass_cen
     const float y = sin(angle_y) * actual_distance;
     const float z = cos(angle_y) * cos(angle_x) * actual_distance;
 
-    fov = Clamp(fov, MIN_FOV, MAX_FOV);
+    if (projection == CAMERA_ORTHOGRAPHIC) {
+        fov = Clamp(fov, MIN_FOV, MAX_ORTHO_FOV);
+    } else {
+        fov = Clamp(fov, MIN_FOV, MAX_PERSP_FOV);
+    }
 
     camera.position = Vector3Add(target, Vector3(x, y, z));
     camera.target = target;

@@ -87,8 +87,8 @@ auto cpu_spring_system::calculate_spring_force(const size_t s) -> void
     const float inv_len = 1.0f / sqrt(sq_len);
     const float len = sq_len * inv_len;
 
-    const float hooke = SPRING_CONSTANT * (len - REST_LENGTH);
-    const float dampening = DAMPENING_CONSTANT * Vector3DotProduct(delta_vel, delta_pos) * inv_len;
+    const float hooke = SPRING_K * (len - REST_LENGTH);
+    const float dampening = DAMPENING_K * Vector3DotProduct(delta_vel, delta_pos) * inv_len;
 
     const Vector3 a_force = Vector3Scale(delta_pos, -(hooke + dampening) * inv_len);
     const Vector3 b_force = a_force * -1.0f;
