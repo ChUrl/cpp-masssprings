@@ -63,6 +63,29 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
             transforms.clear();
             colors.clear();
 
+            // Find max distance to interpolate colors in the given [0, max] range
+            int max_distance = 0;
+            for (const int distance : state.get_distances()) {
+                if (distance > max_distance) {
+                    max_distance = distance;
+                }
+            }
+
+            const auto lerp_color = [&](const Color from, const Color to, const int distance)
+            {
+                const float weight = 1.0 - static_cast<float>(distance) / max_distance;
+
+                Color result;
+                result.r = static_cast<uint8_t>((1 - weight) * from.r + weight * to.r);
+                result.g = static_cast<uint8_t>((1 - weight) * from.g + weight * to.g);
+                result.b = static_cast<uint8_t>((1 - weight) * from.b + weight * to.b);
+                result.a = static_cast<uint8_t>((1 - weight) * from.a + weight * to.a);
+
+                return result;
+            };
+
+            const std::vector<int>& distances = state.get_distances();
+
             size_t mass = 0;
             for (const auto& [x, y, z] : masses) {
                 transforms.emplace_back(MatrixTranslate(x, y, z));
@@ -81,9 +104,13 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
                 } else if (state.get_visit_counts().at(mass) > 0) {
                     // Visited vertex
                     c = VERTEX_VISITED_COLOR;
+                } else if (distances.size() == masses.size()) {
+                    c = lerp_color(VERTEX_FARTHEST_COLOR,
+                                   VERTEX_CLOSEST_COLOR,
+                                   static_cast<float>(distances[mass]));
                 }
-                // Current vertex is drawn as individual cube to increase its size
 
+                // Current vertex is drawn as individual cube to increase its size
                 colors.emplace_back(c);
                 ++mass;
             }
@@ -181,32 +208,47 @@ auto renderer::draw_menu() const -> void
     EndTextureMode();
 }
 
-auto renderer::draw_textures(const int fps, const int ups, const size_t mass_count,
+auto renderer::draw_textures(const int fps,
+                             const int ups,
+                             const size_t mass_count,
                              const size_t spring_count) const -> void
 {
     BeginDrawing();
 
-    DrawTextureRec(menu_target.texture, Rectangle(0, 0, menu_target.texture.width, -menu_target.texture.height),
-                   Vector2(0, 0), WHITE);
+    DrawTextureRec(menu_target.texture,
+                   Rectangle(0, 0, menu_target.texture.width, -menu_target.texture.height),
+                   Vector2(0, 0),
+                   WHITE);
     DrawTextureRec(klotski_target.texture,
                    Rectangle(0, 0, klotski_target.texture.width, -klotski_target.texture.height),
-                   Vector2(0, MENU_HEIGHT), WHITE);
-    DrawTextureRec(graph_target.texture, Rectangle(0, 0, graph_target.texture.width, -graph_target.texture.height),
-                   Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT), WHITE);
+                   Vector2(0, MENU_HEIGHT),
+                   WHITE);
+    DrawTextureRec(graph_target.texture,
+                   Rectangle(0, 0, graph_target.texture.width, -graph_target.texture.height),
+                   Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT),
+                   WHITE);
 
     // Draw borders
     DrawRectangleLinesEx(Rectangle(0, 0, GetScreenWidth(), MENU_HEIGHT), 1.0f, BLACK);
-    DrawRectangleLinesEx(Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT), 1.0f,
+    DrawRectangleLinesEx(Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT),
+                         1.0f,
                          BLACK);
-    DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0f, MENU_HEIGHT, GetScreenWidth() / 2.0f,
-                                   GetScreenHeight() - MENU_HEIGHT), 1.0f, BLACK);
+    DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0f,
+                                   MENU_HEIGHT,
+                                   GetScreenWidth() / 2.0f,
+                                   GetScreenHeight() - MENU_HEIGHT),
+                         1.0f,
+                         BLACK);
 
     gui.draw(fps, ups, mass_count, spring_count);
 
     EndDrawing();
 }
 
-auto renderer::render(const std::vector<Vector3>& masses, const int fps, const int ups, const size_t mass_count,
+auto renderer::render(const std::vector<Vector3>& masses,
+                      const int fps,
+                      const int ups,
+                      const size_t mass_count,
                       const size_t spring_count) -> void
 {
     update_texture_sizes();

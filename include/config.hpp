@@ -72,14 +72,16 @@ constexpr float THETA = 0.8;                 // Barnes-Hut [0.5, 1.0]
 constexpr float SOFTENING = 0.01;            // Barnes-Hut [0.01, 1.0]
 
 // Graph Drawing
-constexpr Color EDGE_COLOR = DARKBLUE;
-constexpr float VERTEX_SIZE = 0.5;
+static const Color EDGE_COLOR = Fade(PURPLE, 0.75);
+constexpr float VERTEX_SIZE = 0.75;
 static const Color VERTEX_COLOR = Fade(BLUE, 0.5);
-constexpr Color VERTEX_VISITED_COLOR = DARKBLUE;
+constexpr Color VERTEX_VISITED_COLOR = DARKPURPLE;
 constexpr Color VERTEX_PATH_COLOR = GREEN;
 constexpr Color VERTEX_TARGET_COLOR = RED;
 constexpr Color VERTEX_START_COLOR = ORANGE;
-constexpr Color VERTEX_CURRENT_COLOR = PURPLE;
+constexpr Color VERTEX_CURRENT_COLOR = DARKBLUE;
+static const Color VERTEX_CLOSEST_COLOR = Fade(PINK, 0.85);
+static const Color VERTEX_FARTHEST_COLOR = Fade(BLUE, 0.5);
 constexpr int DRAW_VERTICES_LIMIT = 1000000;
 
 // Klotski Drawing

@@ -429,6 +429,11 @@ auto state_manager::has_distances() const -> bool
     return !node_target_distances.empty();
 }
 
+auto state_manager::get_distances() const -> std::vector<int>
+{
+    return node_target_distances.distances;
+}
+
 auto state_manager::get_total_moves() const -> size_t
 {
     return total_moves;

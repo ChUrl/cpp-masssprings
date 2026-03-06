@@ -141,6 +141,7 @@ public:
     [[nodiscard]] auto get_current_preset_comment() const -> const std::string&;
     [[nodiscard]] auto has_history() const -> bool;
     [[nodiscard]] auto has_distances() const -> bool;
+    [[nodiscard]] auto get_distances() const -> std::vector<int>;
     [[nodiscard]] auto get_total_moves() const -> size_t;
     [[nodiscard]] auto was_edited() const -> bool;
 };
