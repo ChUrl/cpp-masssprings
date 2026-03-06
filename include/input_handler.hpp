@@ -87,6 +87,9 @@ public:
     Vector2 mouse = Vector2Zero();
     Vector2 last_mouse = Vector2Zero();
 
+    // State selection from graph
+    size_t collision_mass = -1;
+
 public:
     input_handler(state_manager& _state, orbit_camera& _camera) : state(_state), camera(_camera)
     {
@@ -123,6 +126,7 @@ public:
     auto add_block() -> void;
     auto remove_block() -> void;
     auto place_goal() const -> void;
+    auto select_state() const -> void;
 
     // Key actions
     auto toggle_camera_lock() -> void;

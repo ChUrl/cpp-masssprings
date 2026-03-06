@@ -18,6 +18,7 @@ auto input_handler::init_handlers() -> void
     register_mouse_pressed_handler(MOUSE_BUTTON_LEFT, &input_handler::add_block);
     register_mouse_pressed_handler(MOUSE_BUTTON_LEFT, &input_handler::start_add_block);
     register_mouse_pressed_handler(MOUSE_BUTTON_MIDDLE, &input_handler::place_goal);
+    register_mouse_pressed_handler(MOUSE_BUTTON_MIDDLE, &input_handler::select_state);
     register_mouse_pressed_handler(MOUSE_BUTTON_RIGHT, &input_handler::camera_start_rotate);
     register_mouse_pressed_handler(MOUSE_BUTTON_RIGHT, &input_handler::remove_block);
     register_mouse_pressed_handler(MOUSE_BUTTON_RIGHT, &input_handler::clear_add_block);
@@ -245,7 +246,7 @@ auto input_handler::remove_block() -> void
 auto input_handler::place_goal() const -> void
 {
     const puzzle& current = state.get_current_state();
-    if (!editing || !current.covers(hov_x, hov_y)) {
+    if (!editing || !mouse_in_board_pane() || !current.covers(hov_x, hov_y)) {
         return;
     }
 
@@ -255,6 +256,16 @@ auto input_handler::place_goal() const -> void
     }
 
     state.edit_starting_state(*next);
+}
+
+auto input_handler::select_state() const -> void
+{
+    if (!mouse_in_graph_pane() || collision_mass == static_cast<size_t>(-1)) {
+        return;
+    }
+
+    const puzzle& selected = state.get_state(collision_mass);
+    state.update_current_state(selected);
 }
 
 auto input_handler::toggle_camera_lock() -> void

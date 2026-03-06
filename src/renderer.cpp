@@ -63,6 +63,39 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
             transforms.clear();
             colors.clear();
 
+            // Collisions
+            // TODO: This would benefit greatly from a spatial data structure.
+            //       Would it be worth to copy the octree from the physics thread?
+            input.collision_mass = -1;
+            if (input.mouse_in_graph_pane()) {
+                const Ray ray = GetScreenToWorldRayEx(
+                    GetMousePosition() - Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT),
+                    camera.camera, graph_target.texture.width, graph_target.texture.height);
+                RayCollision collision; // Ray collision hit info
+
+                size_t mass = 0;
+                for (const auto& [x, y, z] : masses) {
+                    collision = GetRayCollisionBox(ray,
+                                                   BoundingBox{
+                                                       {
+                                                           x - VERTEX_SIZE / 2.0f,
+                                                           y - VERTEX_SIZE / 2.0f,
+                                                           z - VERTEX_SIZE / 2.0f
+                                                       },
+                                                       {
+                                                           x + VERTEX_SIZE / 2.0f,
+                                                           y + VERTEX_SIZE / 2.0f,
+                                                           z + VERTEX_SIZE / 2.0f
+                                                       }
+                                                   });
+                    if (collision.hit) {
+                        input.collision_mass = mass;
+                        break;
+                    }
+                    ++mass;
+                }
+            }
+
             // Find max distance to interpolate colors in the given [0, max] range
             int max_distance = 0;
             for (const int distance : state.get_distances()) {
@@ -105,9 +138,10 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
                     // Visited vertex
                     c = VERTEX_VISITED_COLOR;
                 } else if (input.color_by_distance && distances.size() == masses.size()) {
-                    c = lerp_color(VERTEX_FARTHEST_COLOR,
-                                   VERTEX_CLOSEST_COLOR,
-                                   static_cast<float>(distances[mass]));
+                    c = lerp_color(VERTEX_FARTHEST_COLOR, VERTEX_CLOSEST_COLOR, static_cast<float>(distances[mass]));
+                }
+                if (mass == input.collision_mass) {
+                    c = RED;
                 }
 
                 // Current vertex is drawn as individual cube to increase its size
