@@ -113,7 +113,7 @@ if(NOT DISABLE_TESTS AND NOT WIN32)
 
     add_executable(tests ${TEST_SOURCES} ${SOURCES})
     target_include_directories(tests PRIVATE include)
-    target_link_libraries(tests Catch2::Catch2WithMain raylib)
+    target_link_libraries(tests Catch2::Catch2WithMain raylib GLEW::GLEW)
 
     include(Catch)
     catch_discover_tests(tests)
@@ -131,7 +131,7 @@ if(NOT DISABLE_BENCH AND NOT WIN32)
 
     add_executable(benchmarks ${BENCH_SOURCES} ${SOURCES})
     target_include_directories(benchmarks PRIVATE include)
-    target_link_libraries(benchmarks benchmark raylib)
+    target_link_libraries(benchmarks benchmark raylib GLEW::GLEW)
 
     message("-- BENCHMARKS: Enabled")
 endif()

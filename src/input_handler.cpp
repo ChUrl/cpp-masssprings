@@ -208,7 +208,7 @@ auto input_handler::add_block() -> void
         has_block_add_xy = false;
     } else if (current.covers(block_add_x, block_add_y, block_add_width, block_add_height)) {
         const std::optional<puzzle>& next = current.try_add_block(
-            puzzle::block(block_add_x, block_add_y, block_add_width, block_add_height, false));
+            block(block_add_x, block_add_y, block_add_width, block_add_height, false));
 
         if (next) {
             sel_x = block_add_x;
@@ -224,7 +224,7 @@ auto input_handler::add_block() -> void
 auto input_handler::remove_block() -> void
 {
     const puzzle& current = state.get_current_state();
-    const std::optional<puzzle::block>& b = current.try_get_block(hov_x, hov_y);
+    const std::optional<block>& b = current.try_get_block(hov_x, hov_y);
     if (!editing || has_block_add_xy || !b) {
         return;
     }

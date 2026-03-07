@@ -111,7 +111,7 @@ rec {
             abbr -a release "${buildRelease} && ./cmake-build-release/masssprings"
 
             abbr -a run "${buildRelease} && ./cmake-build-release/masssprings"
-            abbr -a run-clusters "${buildRelease} && ./cmake-build-release/masssprings --output=clusters.puzzle --space=rh --w=6 --h=6 --gx=4 --gy=2 --blocks=4"
+            abbr -a runclusters "${buildRelease} && ./cmake-build-release/masssprings --output=clusters.puzzle --space=rh --moves=10 --blocks=4"
             abbr -a runtests "${buildDebug} && ./cmake-build-debug/tests"
             abbr -a runbenchs "mv -f benchs.json benchs.old.json; ${buildRelease} && sudo cpupower frequency-set --governor performance && ./cmake-build-release/benchmarks --benchmark_out=benchs.json --benchmark_out_format=console; sudo cpupower frequency-set --governor powersave"
             abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"

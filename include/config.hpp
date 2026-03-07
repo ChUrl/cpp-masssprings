@@ -23,6 +23,7 @@
 #define BS_THREAD_POOL_NATIVE_EXTENSIONS
 // ReSharper disable once CppUnusedIncludeDirective
 #include <BS_thread_pool.hpp>
+using threadpool = std::optional<BS::thread_pool<>* const>;
 #if defined(_WIN32) // raylib uses these names as function parameters
 #undef near
 #undef far

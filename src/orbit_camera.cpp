@@ -31,24 +31,27 @@ auto orbit_camera::pan(const Vector2 last_mouse, const Vector2 mouse) -> void
     const Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
     const Vector3 up = Vector3Normalize(Vector3CrossProduct(right, forward));
 
-    const Vector3 offset =
-        Vector3Add(Vector3Scale(right, -dx * speed), Vector3Scale(up, dy * speed));
+    const Vector3 offset = Vector3Add(Vector3Scale(right, -dx * speed), Vector3Scale(up, dy * speed));
 
     target = Vector3Add(target, offset);
 }
 
-auto orbit_camera::update(const Vector3& current_target, const Vector3& mass_center,
-                          const bool lock, const bool mass_center_lock) -> void
+auto orbit_camera::update(const Vector3& current_target,
+                          const Vector3& mass_center,
+                          const bool lock,
+                          const bool mass_center_lock) -> void
 {
     if (lock) {
         if (mass_center_lock) {
-            target = Vector3MoveTowards(target, mass_center,
-                                        CAMERA_SMOOTH_SPEED * GetFrameTime() *
-                                            Vector3Length(Vector3Subtract(target, mass_center)));
+            target = Vector3MoveTowards(target,
+                                        mass_center,
+                                        CAMERA_SMOOTH_SPEED * GetFrameTime() * Vector3Length(
+                                            Vector3Subtract(target, mass_center)));
         } else {
-            target = Vector3MoveTowards(target, current_target,
-                                        CAMERA_SMOOTH_SPEED * GetFrameTime() *
-                                            Vector3Length(Vector3Subtract(target, current_target)));
+            target = Vector3MoveTowards(target,
+                                        current_target,
+                                        CAMERA_SMOOTH_SPEED * GetFrameTime() * Vector3Length(
+                                            Vector3Subtract(target, current_target)));
         }
     }
 

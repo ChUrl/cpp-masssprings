@@ -128,10 +128,10 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
                 const float weight = 1.0 - static_cast<float>(distance) / max_distance;
 
                 Color result;
-                result.r = static_cast<uint8_t>((1 - weight) * from.r + weight * to.r);
-                result.g = static_cast<uint8_t>((1 - weight) * from.g + weight * to.g);
-                result.b = static_cast<uint8_t>((1 - weight) * from.b + weight * to.b);
-                result.a = static_cast<uint8_t>((1 - weight) * from.a + weight * to.a);
+                result.r = static_cast<u8>((1 - weight) * from.r + weight * to.r);
+                result.g = static_cast<u8>((1 - weight) * from.g + weight * to.g);
+                result.b = static_cast<u8>((1 - weight) * from.b + weight * to.b);
+                result.a = static_cast<u8>((1 - weight) * from.a + weight * to.a);
 
                 return result;
             };

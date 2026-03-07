@@ -5,7 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
-static auto board_mask(const int w, const int h) -> uint64_t
+static auto board_mask(const int w, const int h) -> u64
 {
     const int cells = w * h;
     if (cells == 64) {
@@ -31,7 +31,7 @@ TEST_CASE("Full board detection respects width*height only", "[puzzle][board]")
 
     puzzle p(w, h);
 
-    uint64_t mask = board_mask(w, h);
+    u64 mask = board_mask(w, h);
 
     int x = -1, y = -1;
 
@@ -51,7 +51,7 @@ TEST_CASE("Single empty cell at various positions", "[puzzle][board]")
 
     auto empty_index = GENERATE_COPY(values<int>({ 0, cells / 2, cells - 1}));
 
-    uint64_t bitmap = board_mask(w, h);
+    u64 bitmap = board_mask(w, h);
     bitmap &= ~(1ULL << empty_index);
 
     int x = -1, y = -1;
@@ -65,10 +65,10 @@ TEST_CASE("Bits outside board are ignored", "[puzzle][board]")
 {
     puzzle p(3, 3); // 9 cells
 
-    uint64_t mask = board_mask(3, 3);
+    u64 mask = board_mask(3, 3);
 
     // Board is full
-    uint64_t bitmap = mask;
+    u64 bitmap = mask;
 
     // Set extra bits outside 9 cells
     bitmap |= (1ULL << 20);
@@ -83,7 +83,7 @@ TEST_CASE("First empty found in forward search branch", "[puzzle][branch]")
     puzzle p(4, 4); // 16 cells
 
     // Only MSB (within board) set
-    uint64_t bitmap = (1ULL << 15);
+    u64 bitmap = (1ULL << 15);
 
     int x = -1, y = -1;
     REQUIRE(p.bitmap_find_first_empty(bitmap, x, y));
@@ -97,7 +97,7 @@ TEST_CASE("Backward search branch finds gap before MSB cluster", "[puzzle][branc
     puzzle p(4, 4); // 16 cells
 
     // Set bits 15,14,13 but leave 12 empty
-    uint64_t bitmap = (1ULL << 15) | (1ULL << 14) | (1ULL << 13);
+    u64 bitmap = (1ULL << 15) | (1ULL << 14) | (1ULL << 13);
 
     int x = -1, y = -1;
     REQUIRE(p.bitmap_find_first_empty(bitmap, x, y));
@@ -112,7 +112,7 @@ TEST_CASE("Rectangular board coordinate mapping", "[puzzle][rect]")
 
     int empty_index = 11;
 
-    uint64_t bitmap = board_mask(5, 3);
+    u64 bitmap = board_mask(5, 3);
     bitmap &= ~(1ULL << empty_index);
 
     int x = -1, y = -1;
@@ -126,7 +126,7 @@ TEST_CASE("Non-64-sized board near limit", "[puzzle][limit]")
 {
     puzzle p(7, 8); // 56 cells
 
-    uint64_t mask = board_mask(7, 8);
+    u64 mask = board_mask(7, 8);
 
     // Full board should return false
     int x = -1, y = -1;
@@ -142,7 +142,7 @@ TEST_CASE("Non-64-sized board near limit", "[puzzle][limit]")
 }
 
 // --- Oracle: find first zero bit inside board ---
-static auto oracle_find_first_empty(uint64_t bitmap, int w, int h, int& x, int& y) -> bool
+static auto oracle_find_first_empty(u64 bitmap, int w, int h, int& x, int& y) -> bool
 {
     int cells = w * h;
 
@@ -164,13 +164,13 @@ TEST_CASE("Oracle validation across board sizes 3x3 to 8x8", "[puzzle][oracle]")
 
     puzzle p(w, h);
 
-    uint64_t mask = board_mask(w, h);
+    u64 mask = board_mask(w, h);
 
     std::mt19937_64 rng(12345);
-    std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+    std::uniform_int_distribution<u64> dist(0, UINT64_MAX);
 
     for (int iteration = 0; iteration < 200; ++iteration) {
-        uint64_t bitmap = dist(rng);
+        u64 bitmap = dist(rng);
 
         int ox = -1, oy = -1;
         bool oracle_result = oracle_find_first_empty(bitmap, w, h, ox, oy);
@@ -191,7 +191,7 @@ TEST_CASE("Bits set outside board only behaves as empty board", "[puzzle][outsid
 {
     puzzle p(3, 3); // 9 cells
 
-    uint64_t bitmap = (1ULL << 40) | (1ULL << 63);
+    u64 bitmap = (1ULL << 40) | (1ULL << 63);
 
     int x = -1, y = -1;
     REQUIRE(p.bitmap_find_first_empty(bitmap, x, y));
@@ -207,7 +207,7 @@ TEST_CASE("Last valid cell empty stresses upper bound", "[puzzle][boundary]")
     puzzle p(w, h);
 
     int cells = w * h;
-    uint64_t bitmap = board_mask(w, h);
+    u64 bitmap = board_mask(w, h);
 
     // Clear last valid bit
     bitmap &= ~(1ULL << (cells - 1));
@@ -235,7 +235,7 @@ TEST_CASE("Board sizes between 33 and 63 cells", "[puzzle][midrange]")
     for (int index : {31, 32, cells - 2}) {
         if (index >= cells) continue;
 
-        uint64_t bitmap = board_mask(w, h);
+        u64 bitmap = board_mask(w, h);
         bitmap &= ~(1ULL << index);
 
         int x = -1, y = -1;
@@ -250,7 +250,7 @@ TEST_CASE("Multiple holes choose lowest index", "[puzzle][multiple]")
 {
     puzzle p(5, 5);
 
-    uint64_t bitmap = board_mask(5, 5);
+    u64 bitmap = board_mask(5, 5);
 
     // Clear several positions
     bitmap &= ~(1ULL << 3);

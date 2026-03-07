@@ -31,8 +31,8 @@
 // 4. TEMPLATE_TEST_CASE(name, tags, Type1, Type2, ...)
 //    A parameterised test that is instantiated once for each type listed.
 //    Inside the test body, the alias `TestType` refers to the current type.
-//    This avoids duplicating identical logic for uint8_t, uint16_t, uint32_t,
-//    and uint64_t. Catch2 automatically appends the type name to the test name
+//    This avoids duplicating identical logic for u8, u16, u32,
+//    and u64. Catch2 automatically appends the type name to the test name
 //    in the output so you can see which instantiation failed.
 //
 // 5. Tags (e.g. "[create_mask]", "[round-trip]")
@@ -49,7 +49,7 @@
 // ---------------------------------------------------------------------------
 
 TEMPLATE_TEST_CASE("create_mask produces correct masks", "[create_mask]",
-                   uint8_t, uint16_t, uint32_t, uint64_t)
+                   u8, u16, u32, u64)
 {
     SECTION("single bit mask at bit 0") {
         auto m = create_mask<TestType>(0, 0);
@@ -72,16 +72,16 @@ TEMPLATE_TEST_CASE("create_mask produces correct masks", "[create_mask]",
     }
 
     SECTION("full-width mask returns all ones") {
-        constexpr uint8_t last = sizeof(TestType) * 8 - 1;
+        constexpr u8 last = sizeof(TestType) * 8 - 1;
         auto m = create_mask<TestType>(0, last);
         REQUIRE(m == static_cast<TestType>(~TestType{0}));
     }
 }
 
 TEST_CASE("create_mask 32-bit specific cases", "[create_mask]") {
-    REQUIRE(create_mask<uint32_t>(0, 15)  == 0x0000FFFF);
-    REQUIRE(create_mask<uint32_t>(0, 31)  == 0xFFFFFFFF);
-    REQUIRE(create_mask<uint32_t>(16, 31) == 0xFFFF0000);
+    REQUIRE(create_mask<u32>(0, 15)  == 0x0000FFFF);
+    REQUIRE(create_mask<u32>(0, 31)  == 0xFFFFFFFF);
+    REQUIRE(create_mask<u32>(16, 31) == 0xFFFF0000);
 }
 
 // ---------------------------------------------------------------------------
@@ -89,11 +89,11 @@ TEST_CASE("create_mask 32-bit specific cases", "[create_mask]") {
 // ---------------------------------------------------------------------------
 
 TEMPLATE_TEST_CASE("clear_bits zeroes the specified range", "[clear_bits]",
-                   uint8_t, uint16_t, uint32_t, uint64_t)
+                   u8, u16, u32, u64)
 {
     SECTION("clear all bits") {
         TestType val = static_cast<TestType>(~TestType{0});
-        constexpr uint8_t last = sizeof(TestType) * 8 - 1;
+        constexpr u8 last = sizeof(TestType) * 8 - 1;
         clear_bits(val, 0, last);
         REQUIRE(val == TestType{0});
     }
@@ -128,55 +128,55 @@ TEMPLATE_TEST_CASE("clear_bits zeroes the specified range", "[clear_bits]",
 // ---------------------------------------------------------------------------
 
 TEMPLATE_TEST_CASE("set_bits writes value into the specified range", "[set_bits]",
-                   uint8_t, uint16_t, uint32_t, uint64_t)
+                   u8, u16, u32, u64)
 {
     SECTION("set lower nibble on zero") {
         TestType val = TestType{0};
-        set_bits(val, uint8_t{0}, uint8_t{3}, static_cast<TestType>(0xA));
+        set_bits(val, u8{0}, u8{3}, static_cast<TestType>(0xA));
         REQUIRE(val == static_cast<TestType>(0x0A));
     }
 
     SECTION("set upper nibble on zero") {
         TestType val = TestType{0};
-        set_bits(val, uint8_t{4}, uint8_t{7}, static_cast<TestType>(0xB));
+        set_bits(val, u8{4}, u8{7}, static_cast<TestType>(0xB));
         REQUIRE(val == static_cast<TestType>(0xB0));
     }
 
     SECTION("set_bits replaces existing bits") {
         TestType val = static_cast<TestType>(0xFF);
-        set_bits(val, uint8_t{0}, uint8_t{3}, static_cast<TestType>(0x5));
+        set_bits(val, u8{0}, u8{3}, static_cast<TestType>(0x5));
         REQUIRE(val == static_cast<TestType>(0xF5));
     }
 
     SECTION("set single bit to 1") {
         TestType val = TestType{0};
-        set_bits(val, uint8_t{3}, uint8_t{3}, static_cast<TestType>(1));
+        set_bits(val, u8{3}, u8{3}, static_cast<TestType>(1));
         REQUIRE(val == static_cast<TestType>(0x08));
     }
 
     SECTION("set single bit to 0") {
         TestType val = static_cast<TestType>(0xFF);
-        set_bits(val, uint8_t{3}, uint8_t{3}, static_cast<TestType>(0));
+        set_bits(val, u8{3}, u8{3}, static_cast<TestType>(0));
         REQUIRE(val == static_cast<TestType>(0xF7));
     }
 
     SECTION("setting value 0 clears the range") {
         TestType val = static_cast<TestType>(0xFF);
-        set_bits(val, uint8_t{0}, uint8_t{7}, static_cast<TestType>(0));
+        set_bits(val, u8{0}, u8{7}, static_cast<TestType>(0));
         REQUIRE(val == TestType{0});
     }
 }
 
 TEST_CASE("set_bits with different value type (U != T)", "[set_bits]") {
-    uint32_t val = 0;
-    constexpr uint8_t small_val = 0x3F;
-    set_bits(val, uint8_t{8}, uint8_t{13}, small_val);
-    REQUIRE(val == (uint32_t{0x3F} << 8));
+    u32 val = 0;
+    constexpr u8 small_val = 0x3F;
+    set_bits(val, u8{8}, u8{13}, small_val);
+    REQUIRE(val == (u32{0x3F} << 8));
 }
 
 TEST_CASE("set_bits preserves surrounding bits in 32-bit", "[set_bits]") {
-    uint32_t val = 0xDEADBEEF;
-    set_bits(val, uint8_t{8}, uint8_t{15}, uint32_t{0x42});
+    u32 val = 0xDEADBEEF;
+    set_bits(val, u8{8}, u8{15}, u32{0x42});
     REQUIRE(val == 0xDEAD42EF);
 }
 
@@ -185,53 +185,53 @@ TEST_CASE("set_bits preserves surrounding bits in 32-bit", "[set_bits]") {
 // ---------------------------------------------------------------------------
 
 TEMPLATE_TEST_CASE("get_bits extracts the specified range", "[get_bits]",
-                   uint8_t, uint16_t, uint32_t, uint64_t)
+                   u8, u16, u32, u64)
 {
     SECTION("get lower nibble") {
         TestType val = static_cast<TestType>(0xAB);
-        auto result = get_bits(val, uint8_t{0}, uint8_t{3});
+        auto result = get_bits(val, u8{0}, u8{3});
         REQUIRE(result == TestType{0xB});
     }
 
     SECTION("get upper nibble") {
         TestType val = static_cast<TestType>(0xAB);
-        auto result = get_bits(val, uint8_t{4}, uint8_t{7});
+        auto result = get_bits(val, u8{4}, u8{7});
         REQUIRE(result == TestType{0xA});
     }
 
     SECTION("get single bit that is set") {
         TestType val = static_cast<TestType>(0x08);
-        auto result = get_bits(val, uint8_t{3}, uint8_t{3});
+        auto result = get_bits(val, u8{3}, u8{3});
         REQUIRE(result == TestType{1});
     }
 
     SECTION("get single bit that is clear") {
         TestType val = static_cast<TestType>(0xF7);
-        auto result = get_bits(val, uint8_t{3}, uint8_t{3});
+        auto result = get_bits(val, u8{3}, u8{3});
         REQUIRE(result == TestType{0});
     }
 
     SECTION("get all bits") {
         TestType val = static_cast<TestType>(~TestType{0});
-        constexpr uint8_t last = sizeof(TestType) * 8 - 1;
-        auto result = get_bits(val, uint8_t{0}, last);
+        constexpr u8 last = sizeof(TestType) * 8 - 1;
+        auto result = get_bits(val, u8{0}, last);
         REQUIRE(result == val);
     }
 
     SECTION("get from zero returns zero") {
         TestType val = TestType{0};
-        auto result = get_bits(val, uint8_t{0}, uint8_t{7});
+        auto result = get_bits(val, u8{0}, u8{7});
         REQUIRE(result == TestType{0});
     }
 }
 
 TEST_CASE("get_bits 32-bit specific extractions", "[get_bits]") {
-    constexpr uint32_t val = 0xDEADBEEF;
+    constexpr u32 val = 0xDEADBEEF;
 
-    REQUIRE(get_bits(val, uint8_t{0},  uint8_t{7})  == 0xEF);
-    REQUIRE(get_bits(val, uint8_t{8},  uint8_t{15}) == 0xBE);
-    REQUIRE(get_bits(val, uint8_t{16}, uint8_t{23}) == 0xAD);
-    REQUIRE(get_bits(val, uint8_t{24}, uint8_t{31}) == 0xDE);
+    REQUIRE(get_bits(val, u8{0},  u8{7})  == 0xEF);
+    REQUIRE(get_bits(val, u8{8},  u8{15}) == 0xBE);
+    REQUIRE(get_bits(val, u8{16}, u8{23}) == 0xAD);
+    REQUIRE(get_bits(val, u8{24}, u8{31}) == 0xDE);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,29 +239,29 @@ TEST_CASE("get_bits 32-bit specific extractions", "[get_bits]") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("set_bits then get_bits round-trips correctly", "[round-trip]") {
-    uint32_t reg = 0;
+    u32 reg = 0;
 
-    set_bits(reg, uint8_t{4}, uint8_t{11}, uint32_t{0xAB});
-    REQUIRE(get_bits(reg, uint8_t{4}, uint8_t{11}) == 0xAB);
+    set_bits(reg, u8{4}, u8{11}, u32{0xAB});
+    REQUIRE(get_bits(reg, u8{4}, u8{11}) == 0xAB);
 
-    REQUIRE(get_bits(reg, uint8_t{0},  uint8_t{3})  == 0x0);
-    REQUIRE(get_bits(reg, uint8_t{12}, uint8_t{31}) == 0x0);
+    REQUIRE(get_bits(reg, u8{0},  u8{3})  == 0x0);
+    REQUIRE(get_bits(reg, u8{12}, u8{31}) == 0x0);
 }
 
 TEST_CASE("multiple set_bits on different ranges", "[round-trip]") {
-    uint32_t reg = 0;
+    u32 reg = 0;
 
-    set_bits(reg, uint8_t{0},  uint8_t{7},  uint32_t{0x01});
-    set_bits(reg, uint8_t{8},  uint8_t{15}, uint32_t{0x02});
-    set_bits(reg, uint8_t{16}, uint8_t{23}, uint32_t{0x03});
-    set_bits(reg, uint8_t{24}, uint8_t{31}, uint32_t{0x04});
+    set_bits(reg, u8{0},  u8{7},  u32{0x01});
+    set_bits(reg, u8{8},  u8{15}, u32{0x02});
+    set_bits(reg, u8{16}, u8{23}, u32{0x03});
+    set_bits(reg, u8{24}, u8{31}, u32{0x04});
 
     REQUIRE(reg == 0x04030201);
 }
 
 TEST_CASE("64-bit round-trip", "[round-trip]") {
-    uint64_t reg = 0;
-    set_bits(reg, uint8_t{32}, uint8_t{63}, uint64_t{0xCAFEBABE});
-    REQUIRE(get_bits(reg, uint8_t{32}, uint8_t{63}) == uint64_t{0xCAFEBABE});
-    REQUIRE(get_bits(reg, uint8_t{0},  uint8_t{31}) == uint64_t{0});
+    u64 reg = 0;
+    set_bits(reg, u8{32}, u8{63}, u64{0xCAFEBABE});
+    REQUIRE(get_bits(reg, u8{32}, u8{63}) == u64{0xCAFEBABE});
+    REQUIRE(get_bits(reg, u8{0},  u8{31}) == u64{0});
 }

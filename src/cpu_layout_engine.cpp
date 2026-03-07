@@ -17,7 +17,7 @@ auto cpu_layout_engine::set_octree_pool_thread_name(size_t idx) -> void
 }
 #endif
 
-auto cpu_layout_engine::physics_thread(physics_state& state, const std::optional<BS::thread_pool<>* const> thread_pool) -> void
+auto cpu_layout_engine::physics_thread(physics_state& state, const threadpool thread_pool) -> void
 {
     cpu_spring_system mass_springs;
 
@@ -138,10 +138,11 @@ auto cpu_layout_engine::physics_thread(physics_state& state, const std::optional
             #else
             std::unique_lock<std::mutex> lock(state.data_mtx);
             #endif
-            state.data_consumed_cnd.wait(lock, [&]
-            {
-                return state.data_consumed || !state.running.load();
-            });
+            state.data_consumed_cnd.wait(lock,
+                                         [&]
+                                         {
+                                             return state.data_consumed || !state.running.load();
+                                         });
             if (!state.running.load()) {
                 // Running turned false while we were waiting for the condition
                 break;
@@ -175,7 +176,8 @@ auto cpu_layout_engine::physics_thread(physics_state& state, const std::optional
         state.data_ready_cnd.notify_all();
 
         #ifdef TRACY
-        FrameMarkEnd("PhysicsThreadProduceLock"); FrameMarkEnd("PhysicsThread");
+        FrameMarkEnd("PhysicsThreadProduceLock");
+        FrameMarkEnd("PhysicsThread");
         #endif
     }
 }
@@ -216,8 +218,7 @@ auto cpu_layout_engine::add_spring_cmd(const size_t a, const size_t b) -> void
     }
 }
 
-auto cpu_layout_engine::add_mass_springs_cmd(const size_t num_masses,
-                                            const std::vector<std::pair<size_t, size_t>>& springs) -> void
+auto cpu_layout_engine::add_mass_springs_cmd(const size_t num_masses, const std::vector<spring>& springs) -> void
 {
     {
         #ifdef TRACY

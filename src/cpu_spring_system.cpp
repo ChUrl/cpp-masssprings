@@ -37,17 +37,18 @@ auto cpu_spring_system::add_spring(size_t a, size_t b) -> void
     const Vector3& mass_a = positions[a];
     const Vector3& mass_b = positions[b];
 
-    Vector3 offset{static_cast<float>(GetRandomValue(-100, 100)),
+    Vector3 offset{
         static_cast<float>(GetRandomValue(-100, 100)),
-        static_cast<float>(GetRandomValue(-100, 100))};
+        static_cast<float>(GetRandomValue(-100, 100)),
+        static_cast<float>(GetRandomValue(-100, 100))
+    };
 
     // By spawning the masses close together, we "explode" them naturally, so they cluster faster (also looks cool)
     offset = Vector3Normalize(offset) * REST_LENGTH * 0.1;
 
     // If the offset moves the mass closer to the current center of mass, flip it
     if (!tree.empty()) {
-        const Vector3 mass_center_direction =
-            Vector3Subtract(positions[a], tree.root().mass_center);
+        const Vector3 mass_center_direction = Vector3Subtract(positions[a], tree.root().mass_center);
         const float mass_center_distance = Vector3Length(mass_center_direction);
 
         if (mass_center_distance > 0 && Vector3DotProduct(offset, mass_center_direction) < 0.0f) {
@@ -77,10 +78,10 @@ auto cpu_spring_system::clear_forces() -> void
 auto cpu_spring_system::calculate_spring_force(const size_t s) -> void
 {
     const spring _s = springs[s];
-    const Vector3 a_pos = positions[_s.a];
-    const Vector3 b_pos = positions[_s.b];
-    const Vector3 a_vel = velocities[_s.a];
-    const Vector3 b_vel = velocities[_s.b];
+    const Vector3 a_pos = positions[_s.first];
+    const Vector3 b_pos = positions[_s.second];
+    const Vector3 a_vel = velocities[_s.first];
+    const Vector3 b_vel = velocities[_s.second];
 
     const Vector3 delta_pos = a_pos - b_pos;
     const Vector3 delta_vel = a_vel - b_vel;
@@ -95,23 +96,23 @@ auto cpu_spring_system::calculate_spring_force(const size_t s) -> void
     const Vector3 a_force = Vector3Scale(delta_pos, -(hooke + dampening) * inv_len);
     const Vector3 b_force = a_force * -1.0f;
 
-    forces[_s.a] += a_force;
-    forces[_s.b] += b_force;
+    forces[_s.first] += a_force;
+    forces[_s.second] += b_force;
 }
 
-auto cpu_spring_system::calculate_spring_forces(
-    const std::optional<BS::thread_pool<>* const> thread_pool) -> void
+auto cpu_spring_system::calculate_spring_forces(const threadpool thread_pool) -> void
 {
     #ifdef TRACY
     ZoneScoped;
     #endif
 
-    const auto solve_spring_force = [&](const int i) { calculate_spring_force(i); };
+    const auto solve_spring_force = [&](const int i)
+    {
+        calculate_spring_force(i);
+    };
 
     if (thread_pool) {
-        (*thread_pool)
-            ->submit_loop(0, springs.size(), solve_spring_force, SMALL_TASK_BLOCK_SIZE)
-            .wait();
+        (*thread_pool)->submit_loop(0, springs.size(), solve_spring_force, SMALL_TASK_BLOCK_SIZE).wait();
     } else {
         for (size_t i = 0; i < springs.size(); ++i) {
             solve_spring_force(i);
@@ -119,8 +120,7 @@ auto cpu_spring_system::calculate_spring_forces(
     }
 }
 
-auto cpu_spring_system::calculate_repulsion_forces(
-    const std::optional<BS::thread_pool<>* const> thread_pool) -> void
+auto cpu_spring_system::calculate_repulsion_forces(const threadpool thread_pool) -> void
 {
     #ifdef TRACY
     ZoneScoped;
@@ -134,9 +134,7 @@ auto cpu_spring_system::calculate_repulsion_forces(
 
     // Calculate forces using Barnes-Hut
     if (thread_pool) {
-        (*thread_pool)
-            ->submit_loop(0, positions.size(), solve_octree, LARGE_TASK_BLOCK_SIZE)
-            .wait();
+        (*thread_pool)->submit_loop(0, positions.size(), solve_octree, LARGE_TASK_BLOCK_SIZE).wait();
     } else {
         for (size_t i = 0; i < positions.size(); ++i) {
             solve_octree(i);
@@ -168,14 +166,16 @@ auto cpu_spring_system::verlet_update(const size_t m, const float dt) -> void
     previous_positions[m] = pos;
 }
 
-auto cpu_spring_system::update(const float dt,
-                                const std::optional<BS::thread_pool<>* const> thread_pool) -> void
+auto cpu_spring_system::update(const float dt, const threadpool thread_pool) -> void
 {
     #ifdef TRACY
     ZoneScoped;
     #endif
 
-    const auto update = [&](const int i) { verlet_update(i, dt); };
+    const auto update = [&](const int i)
+    {
+        verlet_update(i, dt);
+    };
 
     if (thread_pool) {
         (*thread_pool)->submit_loop(0, positions.size(), update, SMALL_TASK_BLOCK_SIZE).wait();
@@ -186,8 +186,7 @@ auto cpu_spring_system::update(const float dt,
     }
 }
 
-auto cpu_spring_system::center_masses(const std::optional<BS::thread_pool<>* const> thread_pool)
-    -> void
+auto cpu_spring_system::center_masses(const threadpool thread_pool) -> void
 {
     Vector3 mean = Vector3Zero();
     for (const Vector3& pos : positions) {
@@ -195,7 +194,10 @@ auto cpu_spring_system::center_masses(const std::optional<BS::thread_pool<>* con
     }
     mean /= static_cast<float>(positions.size());
 
-    const auto center_mass = [&](const int i) { positions[i] -= mean; };
+    const auto center_mass = [&](const int i)
+    {
+        positions[i] -= mean;
+    };
 
     if (thread_pool) {
         (*thread_pool)->submit_loop(0, positions.size(), center_mass, SMALL_TASK_BLOCK_SIZE).wait();

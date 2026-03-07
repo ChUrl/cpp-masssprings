@@ -16,10 +16,35 @@
 namespace po = boost::program_options;
 #endif
 
-// TODO: Implement state discovery/enumeration
-//       - Find all possible initial board states (single one for each possible statespace).
-//         Currently wer're just finding all states given the initial state
-//       - Would allow to generate random puzzles with a certain move count
+// Threadpool setup
+#ifdef THREADPOOL
+auto set_pool_thread_name(size_t idx) -> void
+{
+    BS::this_thread::set_os_thread_name(std::format("worker-{}", idx));
+}
+
+BS::thread_pool<> threads(std::thread::hardware_concurrency() - 2, set_pool_thread_name);
+constexpr threadpool thread_pool = &threads;
+#else
+constexpr threadpool thread_pool = std::nullopt;
+#endif
+
+// Argparse defaults
+std::string preset_file = "default.puzzle";
+std::string output_file = "clusters.puzzle";
+int max_blocks = 5;
+int min_moves = 10;
+
+// Puzzle space setup
+int board_width;
+int board_height;
+int goal_x;
+int goal_y;
+bool restricted;
+blockset2 permitted_blocks;
+block target_block;
+std::tuple<u8, u8, u8, u8> target_block_pos_range;
+
 // TODO: Export cluster to graphviz
 // TODO: Fix naming:
 //       - Target: The block that has to leave the board to win
@@ -31,29 +56,6 @@ namespace po = boost::program_options;
 //       - Puzzle Space: A number of Clusters generated from a generic Puzzle
 // TODO: Add state space generation time to debug overlay
 // TODO: Move selection accordingly when undoing moves (need to diff two states and get the moved blocks)
-
-// TODO: Click states in the graph to display them in the board
-
-#ifdef THREADPOOL
-auto set_pool_thread_name(size_t idx) -> void
-{
-    BS::this_thread::set_os_thread_name(std::format("worker-{}", idx));
-}
-
-BS::thread_pool<> threads(std::thread::hardware_concurrency() - 2, set_pool_thread_name);
-constexpr std::optional<BS::thread_pool<>* const> thread_pool = &threads;
-#else
-constexpr std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt;
-#endif
-
-std::string preset_file = "default.puzzle";
-std::string output_file = "clusters.puzzle";
-int max_blocks = 5;
-int board_width = 6;
-int board_height = 6;
-int goal_x = 4;
-int goal_y = 2;
-bool restricted = true;
 
 auto ui_mode() -> int
 {
@@ -167,56 +169,87 @@ auto ui_mode() -> int
     return 0;
 }
 
-auto rush_hour_puzzle_space() -> int
+auto rush_hour_puzzle_space() -> void
 {
-    const boost::unordered_flat_set<puzzle::block, block_hasher2, block_equal2> permitted_blocks = {
-        puzzle::block(0, 0, 2, 1, false, false),
-        puzzle::block(0, 0, 3, 1, false, false),
-        puzzle::block(0, 0, 1, 2, false, false),
-        puzzle::block(0, 0, 1, 3, false, false)
+    board_width = 6;
+    board_height = 6;
+    goal_x = 4;
+    goal_y = 2;
+    restricted = true;
+    permitted_blocks = {
+        block(0, 0, 2, 1, false, false),
+        block(0, 0, 3, 1, false, false),
+        block(0, 0, 1, 2, false, false),
+        block(0, 0, 1, 3, false, false)
     };
-    const puzzle::block target_block = puzzle::block(0, 0, 2, 1, true, false);
-    const std::tuple<uint8_t, uint8_t, uint8_t, uint8_t> target_block_pos_range = {
-        0,
-        goal_y,
-        board_width - target_block.get_width() - 1,
-        goal_y
-    };
+    target_block = block(0, 0, 2, 1, true, false);
+    target_block_pos_range = {0, goal_y, board_width - target_block.get_width(), goal_y};
+}
 
-    infoln("Exploring Rush-Hour puzzle space:");
+auto klotski_puzzle_space() -> void
+{
+    board_width = 4;
+    board_height = 5;
+    goal_x = 1;
+    goal_y = 3;
+    restricted = false;
+    permitted_blocks = {
+        block(0, 0, 1, 1, false, false),
+        block(0, 0, 1, 2, false, false),
+        block(0, 0, 2, 1, false, false),
+    };
+    target_block = block(0, 0, 2, 2, true, false);
+    target_block_pos_range = {
+        0,
+        0,
+        board_width - target_block.get_width(),
+        board_height - target_block.get_height(),
+    };
+}
+
+auto puzzle_space() -> int
+{
+    // We don't only pick max_blocks out of n (with duplicates), but also 1 out of n, 2, 3, ... max_blocks-1 out of n
+    int upper_set_count = 0;
+    for (int i = 1; i <= max_blocks; ++i) {
+        upper_set_count += binom(permitted_blocks.size() + i - 1, i);
+    }
+
+    infoln("Exploring puzzle space:");
     infoln("- Size:       {}x{}", board_width, board_height);
     infoln("- Goal:       {},{}", goal_x, goal_y);
     infoln("- Restricted: {}", restricted);
     infoln("- Max Blocks: {}", max_blocks);
+    infoln("- Min Moves:  {}", min_moves);
     infoln("- Target:     {}x{}", target_block.get_width(), target_block.get_height());
+    infoln("- Max Sets:   {}", upper_set_count);
     infoln("- Permitted block sizes:");
     std::cout << "         ";
-    for (const puzzle::block b : permitted_blocks) {
+    for (const block b : permitted_blocks) {
         std::cout << std::format(" {}x{},", b.get_width(), b.get_height());
     }
     std::cout << std::endl;
-    const std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
     const puzzle p = puzzle(board_width, board_height, goal_x, goal_y, restricted, true);
-    const boost::unordered_flat_set<puzzle, puzzle_hasher> result = p.explore_puzzle_space(
+
+    STARTTIME;
+    const puzzleset result = p.explore_puzzle_space(
         permitted_blocks,
         target_block,
         target_block_pos_range,
         max_blocks,
+        min_moves,
         thread_pool);
+    ENDTIME(std::format("Found {} different clusters", result.size()), std::chrono::seconds, "s");
 
-    const std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
-    infoln("Found {} different clusters. Took {}s.",
-           result.size(),
-           std::chrono::duration_cast<std::chrono::seconds>(end - start).count());
+    // TODO: The exported clusters are the numerically smallest state of the cluster.
+    //       Not the state with the longest path.
 
     infoln("Sorting clusters...");
     std::vector<puzzle> result_sorted{result.begin(), result.end()};
     std::ranges::sort(result_sorted, std::ranges::greater{});
-    // for (const puzzle& _p : result_sorted) {
-    //     traceln("{}", _p.string_repr());
-    // }
 
+    infoln("Saving clusters...");
     size_t i = 0;
     size_t success = 0;
     std::filesystem::remove(output_file);
@@ -237,26 +270,32 @@ auto rush_hour_puzzle_space() -> int
 
 enum class runmode
 {
-    USER_INTERFACE, RUSH_HOUR_PUZZLE_SPACE, EXIT,
+    USER_INTERFACE,
+    RUSH_HOUR_PUZZLE_SPACE,
+    KLOTSKI_PUZZLE_SPACE,
+    EXIT,
 };
 
 auto argparse(const int argc, char* argv[]) -> runmode
 {
     #if not defined(_WIN32)
     po::options_description desc("Allowed options");
-    desc.add_options()                                                                                            //
-        ("help", "produce help message")                                                                          //
-        ("presets", po::value<std::string>()->default_value(preset_file), "load presets from file")               //
-        ("output", po::value<std::string>()->default_value(output_file), "output file for generated clusters")    //
-        ("space", po::value<std::string>()->value_name("rh|klotski"), "generate puzzle space with ruleset")       //
-        ("w", po::value<int>()->default_value(board_width)->value_name("[3, 8]"), "board width")                  //
-        ("h", po::value<int>()->default_value(board_height)->value_name("[3, 8"), "board height")                 //
-        ("gx", po::value<int>()->default_value(goal_x)->value_name("[0, w-1]"), "board goal horizontal position") //
-        ("gy", po::value<int>()->default_value(goal_y)->value_name("[0, h-1]"), "board goal vertical position")   //
-        ("free", "allow free block movement")                                                                     //
+    desc.add_options()                                                                                         //
+        ("help", "produce help message")                                                                       //
+        ("presets", po::value<std::string>()->default_value(preset_file), "load presets from file")            //
+        ("output", po::value<std::string>()->default_value(output_file), "output file for generated clusters") //
+        ("space", po::value<std::string>()->value_name("rh|klotski"), "generate puzzle space with ruleset")    //
+        // ("w", po::value<int>()->default_value(board_width)->value_name("[3, 8]"), "board width")                  //
+        // ("h", po::value<int>()->default_value(board_height)->value_name("[3, 8"), "board height")                 //
+        // ("gx", po::value<int>()->default_value(goal_x)->value_name("[0, w-1]"), "board goal horizontal position") //
+        // ("gy", po::value<int>()->default_value(goal_y)->value_name("[0, h-1]"), "board goal vertical position")   //
+        // ("free", "allow free block movement")                                                                     //
         ("blocks",
          po::value<int>()->default_value(max_blocks)->value_name("[1, 15]"),
          "block limit for puzzle space generation") //
+        ("moves",
+         po::value<int>()->default_value(min_moves),
+         "only save puzzles with at least this many required moves") //
         ;
 
     po::positional_options_description positional;
@@ -270,52 +309,49 @@ auto argparse(const int argc, char* argv[]) -> runmode
         std::cout << desc << std::endl;
         return runmode::EXIT;
     }
-
     if (vm.contains("output")) {
         output_file = vm["output"].as<std::string>();
     }
 
-    if (vm.contains("w")) {
-        board_width = vm["w"].as<int>();
-        board_width = std::max(static_cast<int>(puzzle::MIN_WIDTH),
-                               std::min(board_width, static_cast<int>(puzzle::MAX_WIDTH)));
-    }
-
-    if (vm.contains("h")) {
-        board_height = vm["h"].as<int>();
-        board_height = std::max(static_cast<int>(puzzle::MIN_HEIGHT),
-                                std::min(board_height, static_cast<int>(puzzle::MAX_HEIGHT)));
-    }
-
-    if (vm.contains("gx")) {
-        goal_x = vm["gx"].as<int>();
-        goal_x = std::max(0, std::min(goal_x, static_cast<int>(puzzle::MAX_WIDTH) - 1));
-    }
-
-    if (vm.contains("gy")) {
-        goal_y = vm["gy"].as<int>();
-        goal_y = std::max(0, std::min(goal_y, static_cast<int>(puzzle::MAX_HEIGHT) - 1));
-    }
-
-    if (vm.contains("free")) {
-        restricted = false;
-    }
+    // if (vm.contains("w")) {
+    //     board_width = vm["w"].as<int>();
+    //     board_width = std::max(static_cast<int>(puzzle::MIN_WIDTH),
+    //                            std::min(board_width, static_cast<int>(puzzle::MAX_WIDTH)));
+    // }
+    // if (vm.contains("h")) {
+    //     board_height = vm["h"].as<int>();
+    //     board_height = std::max(static_cast<int>(puzzle::MIN_HEIGHT),
+    //                             std::min(board_height, static_cast<int>(puzzle::MAX_HEIGHT)));
+    // }
+    // if (vm.contains("gx")) {
+    //     goal_x = vm["gx"].as<int>();
+    //     goal_x = std::max(0, std::min(goal_x, static_cast<int>(puzzle::MAX_WIDTH) - 1));
+    // }
+    // if (vm.contains("gy")) {
+    //     goal_y = vm["gy"].as<int>();
+    //     goal_y = std::max(0, std::min(goal_y, static_cast<int>(puzzle::MAX_HEIGHT) - 1));
+    // }
+    // if (vm.contains("free")) {
+    //     restricted = false;
+    // }
 
     if (vm.contains("blocks")) {
         max_blocks = vm["blocks"].as<int>();
         max_blocks = std::max(1, std::min(max_blocks, static_cast<int>(puzzle::MAX_BLOCKS)));
     }
-
+    if (vm.contains("moves")) {
+        min_moves = vm["moves"].as<int>();
+        min_moves = std::max(0, min_moves);
+    }
     if (vm.contains("space")) {
         const std::string ruleset = vm["space"].as<std::string>();
         if (ruleset == "rh") {
             return runmode::RUSH_HOUR_PUZZLE_SPACE;
         }
         if (ruleset == "klotski") {
-            throw std::runtime_error("Not implemented");
+            return runmode::KLOTSKI_PUZZLE_SPACE;
         }
     }
-
     if (vm.contains("presets")) {
         preset_file = vm["presets"].as<std::string>();
     }
@@ -357,7 +393,11 @@ auto main(const int argc, char* argv[]) -> int
     case runmode::USER_INTERFACE:
         return ui_mode();
     case runmode::RUSH_HOUR_PUZZLE_SPACE:
-        return rush_hour_puzzle_space();
+        rush_hour_puzzle_space();
+        return puzzle_space();
+    case runmode::KLOTSKI_PUZZLE_SPACE:
+        klotski_puzzle_space();
+        return puzzle_space();
     case runmode::EXIT:
         return 0;
     };

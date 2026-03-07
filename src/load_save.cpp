@@ -62,7 +62,10 @@ auto append_preset_file(const std::string& preset_file, const std::string& prese
     return true;
 }
 
-auto append_preset_file_quiet(const std::string& preset_file, const std::string& preset_name, const puzzle& p, const bool validate) -> bool
+auto append_preset_file_quiet(const std::string& preset_file,
+                              const std::string& preset_name,
+                              const puzzle& p,
+                              const bool validate) -> bool
 {
     if (validate && p.try_get_invalid_reason()) {
         return false;

@@ -28,7 +28,7 @@ auto state_manager::synced_insert_link(size_t first_index, size_t second_index) 
 }
 
 auto state_manager::synced_insert_statespace(const std::vector<puzzle>& states,
-                                             const std::vector<std::pair<size_t, size_t>>& _links) -> void
+                                             const std::vector<spring>& _links) -> void
 {
     if (!state_pool.empty() || !state_indices.empty() || !links.empty()) {
         warnln("Inserting statespace but collections haven't been cleared");
@@ -374,7 +374,7 @@ auto state_manager::get_path_length() const -> size_t
     return winning_path.size();
 }
 
-auto state_manager::get_links() const -> const std::vector<std::pair<size_t, size_t>>&
+auto state_manager::get_links() const -> const std::vector<spring>&
 {
     return links;
 }

@@ -10,7 +10,7 @@ TEST_CASE("bitmap_is_full all bits set", "[puzzle][board]")
     puzzle p2(3, 4);
     puzzle p3(5, 4);
     puzzle p4(3, 7);
-    uint64_t bitmap = -1;
+    u64 bitmap = -1;
 
     REQUIRE(p1.bitmap_is_full(bitmap));
     REQUIRE(p2.bitmap_is_full(bitmap));
@@ -24,7 +24,7 @@ TEST_CASE("bitmap_is_full no bits set", "[puzzle][board]")
     puzzle p2(3, 4);
     puzzle p3(5, 4);
     puzzle p4(3, 7);
-    uint64_t bitmap = 0;
+    u64 bitmap = 0;
 
     REQUIRE_FALSE(p1.bitmap_is_full(bitmap));
     REQUIRE_FALSE(p2.bitmap_is_full(bitmap));
@@ -39,10 +39,10 @@ TEST_CASE("bitmap_is_full necessary bits set", "[puzzle][board]")
     puzzle p3(5, 4);
     puzzle p4(3, 7);
 
-    uint64_t bitmap1 = (1ull << 25) - 1; // 5 * 5
-    uint64_t bitmap2 = (1ull << 12) - 1;  // 3 * 4
-    uint64_t bitmap3 = (1ull << 20) - 1; // 5 * 4
-    uint64_t bitmap4 = (1ull << 21) - 1; // 3 * 7
+    u64 bitmap1 = (1ull << 25) - 1; // 5 * 5
+    u64 bitmap2 = (1ull << 12) - 1;  // 3 * 4
+    u64 bitmap3 = (1ull << 20) - 1; // 5 * 4
+    u64 bitmap4 = (1ull << 21) - 1; // 3 * 7
 
     REQUIRE(p1.bitmap_is_full(bitmap1));
     REQUIRE(p2.bitmap_is_full(bitmap2));
@@ -57,10 +57,10 @@ TEST_CASE("bitmap_is_full necessary bits not set", "[puzzle][board]")
     puzzle p3(5, 4);
     puzzle p4(3, 7);
 
-    uint64_t bitmap1 = (1ull << 25) - 1; // 5 * 5
-    uint64_t bitmap2 = (1ull << 12) - 1;  // 3 * 4
-    uint64_t bitmap3 = (1ull << 20) - 1; // 5 * 4
-    uint64_t bitmap4 = (1ull << 21) - 1; // 3 * 7
+    u64 bitmap1 = (1ull << 25) - 1; // 5 * 5
+    u64 bitmap2 = (1ull << 12) - 1;  // 3 * 4
+    u64 bitmap3 = (1ull << 20) - 1; // 5 * 4
+    u64 bitmap4 = (1ull << 21) - 1; // 3 * 7
 
     bitmap1 &= ~(1ull << 12);
     bitmap2 &= ~(1ull << 6);

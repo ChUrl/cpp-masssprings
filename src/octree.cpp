@@ -62,8 +62,8 @@ auto octree::build_octree_morton(octree& t,
     // Container for building the particle list before sorting by morton code
     struct sort_node
     {
-        uint64_t code;
-        uint32_t id;
+        u64 code;
+        u32 id;
         Vector3 pos;
     };
 
@@ -71,7 +71,7 @@ auto octree::build_octree_morton(octree& t,
     std::vector<sort_node> sort_container;
     sort_container.resize(positions.size());
 
-    const auto calculate_morton = [&](const uint32_t i)
+    const auto calculate_morton = [&](const u32 i)
     {
         sort_container[i] = {pos_to_morton(positions[i], root_min, root_max), i, positions[i]};
     };
@@ -79,7 +79,7 @@ auto octree::build_octree_morton(octree& t,
     if (thread_pool) {
         (*thread_pool)->submit_loop(0, positions.size(), calculate_morton, SMALL_TASK_BLOCK_SIZE).wait();
     } else {
-        for (uint32_t i = 0; i < positions.size(); ++i) {
+        for (u32 i = 0; i < positions.size(); ++i) {
             calculate_morton(i);
         }
     }
@@ -154,7 +154,7 @@ auto octree::build_octree_morton(octree& t,
     // For grouping, store a nodes local index in its level.
     struct leaf
     {
-        uint64_t leaf_code;
+        u64 leaf_code;
         int depth;
         int level_index;
     };
@@ -177,7 +177,7 @@ auto octree::build_octree_morton(octree& t,
 
         size_t i = 0;
         while (i < leaves.size()) {
-            const uint64_t key = path_to_ancestor(leaves[i].leaf_code, MAX_DEPTH, current_depth);
+            const u64 key = path_to_ancestor(leaves[i].leaf_code, MAX_DEPTH, current_depth);
 
             size_t j = i + 1;
             while (j < leaves.size() && path_to_ancestor(leaves[j].leaf_code, MAX_DEPTH, current_depth) == key) {

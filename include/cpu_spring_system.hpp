@@ -7,20 +7,10 @@
 #include <optional>
 #include <raylib.h>
 
+using spring = std::pair<size_t, size_t>;
+
 class cpu_spring_system
 {
-public:
-    class spring
-    {
-    public:
-        size_t a;
-        size_t b;
-
-    public:
-        spring(const size_t _a, const size_t _b)
-            : a(_a), b(_b) {}
-    };
-
 public:
     octree tree;
 
@@ -35,10 +25,7 @@ public:
 public:
     cpu_spring_system() {}
 
-    cpu_spring_system(const cpu_spring_system& copy) = delete;
-    auto operator=(const cpu_spring_system& copy) -> cpu_spring_system& = delete;
-    cpu_spring_system(cpu_spring_system& move) = delete;
-    auto operator=(cpu_spring_system&& move) -> cpu_spring_system& = delete;
+    NO_COPY_NO_MOVE(cpu_spring_system);
 
 public:
     auto clear() -> void;
@@ -47,14 +34,14 @@ public:
 
     auto clear_forces() -> void;
     auto calculate_spring_force(size_t s) -> void;
-    auto calculate_spring_forces(std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt) -> void;
-    auto calculate_repulsion_forces(std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt) -> void;
+    auto calculate_spring_forces(threadpool thread_pool = std::nullopt) -> void;
+    auto calculate_repulsion_forces(threadpool thread_pool = std::nullopt) -> void;
     auto integrate_velocity(size_t m, float dt) -> void;
     auto integrate_position(size_t m, float dt) -> void;
     auto verlet_update(size_t m, float dt) -> void;
-    auto update(float dt, std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt) -> void;
+    auto update(float dt, threadpool thread_pool = std::nullopt) -> void;
 
-    auto center_masses(std::optional<BS::thread_pool<>* const> thread_pool = std::nullopt) -> void;
+    auto center_masses(threadpool thread_pool = std::nullopt) -> void;
 };
 
 #endif

@@ -22,9 +22,9 @@ private:
     // State storage (store states twice for bidirectional lookup).
     // Everything else should only store indices to state_pool.
 
-    std::vector<puzzle> state_pool; // Indices are equal to mass_springs mass indices
-    boost::unordered_flat_map<puzzle, size_t, puzzle_hasher> state_indices; // Maps states to indices
-    std::vector<std::pair<size_t, size_t>> links; // Indices are equal to mass_springs springs indices
+    std::vector<puzzle> state_pool;  // Indices are equal to mass_springs mass indices
+    puzzlemap<size_t> state_indices; // Maps states to indices
+    std::vector<spring> links;       // Indices are equal to mass_springs springs indices
 
     graph_distances node_target_distances; // Buffered and reused if the graph doesn't change
     boost::unordered_flat_set<size_t> winning_indices; // Indices of all states where the board is solved
@@ -48,10 +48,7 @@ public:
         reload_preset_file();
     }
 
-    state_manager(const state_manager& copy) = delete;
-    auto operator=(const state_manager& copy) -> state_manager& = delete;
-    state_manager(state_manager&& move) = delete;
-    auto operator=(state_manager&& move) -> state_manager& = delete;
+    NO_COPY_NO_MOVE(state_manager);
 
 private:
     /**
@@ -83,8 +80,7 @@ private:
      * @param states List of states to insert
      * @param _links List of links to insert
      */
-    auto synced_insert_statespace(const std::vector<puzzle>& states,
-                                  const std::vector<std::pair<size_t, size_t>>& _links) -> void;
+    auto synced_insert_statespace(const std::vector<puzzle>& states, const std::vector<spring>& _links) -> void;
 
     /**
      * Clears all states and links (and related) from the state_manager and the physics system.
@@ -130,7 +126,7 @@ public:
     [[nodiscard]] auto get_target_count() const -> size_t;
     [[nodiscard]] auto get_link_count() const -> size_t;
     [[nodiscard]] auto get_path_length() const -> size_t;
-    [[nodiscard]] auto get_links() const -> const std::vector<std::pair<size_t, size_t>>&;
+    [[nodiscard]] auto get_links() const -> const std::vector<spring>&;
     [[nodiscard]] auto get_winning_indices() const -> const boost::unordered_flat_set<size_t>&;
     [[nodiscard]] auto get_visit_counts() const -> const boost::unordered_flat_map<size_t, int>&;
     [[nodiscard]] auto get_winning_path() const -> const std::vector<size_t>&;

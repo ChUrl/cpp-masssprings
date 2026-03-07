@@ -1,7 +1,8 @@
 #ifndef DISTANCE_HPP_
 #define DISTANCE_HPP_
 
-#include <cstddef>
+#include "cpu_spring_system.hpp"
+
 #include <vector>
 
 class graph_distances
@@ -15,7 +16,8 @@ public:
     auto clear() -> void;
     [[nodiscard]] auto empty() const -> bool;
 
-    auto calculate_distances(size_t node_count, const std::vector<std::pair<size_t, size_t>>& edges,
+    auto calculate_distances(size_t node_count,
+                             const std::vector<spring>& edges,
                              const std::vector<size_t>& targets) -> void;
 
     [[nodiscard]] auto get_shortest_path(size_t source) const -> std::vector<size_t>;

@@ -2,6 +2,8 @@
 #define PHYSICS_HPP_
 
 #include "config.hpp"
+#include "cpu_spring_system.hpp"
+#include "util.hpp"
 
 #include <atomic>
 #include <condition_variable>
@@ -57,7 +59,7 @@ class cpu_layout_engine
     };
 
 private:
-    std::optional<BS::thread_pool<>* const> thread_pool;
+    threadpool thread_pool;
     std::thread physics;
 
 public:
@@ -65,14 +67,11 @@ public:
 
 public:
     explicit cpu_layout_engine(
-        const std::optional<BS::thread_pool<>* const> _thread_pool = std::nullopt)
+        const threadpool _thread_pool = std::nullopt)
         : thread_pool(_thread_pool), physics(physics_thread, std::ref(state), std::ref(thread_pool))
     {}
 
-    cpu_layout_engine(const cpu_layout_engine& copy) = delete;
-    auto operator=(const cpu_layout_engine& copy) -> cpu_layout_engine& = delete;
-    cpu_layout_engine(cpu_layout_engine&& move) = delete;
-    auto operator=(cpu_layout_engine&& move) -> cpu_layout_engine& = delete;
+    NO_COPY_NO_MOVE(cpu_layout_engine);
 
     ~cpu_layout_engine()
     {
@@ -88,14 +87,14 @@ private:
 #endif
 
     static auto physics_thread(physics_state& state,
-                               std::optional<BS::thread_pool<>* const> thread_pool) -> void;
+                               threadpool thread_pool) -> void;
 
 public:
     auto clear_cmd() -> void;
     auto add_mass_cmd() -> void;
     auto add_spring_cmd(size_t a, size_t b) -> void;
     auto add_mass_springs_cmd(size_t num_masses,
-                              const std::vector<std::pair<size_t, size_t>>& springs) -> void;
+                              const std::vector<spring>& springs) -> void;
 };
 
 #endif

@@ -8,7 +8,7 @@
 template <class T>
     requires std::unsigned_integral<T>
 // ReSharper disable once CppRedundantInlineSpecifier
-INLINE inline auto create_mask(const uint8_t first, const uint8_t last) -> T
+INLINE inline auto create_mask(const u8 first, const u8 last) -> T
 {
     // If the mask width is equal the type width return all 1s instead of shifting
     // as shifting by type-width is undefined behavior.
@@ -27,7 +27,7 @@ INLINE inline auto create_mask(const uint8_t first, const uint8_t last) -> T
 template <class T>
     requires std::unsigned_integral<T>
 // ReSharper disable once CppRedundantInlineSpecifier
-INLINE inline auto clear_bits(T& bits, const uint8_t first, const uint8_t last) -> void
+INLINE inline auto clear_bits(T& bits, const u8 first, const u8 last) -> void
 {
     const T mask = create_mask<T>(first, last);
 
@@ -37,7 +37,7 @@ INLINE inline auto clear_bits(T& bits, const uint8_t first, const uint8_t last) 
 template <class T, class U>
     requires std::unsigned_integral<T> && std::unsigned_integral<U>
 // ReSharper disable once CppRedundantInlineSpecifier
-INLINE inline auto set_bits(T& bits, const uint8_t first, const uint8_t last, const U value) -> void
+INLINE inline auto set_bits(T& bits, const u8 first, const u8 last, const U value) -> void
 {
     const T mask = create_mask<T>(first, last);
 
@@ -56,7 +56,7 @@ INLINE inline auto set_bits(T& bits, const uint8_t first, const uint8_t last, co
 template <class T>
     requires std::unsigned_integral<T>
 // ReSharper disable once CppRedundantInlineSpecifier
-INLINE inline auto get_bits(const T bits, const uint8_t first, const uint8_t last) -> T
+INLINE inline auto get_bits(const T bits, const u8 first, const u8 last) -> T
 {
     const T mask = create_mask<T>(first, last);
 
@@ -64,6 +64,6 @@ INLINE inline auto get_bits(const T bits, const uint8_t first, const uint8_t las
     return (bits & mask) >> first;
 }
 
-auto print_bitmap(uint64_t bitmap, uint8_t w, uint8_t h, const std::string& title) -> void;
+auto print_bitmap(u64 bitmap, u8 w, u8 h, const std::string& title) -> void;
 
 #endif

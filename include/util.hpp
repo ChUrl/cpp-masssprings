@@ -1,6 +1,7 @@
 #ifndef UTIL_HPP_
 #define UTIL_HPP_
 
+#include <vector>
 #include <iostream>
 #include <raylib.h>
 
@@ -8,10 +9,26 @@
 #define PACKED __attribute__((packed))
 
 #define STARTTIME const auto start = std::chrono::high_resolution_clock::now()
-#define ENDTIME(msg) const auto end = std::chrono::high_resolution_clock::now(); \
-     infoln("{}. Took {}ms.", msg, std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())
+#define ENDTIME(msg, cast, unit) const auto end = std::chrono::high_resolution_clock::now(); \
+    infoln("{}. Took {}{}.", msg, std::chrono::duration_cast<cast>(end - start).count(), unit)
 
-// std::variant visitor
+#define COMMENT if (false)
+
+#define NO_COPY_NO_MOVE(typename) \
+    typename(const typename& copy) = delete; \
+    auto operator=(const typename& copy) -> typename& = delete; \
+    typename(typename&& move) = delete; \
+    auto operator=(typename&& move) -> typename& = delete;
+
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
+
+using i8 = int8_t;
+using i16 = int16_t;
+using i32 = int32_t;
+using i64 = int64_t;
 
 // https://en.cppreference.com/w/cpp/utility/variant/visit
 template <class... Ts>
@@ -20,9 +37,21 @@ struct overloads : Ts...
     using Ts::operator()...;
 };
 
+inline auto binom(const int n, const int k) -> int
+{
+    std::vector<int> solutions(k);
+    solutions[0] = n - k + 1;
+
+    for (int i = 1; i < k; ++i) {
+        solutions[i] = solutions[i - 1] * (n - k + 1 + i) / (i + 1);
+    }
+
+    return solutions[k - 1];
+}
+
 // Enums
 
-enum dir : uint8_t
+enum dir : u8
 {
     nor = 1 << 0,
     eas = 1 << 1,
@@ -32,7 +61,7 @@ enum dir : uint8_t
 
 // Ansi
 
-enum class ctrl : uint8_t
+enum class ctrl : u8
 {
     reset = 0,
     bold_bright = 1,
@@ -43,7 +72,7 @@ enum class ctrl : uint8_t
     inverse_off = 27
 };
 
-enum class fg : uint8_t
+enum class fg : u8
 {
     black = 30,
     red = 31,
@@ -55,7 +84,7 @@ enum class fg : uint8_t
     white = 37
 };
 
-enum class bg : uint8_t
+enum class bg : u8
 {
     black = 40,
     red = 41,

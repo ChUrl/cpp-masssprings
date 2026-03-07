@@ -92,10 +92,7 @@ public:
         rlDisableVertexArray();
     }
 
-    renderer(const renderer& copy) = delete;
-    auto operator=(const renderer& copy) -> renderer& = delete;
-    renderer(renderer&& move) = delete;
-    auto operator=(renderer&& move) -> renderer& = delete;
+    NO_COPY_NO_MOVE(renderer);
 
     ~renderer()
     {

@@ -22,8 +22,7 @@ struct show_yes_no_message
     std::function<void()> on_yes;
 };
 
-struct show_save_preset_window
-{};
+struct show_save_preset_window {};
 
 using ui_command = std::variant<show_ok_message, show_yes_no_message, show_save_preset_window>;
 
@@ -91,15 +90,13 @@ public:
     size_t collision_mass = -1;
 
 public:
-    input_handler(state_manager& _state, orbit_camera& _camera) : state(_state), camera(_camera)
+    input_handler(state_manager& _state, orbit_camera& _camera)
+        : state(_state), camera(_camera)
     {
         init_handlers();
     }
 
-    input_handler(const input_handler& copy) = delete;
-    auto operator=(const input_handler& copy) -> input_handler& = delete;
-    input_handler(input_handler&& move) = delete;
-    auto operator=(input_handler&& move) -> input_handler& = delete;
+    NO_COPY_NO_MOVE(input_handler);
 
 private:
     auto init_handlers() -> void;
@@ -164,18 +161,14 @@ public:
     // General
     auto register_generic_handler(const std::function<void(input_handler&)>& handler) -> void;
 
-    auto register_mouse_pressed_handler(MouseButton button,
-                                        const std::function<void(input_handler&)>& handler) -> void;
+    auto register_mouse_pressed_handler(MouseButton button, const std::function<void(input_handler&)>& handler) -> void;
 
     auto register_mouse_released_handler(MouseButton button,
-                                         const std::function<void(input_handler&)>& handler)
-        -> void;
+                                         const std::function<void(input_handler&)>& handler) -> void;
 
-    auto register_key_pressed_handler(KeyboardKey key,
-                                      const std::function<void(input_handler&)>& handler) -> void;
+    auto register_key_pressed_handler(KeyboardKey key, const std::function<void(input_handler&)>& handler) -> void;
 
-    auto register_key_released_handler(KeyboardKey key,
-                                       const std::function<void(input_handler&)>& handler) -> void;
+    auto register_key_released_handler(KeyboardKey key, const std::function<void(input_handler&)>& handler) -> void;
 
     auto handle_input() -> void;
 };

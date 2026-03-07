@@ -7,8 +7,12 @@
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
 
-auto user_interface::grid::update_bounds(const int _x, const int _y, const int _width, const int _height,
-                                         const int _columns, const int _rows) -> void
+auto user_interface::grid::update_bounds(const int _x,
+                                         const int _y,
+                                         const int _width,
+                                         const int _height,
+                                         const int _columns,
+                                         const int _rows) -> void
 {
     x = _x;
     y = _y;
@@ -51,7 +55,9 @@ auto user_interface::grid::bounds(const int _x, const int _y, const int _width, 
     const int cell_width = (width - padding) / columns;
     const int cell_height = (height - padding) / rows;
 
-    return Rectangle(x + _x * cell_width + padding, y + _y * cell_height + padding, _width * cell_width - padding,
+    return Rectangle(x + _x * cell_width + padding,
+                     y + _y * cell_height + padding,
+                     _width * cell_width - padding,
                      _height * cell_height - padding);
 }
 
@@ -65,7 +71,9 @@ auto user_interface::grid::square_bounds() const -> Rectangle
     return bounds;
 }
 
-auto user_interface::grid::square_bounds(const int _x, const int _y, const int _width,
+auto user_interface::grid::square_bounds(const int _x,
+                                         const int _y,
+                                         const int _width,
                                          const int _height) const -> Rectangle
 {
     // Assumes each cell is square, so either width or height are not completely
@@ -84,8 +92,10 @@ auto user_interface::grid::square_bounds(const int _x, const int _y, const int _
     const int x_offset = (width - grid_width) / 2;
     const int y_offset = (height - grid_height) / 2;
 
-    return Rectangle(x_offset + _x * (cell_size + padding) + padding, y_offset + _y * (cell_size + padding) + padding,
-                     _width * cell_size + padding * (_width - 1), _height * cell_size + padding * (_height - 1));
+    return Rectangle(x_offset + _x * (cell_size + padding) + padding,
+                     y_offset + _y * (cell_size + padding) + padding,
+                     _width * cell_size + padding * (_width - 1),
+                     _height * cell_size + padding * (_height - 1));
 }
 
 auto user_interface::init() -> void
@@ -146,16 +156,26 @@ auto user_interface::get_default_style() -> default_style
     // access...
     return {
         {
-            GuiGetStyle(DEFAULT, BORDER_COLOR_NORMAL), GuiGetStyle(DEFAULT, BASE_COLOR_NORMAL),
-            GuiGetStyle(DEFAULT, TEXT_COLOR_NORMAL), GuiGetStyle(DEFAULT, BORDER_COLOR_FOCUSED),
-            GuiGetStyle(DEFAULT, BASE_COLOR_FOCUSED), GuiGetStyle(DEFAULT, TEXT_COLOR_FOCUSED),
-            GuiGetStyle(DEFAULT, BORDER_COLOR_PRESSED), GuiGetStyle(DEFAULT, BASE_COLOR_PRESSED),
-            GuiGetStyle(DEFAULT, TEXT_COLOR_PRESSED), GuiGetStyle(DEFAULT, BORDER_COLOR_DISABLED),
-            GuiGetStyle(DEFAULT, BASE_COLOR_DISABLED), GuiGetStyle(DEFAULT, TEXT_COLOR_DISABLED)
+            GuiGetStyle(DEFAULT, BORDER_COLOR_NORMAL),
+            GuiGetStyle(DEFAULT, BASE_COLOR_NORMAL),
+            GuiGetStyle(DEFAULT, TEXT_COLOR_NORMAL),
+            GuiGetStyle(DEFAULT, BORDER_COLOR_FOCUSED),
+            GuiGetStyle(DEFAULT, BASE_COLOR_FOCUSED),
+            GuiGetStyle(DEFAULT, TEXT_COLOR_FOCUSED),
+            GuiGetStyle(DEFAULT, BORDER_COLOR_PRESSED),
+            GuiGetStyle(DEFAULT, BASE_COLOR_PRESSED),
+            GuiGetStyle(DEFAULT, TEXT_COLOR_PRESSED),
+            GuiGetStyle(DEFAULT, BORDER_COLOR_DISABLED),
+            GuiGetStyle(DEFAULT, BASE_COLOR_DISABLED),
+            GuiGetStyle(DEFAULT, TEXT_COLOR_DISABLED)
         },
-        GuiGetStyle(DEFAULT, BACKGROUND_COLOR), GuiGetStyle(DEFAULT, LINE_COLOR), GuiGetStyle(DEFAULT, TEXT_SIZE),
-        GuiGetStyle(DEFAULT, TEXT_SPACING), GuiGetStyle(DEFAULT, TEXT_LINE_SPACING),
-        GuiGetStyle(DEFAULT, TEXT_ALIGNMENT_VERTICAL), GuiGetStyle(DEFAULT, TEXT_WRAP_MODE)
+        GuiGetStyle(DEFAULT, BACKGROUND_COLOR),
+        GuiGetStyle(DEFAULT, LINE_COLOR),
+        GuiGetStyle(DEFAULT, TEXT_SIZE),
+        GuiGetStyle(DEFAULT, TEXT_SPACING),
+        GuiGetStyle(DEFAULT, TEXT_LINE_SPACING),
+        GuiGetStyle(DEFAULT, TEXT_ALIGNMENT_VERTICAL),
+        GuiGetStyle(DEFAULT, TEXT_WRAP_MODE)
     };
 }
 
@@ -191,14 +211,21 @@ auto user_interface::get_component_style(const int component) -> component_style
 {
     return {
         {
-            GuiGetStyle(component, BORDER_COLOR_NORMAL), GuiGetStyle(component, BASE_COLOR_NORMAL),
-            GuiGetStyle(component, TEXT_COLOR_NORMAL), GuiGetStyle(component, BORDER_COLOR_FOCUSED),
-            GuiGetStyle(component, BASE_COLOR_FOCUSED), GuiGetStyle(component, TEXT_COLOR_FOCUSED),
-            GuiGetStyle(component, BORDER_COLOR_PRESSED), GuiGetStyle(component, BASE_COLOR_PRESSED),
-            GuiGetStyle(component, TEXT_COLOR_PRESSED), GuiGetStyle(component, BORDER_COLOR_DISABLED),
-            GuiGetStyle(component, BASE_COLOR_DISABLED), GuiGetStyle(component, TEXT_COLOR_DISABLED)
+            GuiGetStyle(component, BORDER_COLOR_NORMAL),
+            GuiGetStyle(component, BASE_COLOR_NORMAL),
+            GuiGetStyle(component, TEXT_COLOR_NORMAL),
+            GuiGetStyle(component, BORDER_COLOR_FOCUSED),
+            GuiGetStyle(component, BASE_COLOR_FOCUSED),
+            GuiGetStyle(component, TEXT_COLOR_FOCUSED),
+            GuiGetStyle(component, BORDER_COLOR_PRESSED),
+            GuiGetStyle(component, BASE_COLOR_PRESSED),
+            GuiGetStyle(component, TEXT_COLOR_PRESSED),
+            GuiGetStyle(component, BORDER_COLOR_DISABLED),
+            GuiGetStyle(component, BASE_COLOR_DISABLED),
+            GuiGetStyle(component, TEXT_COLOR_DISABLED)
         },
-        GuiGetStyle(component, BORDER_WIDTH), GuiGetStyle(component, TEXT_PADDING),
+        GuiGetStyle(component, BORDER_WIDTH),
+        GuiGetStyle(component, TEXT_PADDING),
         GuiGetStyle(component, TEXT_ALIGNMENT)
     };
 }
@@ -229,11 +256,16 @@ auto user_interface::set_component_style(const int component, const component_st
 auto user_interface::popup_bounds() -> Rectangle
 {
     return Rectangle(static_cast<float>(GetScreenWidth()) / 2.0f - POPUP_WIDTH / 2.0f,
-                     static_cast<float>(GetScreenHeight()) / 2.0f - POPUP_HEIGHT / 2.0f, POPUP_WIDTH, POPUP_HEIGHT);
+                     static_cast<float>(GetScreenHeight()) / 2.0f - POPUP_HEIGHT / 2.0f,
+                     POPUP_WIDTH,
+                     POPUP_HEIGHT);
 }
 
-auto user_interface::draw_button(const Rectangle bounds, const std::string& label, const Color color,
-                                 const bool enabled, const int font_size) const -> int
+auto user_interface::draw_button(const Rectangle bounds,
+                                 const std::string& label,
+                                 const Color color,
+                                 const bool enabled,
+                                 const int font_size) const -> int
 {
     // Save original styling
     const default_style original_default = get_default_style();
@@ -263,16 +295,25 @@ auto user_interface::draw_button(const Rectangle bounds, const std::string& labe
     return pressed;
 }
 
-auto user_interface::draw_menu_button(const int x, const int y, const int width, const int height,
-                                      const std::string& label, const Color color, const bool enabled,
+auto user_interface::draw_menu_button(const int x,
+                                      const int y,
+                                      const int width,
+                                      const int height,
+                                      const std::string& label,
+                                      const Color color,
+                                      const bool enabled,
                                       const int font_size) const -> int
 {
     const Rectangle bounds = menu_grid.bounds(x, y, width, height);
     return draw_button(bounds, label, color, enabled, font_size);
 }
 
-auto user_interface::draw_toggle_slider(const Rectangle bounds, const std::string& off_label,
-                                        const std::string& on_label, int* active, Color color, bool enabled,
+auto user_interface::draw_toggle_slider(const Rectangle bounds,
+                                        const std::string& off_label,
+                                        const std::string& on_label,
+                                        int* active,
+                                        Color color,
+                                        bool enabled,
                                         int font_size) const -> int
 {
     // Save original styling
@@ -308,16 +349,29 @@ auto user_interface::draw_toggle_slider(const Rectangle bounds, const std::strin
     return pressed;
 }
 
-auto user_interface::draw_menu_toggle_slider(const int x, const int y, const int width, const int height,
-                                             const std::string& off_label, const std::string& on_label, int* active,
-                                             const Color color, const bool enabled, const int font_size) const -> int
+auto user_interface::draw_menu_toggle_slider(const int x,
+                                             const int y,
+                                             const int width,
+                                             const int height,
+                                             const std::string& off_label,
+                                             const std::string& on_label,
+                                             int* active,
+                                             const Color color,
+                                             const bool enabled,
+                                             const int font_size) const -> int
 {
     const Rectangle bounds = menu_grid.bounds(x, y, width, height);
     return draw_toggle_slider(bounds, off_label, on_label, active, color, enabled, font_size);
 }
 
-auto user_interface::draw_spinner(Rectangle bounds, const std::string& label, int* value, int min, int max, Color color,
-                                  bool enabled, int font_size) const -> int
+auto user_interface::draw_spinner(Rectangle bounds,
+                                  const std::string& label,
+                                  int* value,
+                                  int min,
+                                  int max,
+                                  Color color,
+                                  bool enabled,
+                                  int font_size) const -> int
 {
     // Save original styling
     const default_style original_default = get_default_style();
@@ -352,15 +406,26 @@ auto user_interface::draw_spinner(Rectangle bounds, const std::string& label, in
     return pressed;
 }
 
-auto user_interface::draw_menu_spinner(const int x, const int y, const int width, const int height,
-                                       const std::string& label, int* value, const int min, const int max,
-                                       const Color color, const bool enabled, const int font_size) const -> int
+auto user_interface::draw_menu_spinner(const int x,
+                                       const int y,
+                                       const int width,
+                                       const int height,
+                                       const std::string& label,
+                                       int* value,
+                                       const int min,
+                                       const int max,
+                                       const Color color,
+                                       const bool enabled,
+                                       const int font_size) const -> int
 {
     const Rectangle bounds = menu_grid.bounds(x, y, width, height);
     return draw_spinner(bounds, label, value, min, max, color, enabled, font_size);
 }
 
-auto user_interface::draw_label(const Rectangle bounds, const std::string& text, const Color color, const bool enabled,
+auto user_interface::draw_label(const Rectangle bounds,
+                                const std::string& text,
+                                const Color color,
+                                const bool enabled,
                                 const int font_size) const -> int
 {
     // Save original styling
@@ -391,7 +456,11 @@ auto user_interface::draw_label(const Rectangle bounds, const std::string& text,
     return pressed;
 }
 
-auto user_interface::draw_board_block(const int x, const int y, const int width, const int height, const Color color,
+auto user_interface::draw_board_block(const int x,
+                                      const int y,
+                                      const int width,
+                                      const int height,
+                                      const Color color,
                                       const bool enabled) const -> bool
 {
     component_style s = get_component_style(BUTTON);
@@ -400,7 +469,7 @@ auto user_interface::draw_board_block(const int x, const int y, const int width,
     const Rectangle bounds = board_grid.square_bounds(x, y, width, height);
 
     const bool focused = CheckCollisionPointRec(input.mouse - Vector2(0, MENU_HEIGHT), bounds);
-    const bool pressed = puzzle::block(x, y, width, height, false).covers(input.sel_x, input.sel_y);
+    const bool pressed = block(x, y, width, height, false).covers(input.sel_x, input.sel_y);
 
     // Background to make faded colors work
     DrawRectangleRec(bounds, RAYWHITE);
@@ -438,7 +507,15 @@ auto user_interface::window_open() const -> bool
 auto user_interface::draw_menu_header(const Color color) const -> void
 {
     int preset = static_cast<int>(state.get_current_preset());
-    draw_menu_spinner(0, 0, 1, 1, "Preset: ", &preset, -1, static_cast<int>(state.get_preset_count()), color,
+    draw_menu_spinner(0,
+                      0,
+                      1,
+                      1,
+                      "Preset: ",
+                      &preset,
+                      -1,
+                      static_cast<int>(state.get_preset_count()),
+                      color,
                       !input.editing);
     if (preset > static_cast<int>(state.get_current_preset())) {
         input.load_next_preset();
@@ -446,11 +523,17 @@ auto user_interface::draw_menu_header(const Color color) const -> void
         input.load_previous_preset();
     }
 
-    draw_menu_button(1, 0, 1, 1, std::format("{}: {}/{} Blocks",
-                                             state.was_edited()
-                                                 ? "Modified"
-                                                 : std::format("\"{}\"", state.get_current_preset_comment().substr(2)),
-                                             state.get_current_state().block_count(), puzzle::MAX_BLOCKS), color);
+    draw_menu_button(1,
+                     0,
+                     1,
+                     1,
+                     std::format("{}: {}/{} Blocks",
+                                 state.was_edited()
+                                     ? "Modified"
+                                     : std::format("\"{}\"", state.get_current_preset_comment().substr(2)),
+                                 state.get_current_state().block_count(),
+                                 puzzle::MAX_BLOCKS),
+                     color);
 
     int editing = input.editing;
     draw_menu_toggle_slider(2, 0, 1, 1, "Puzzle Mode (Tab)", "Edit Mode (Tab)", &editing, color);
@@ -461,13 +544,22 @@ auto user_interface::draw_menu_header(const Color color) const -> void
 
 auto user_interface::draw_graph_info(const Color color) const -> void
 {
-    draw_menu_button(0, 1, 1, 1, std::format("Found {} States ({} Winning)", state.get_state_count(),
-                                             state.get_target_count()), color);
+    draw_menu_button(0,
+                     1,
+                     1,
+                     1,
+                     std::format("Found {} States ({} Winning)", state.get_state_count(), state.get_target_count()),
+                     color);
 
     draw_menu_button(1, 1, 1, 1, std::format("Found {} Transitions", state.get_link_count()), color);
 
-    draw_menu_button(2, 1, 1, 1, std::format("{} Moves to Nearest Solution",
-                                             state.get_path_length() > 0 ? state.get_path_length() - 1 : 0), color);
+    draw_menu_button(2,
+                     1,
+                     1,
+                     1,
+                     std::format("{} Moves to Nearest Solution",
+                                 state.get_path_length() > 0 ? state.get_path_length() - 1 : 0),
+                     color);
 }
 
 auto user_interface::draw_graph_controls(const Color color) const -> void
@@ -504,7 +596,14 @@ auto user_interface::draw_camera_controls(const Color color) const -> void
     }
 
     int lock_camera_mass_center = input.camera_mass_center_lock;
-    draw_menu_toggle_slider(1, 3, 1, 1, "Current Block (U)", "Graph Center (U)", &lock_camera_mass_center, color,
+    draw_menu_toggle_slider(1,
+                            3,
+                            1,
+                            1,
+                            "Current Block (U)",
+                            "Graph Center (U)",
+                            &lock_camera_mass_center,
+                            color,
                             input.camera_lock);
     if (lock_camera_mass_center != input.camera_mass_center_lock) {
         input.toggle_camera_mass_center_lock();
@@ -537,8 +636,12 @@ auto user_interface::draw_puzzle_controls(const Color color) const -> void
     };
 
     const int visits = state.get_current_visits();
-    draw_menu_button(0, 4, 1, 1, std::format("{} Moves ({}{} Time at this State)", state.get_total_moves(), visits,
-                                             nth(visits)), color);
+    draw_menu_button(0,
+                     4,
+                     1,
+                     1,
+                     std::format("{} Moves ({}{} Time at this State)", state.get_total_moves(), visits, nth(visits)),
+                     color);
 
     if (draw_menu_button(1, 4, 1, 1, "Make Optimal Move (Space)", color, state.has_distances())) {
         input.goto_optimal_next_state();
@@ -556,7 +659,12 @@ auto user_interface::draw_puzzle_controls(const Color color) const -> void
         input.goto_most_distant_state();
     }
 
-    if (draw_menu_button(2, 5, 1, 1, "Go to Starting State (R)", color,
+    if (draw_menu_button(2,
+                         5,
+                         1,
+                         1,
+                         "Go to Starting State (R)",
+                         color,
                          state.get_current_index() != state.get_starting_index())) {
         input.goto_starting_state();
     }
@@ -634,8 +742,13 @@ auto user_interface::draw_save_preset_popup() -> void
     }
 
     // Returns the pressed button index
-    const int button = GuiTextInputBox(popup_bounds(), "Save as Preset", "Enter Preset Name", "Ok;Cancel",
-                                       preset_comment.data(), 255, nullptr);
+    const int button = GuiTextInputBox(popup_bounds(),
+                                       "Save as Preset",
+                                       "Enter Preset Name",
+                                       "Ok;Cancel",
+                                       preset_comment.data(),
+                                       255,
+                                       nullptr);
     if (button == 1) {
         state.save_current_to_preset_file(preset_comment.data());
     }
@@ -698,7 +811,11 @@ auto user_interface::draw_puzzle_board() -> void
 {
     const puzzle& current = state.get_current_state();
 
-    board_grid.update_bounds(0, MENU_HEIGHT, GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT, current.get_width(),
+    board_grid.update_bounds(0,
+                             MENU_HEIGHT,
+                             GetScreenWidth() / 2,
+                             GetScreenHeight() - MENU_HEIGHT,
+                             current.get_width(),
                              current.get_height());
 
     // Draw outer border
@@ -706,18 +823,22 @@ auto user_interface::draw_puzzle_board() -> void
     DrawRectangleRec(bounds, current.goal_reached() ? BOARD_COLOR_WON : BOARD_COLOR_RESTRICTED);
 
     // Draw inner borders
-    DrawRectangle(bounds.x + BOARD_PADDING, bounds.y + BOARD_PADDING, bounds.width - 2 * BOARD_PADDING,
+    DrawRectangle(bounds.x + BOARD_PADDING,
+                  bounds.y + BOARD_PADDING,
+                  bounds.width - 2 * BOARD_PADDING,
                   bounds.height - 2 * BOARD_PADDING,
                   current.get_restricted() ? BOARD_COLOR_RESTRICTED : BOARD_COLOR_FREE);
 
     // Draw target opening
     // TODO: Only draw single direction (in corner) if restricted (use target block principal
     // direction)
-    const std::optional<puzzle::block> target_block = current.try_get_target_block();
+    const std::optional<block> target_block = current.try_get_target_block();
     const int target_x = current.get_goal_x();
     const int target_y = current.get_goal_y();
     if (current.get_goal() && target_block) {
-        auto [x, y, width, height] = board_grid.square_bounds(target_x, target_y, target_block->get_width(),
+        auto [x, y, width, height] = board_grid.square_bounds(target_x,
+                                                              target_y,
+                                                              target_block->get_width(),
                                                               target_block->get_height());
 
         const Color opening_color = Fade(current.goal_reached() ? BOARD_COLOR_WON : BOARD_COLOR_RESTRICTED, 0.3);
@@ -764,7 +885,7 @@ auto user_interface::draw_puzzle_board() -> void
     }
 
     // Draw blocks
-    for (const puzzle::block b : current.block_view()) {
+    for (const block b : current.block_view()) {
         Color c = BLOCK_COLOR;
         if (b.get_target()) {
             c = TARGET_BLOCK_COLOR;
@@ -782,16 +903,22 @@ auto user_interface::draw_puzzle_board() -> void
         if (current.covers(input.block_add_x, input.block_add_y) && input.hov_x >= input.block_add_x && input.hov_y >=
             input.block_add_y) {
             bool collides = false;
-            for (const puzzle::block b : current.block_view()) {
-                if (b.collides(puzzle::block(input.block_add_x, input.block_add_y, input.hov_x - input.block_add_x + 1,
-                                             input.hov_y - input.block_add_y + 1, false))) {
+            for (const block b : current.block_view()) {
+                if (b.collides(block(input.block_add_x,
+                                     input.block_add_y,
+                                     input.hov_x - input.block_add_x + 1,
+                                     input.hov_y - input.block_add_y + 1,
+                                     false))) {
                     collides = true;
                     break;
                 }
             }
             if (!collides) {
-                draw_board_block(input.block_add_x, input.block_add_y, input.hov_x - input.block_add_x + 1,
-                                 input.hov_y - input.block_add_y + 1, PURPLE);
+                draw_board_block(input.block_add_x,
+                                 input.block_add_y,
+                                 input.hov_x - input.block_add_x + 1,
+                                 input.hov_y - input.block_add_y + 1,
+                                 PURPLE);
             }
         }
     }
@@ -803,7 +930,8 @@ auto user_interface::draw_puzzle_board() -> void
     // Draw goal boundaries when editing
     if (input.editing && current.get_goal() && target_block) {
         DrawRectangleLinesEx(
-            board_grid.square_bounds(target_x, target_y, target_block->get_width(), target_block->get_height()), 2.0,
+            board_grid.square_bounds(target_x, target_y, target_block->get_width(), target_block->get_height()),
+            2.0,
             TARGET_BLOCK_COLOR);
     }
 }

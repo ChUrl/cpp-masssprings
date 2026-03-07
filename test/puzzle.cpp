@@ -12,7 +12,7 @@
 
 TEST_CASE("Block creation and field access", "[block]")
 {
-    puzzle::block b(1, 2, 3, 4, true, false);
+    block b(1, 2, 3, 4, true, false);
 
     CHECK(b.get_x() == 1);
     CHECK(b.get_y() == 2);
@@ -25,16 +25,16 @@ TEST_CASE("Block creation and field access", "[block]")
 
 TEST_CASE("Block invalid by default", "[block]")
 {
-    puzzle::block b;
+    block b;
     CHECK_FALSE(b.valid());
 }
 
 TEST_CASE("Block comparison ordering", "[block]")
 {
     // Row-major: (0,0) < (1,0) < (0,1)
-    puzzle::block a(0, 0, 1, 1);
-    puzzle::block b(1, 0, 1, 1);
-    puzzle::block c(0, 1, 1, 1);
+    block a(0, 0, 1, 1);
+    block b(1, 0, 1, 1);
+    block c(0, 1, 1, 1);
 
     CHECK(a < b);
     CHECK(b < c);
@@ -43,7 +43,7 @@ TEST_CASE("Block comparison ordering", "[block]")
 
 TEST_CASE("Block principal_dirs for horizontal block", "[block]")
 {
-    puzzle::block b(0, 0, 3, 1); // wider than tall
+    block b(0, 0, 3, 1); // wider than tall
     CHECK((b.principal_dirs() & eas));
     CHECK((b.principal_dirs() & wes));
     CHECK_FALSE((b.principal_dirs() & nor));
@@ -52,7 +52,7 @@ TEST_CASE("Block principal_dirs for horizontal block", "[block]")
 
 TEST_CASE("Block principal_dirs for vertical block", "[block]")
 {
-    puzzle::block b(0, 0, 1, 3); // taller than wide
+    block b(0, 0, 1, 3); // taller than wide
     CHECK((b.principal_dirs() & nor));
     CHECK((b.principal_dirs() & sou));
     CHECK_FALSE((b.principal_dirs() & eas));
@@ -61,7 +61,7 @@ TEST_CASE("Block principal_dirs for vertical block", "[block]")
 
 TEST_CASE("Block principal_dirs for square block", "[block]")
 {
-    puzzle::block b(0, 0, 2, 2);
+    block b(0, 0, 2, 2);
     CHECK((b.principal_dirs() & nor));
     CHECK((b.principal_dirs() & sou));
     CHECK((b.principal_dirs() & eas));
@@ -70,7 +70,7 @@ TEST_CASE("Block principal_dirs for square block", "[block]")
 
 TEST_CASE("Block covers", "[block]")
 {
-    puzzle::block b(1, 2, 3, 2);
+    block b(1, 2, 3, 2);
     // Covers (1,2) to (3,3)
     CHECK(b.covers(1, 2));
     CHECK(b.covers(3, 3));
@@ -83,10 +83,10 @@ TEST_CASE("Block covers", "[block]")
 
 TEST_CASE("Block collides", "[block]")
 {
-    puzzle::block a(0, 0, 2, 2);
-    puzzle::block b(1, 1, 2, 2);
-    puzzle::block c(2, 2, 1, 1);
-    puzzle::block d(3, 0, 1, 1);
+    block a(0, 0, 2, 2);
+    block b(1, 1, 2, 2);
+    block c(2, 2, 1, 1);
+    block d(3, 0, 1, 1);
 
     CHECK(a.collides(b));
     CHECK(b.collides(a));
@@ -114,7 +114,7 @@ TEST_CASE("Puzzle creation and meta access", "[puzzle]")
 TEST_CASE("Puzzle add and remove block", "[puzzle]")
 {
     puzzle p(4, 4, 0, 0, false, false);
-    puzzle::block b(0, 0, 2, 1);
+    block b(0, 0, 2, 1);
 
     auto p2 = p.try_add_block(b);
     REQUIRE(p2.has_value());
@@ -127,8 +127,8 @@ TEST_CASE("Puzzle add and remove block", "[puzzle]")
 
 TEST_CASE("Puzzle meta roundtrip for all valid sizes", "[puzzle]")
 {
-    for (uint8_t w = 3; w <= 8; ++w) {
-        for (uint8_t h = 3; h <= 8; ++h) {
+    for (u8 w = 3; w <= 8; ++w) {
+        for (u8 h = 3; h <= 8; ++h) {
             puzzle p(w, h, 0, 0, true, false);
             CHECK(p.get_width() == w);
             CHECK(p.get_height() == h);
@@ -151,11 +151,11 @@ TEST_CASE("Puzzle block_count", "[puzzle]")
     puzzle p(4, 4, 0, 0, false, false);
     CHECK(p.block_count() == 0);
 
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 1, 1));
+    auto p2 = p.try_add_block(block(0, 0, 1, 1));
     REQUIRE(p2);
     CHECK(p2->block_count() == 1);
 
-    auto p3 = p2->try_add_block(puzzle::block(2, 2, 1, 1));
+    auto p3 = p2->try_add_block(block(2, 2, 1, 1));
     REQUIRE(p3);
     CHECK(p3->block_count() == 2);
 }
@@ -163,18 +163,18 @@ TEST_CASE("Puzzle block_count", "[puzzle]")
 TEST_CASE("Puzzle cannot add overlapping block", "[puzzle]")
 {
     puzzle p(4, 4, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 2, 2));
+    auto p2 = p.try_add_block(block(0, 0, 2, 2));
     REQUIRE(p2);
 
     // Overlapping
-    auto p3 = p2->try_add_block(puzzle::block(1, 1, 2, 2));
+    auto p3 = p2->try_add_block(block(1, 1, 2, 2));
     CHECK_FALSE(p3.has_value());
 }
 
 TEST_CASE("Puzzle cannot add block outside board", "[puzzle]")
 {
     puzzle p(4, 4, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(3, 3, 2, 2));
+    auto p2 = p.try_add_block(block(3, 3, 2, 2));
     CHECK_FALSE(p2.has_value());
 }
 
@@ -184,17 +184,17 @@ TEST_CASE("Puzzle cannot add block outside board", "[puzzle]")
 
 TEST_CASE("bitmap_set_bit and bitmap_get_bit roundtrip", "[bitmap]")
 {
-    for (uint8_t w = 3; w <= 8; ++w) {
-        uint64_t bm = 0;
+    for (u8 w = 3; w <= 8; ++w) {
+        u64 bm = 0;
         // Set every cell on a w x w board
-        for (uint8_t y = 0; y < w; ++y) {
-            for (uint8_t x = 0; x < w; ++x) {
+        for (u8 y = 0; y < w; ++y) {
+            for (u8 x = 0; x < w; ++x) {
                 puzzle::bitmap_set_bit(bm, w, x, y);
             }
         }
         // Verify all set
-        for (uint8_t y = 0; y < w; ++y) {
-            for (uint8_t x = 0; x < w; ++x) {
+        for (u8 y = 0; y < w; ++y) {
+            for (u8 x = 0; x < w; ++x) {
                 CHECK(puzzle::bitmap_get_bit(bm, w, x, y));
             }
         }
@@ -203,12 +203,12 @@ TEST_CASE("bitmap_set_bit and bitmap_get_bit roundtrip", "[bitmap]")
 
 TEST_CASE("bitmap_set_bit sets only the target bit", "[bitmap]")
 {
-    for (uint8_t w = 3; w <= 8; ++w) {
-        for (uint8_t y = 0; y < w; ++y) {
-            for (uint8_t x = 0; x < w; ++x) {
-                uint64_t bm = 0;
+    for (u8 w = 3; w <= 8; ++w) {
+        for (u8 y = 0; y < w; ++y) {
+            for (u8 x = 0; x < w; ++x) {
+                u64 bm = 0;
                 puzzle::bitmap_set_bit(bm, w, x, y);
-                CHECK(bm == (uint64_t(1) << (y * w + x)));
+                CHECK(bm == (u64(1) << (y * w + x)));
             }
         }
     }
@@ -216,11 +216,11 @@ TEST_CASE("bitmap_set_bit sets only the target bit", "[bitmap]")
 
 TEST_CASE("bitmap_clear_bit clears only the target bit", "[bitmap]")
 {
-    uint8_t w = 6;
-    uint64_t bm = 0;
+    u8 w = 6;
+    u64 bm = 0;
     puzzle::bitmap_set_bit(bm, w, 2, 3);
     puzzle::bitmap_set_bit(bm, w, 4, 1);
-    uint64_t before = bm;
+    u64 before = bm;
 
     puzzle::bitmap_clear_bit(bm, w, 2, 3);
     CHECK_FALSE(puzzle::bitmap_get_bit(bm, w, 2, 3));
@@ -230,10 +230,10 @@ TEST_CASE("bitmap_clear_bit clears only the target bit", "[bitmap]")
 TEST_CASE("blocks_bitmap for single block", "[bitmap]")
 {
     puzzle p(6, 6, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 2, 3, 1));
+    auto p2 = p.try_add_block(block(1, 2, 3, 1));
     REQUIRE(p2);
 
-    uint64_t bm = p2->blocks_bitmap();
+    u64 bm = p2->blocks_bitmap();
     // Block at (1,2) width 3 height 1 on a 6-wide board
     // Bits: row 2, cols 1,2,3 -> positions 2*6+1=13, 14, 15
     CHECK(puzzle::bitmap_get_bit(bm, 6, 1, 2));
@@ -248,10 +248,10 @@ TEST_CASE("blocks_bitmap for single block", "[bitmap]")
 TEST_CASE("blocks_bitmap for 2x2 block", "[bitmap]")
 {
     puzzle p(5, 5, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 1, 2, 2));
+    auto p2 = p.try_add_block(block(1, 1, 2, 2));
     REQUIRE(p2);
 
-    uint64_t bm = p2->blocks_bitmap();
+    u64 bm = p2->blocks_bitmap();
     CHECK(puzzle::bitmap_get_bit(bm, 5, 1, 1));
     CHECK(puzzle::bitmap_get_bit(bm, 5, 2, 1));
     CHECK(puzzle::bitmap_get_bit(bm, 5, 1, 2));
@@ -264,13 +264,13 @@ TEST_CASE("blocks_bitmap_h only includes horizontal/square blocks", "[bitmap]")
 {
     puzzle p(6, 6, 0, 0, true, false);
     // Horizontal block (2x1) -> principal_dirs has eas
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 2, 1));
+    auto p2 = p.try_add_block(block(0, 0, 2, 1));
     REQUIRE(p2);
     // Vertical block (1x2) -> principal_dirs has sou, not eas
-    auto p3 = p2->try_add_block(puzzle::block(4, 0, 1, 2));
+    auto p3 = p2->try_add_block(block(4, 0, 1, 2));
     REQUIRE(p3);
 
-    uint64_t bm_h = p3->blocks_bitmap_h();
+    u64 bm_h = p3->blocks_bitmap_h();
     // Horizontal block should be in bitmap_h
     CHECK(puzzle::bitmap_get_bit(bm_h, 6, 0, 0));
     CHECK(puzzle::bitmap_get_bit(bm_h, 6, 1, 0));
@@ -283,13 +283,13 @@ TEST_CASE("blocks_bitmap_v only includes vertical/square blocks", "[bitmap]")
 {
     puzzle p(6, 6, 0, 0, true, false);
     // Vertical block (1x2)
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 1, 2));
+    auto p2 = p.try_add_block(block(0, 0, 1, 2));
     REQUIRE(p2);
     // Horizontal block (2x1)
-    auto p3 = p2->try_add_block(puzzle::block(4, 0, 2, 1));
+    auto p3 = p2->try_add_block(block(4, 0, 2, 1));
     REQUIRE(p3);
 
-    uint64_t bm_v = p3->blocks_bitmap_v();
+    u64 bm_v = p3->blocks_bitmap_v();
     // Vertical block should be in bitmap_v
     CHECK(puzzle::bitmap_get_bit(bm_v, 6, 0, 0));
     CHECK(puzzle::bitmap_get_bit(bm_v, 6, 0, 1));
@@ -301,11 +301,11 @@ TEST_CASE("blocks_bitmap_v only includes vertical/square blocks", "[bitmap]")
 TEST_CASE("blocks_bitmap_h and blocks_bitmap_v both include square blocks", "[bitmap]")
 {
     puzzle p(6, 6, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 1, 2, 2));
+    auto p2 = p.try_add_block(block(1, 1, 2, 2));
     REQUIRE(p2);
 
-    uint64_t bm_h = p2->blocks_bitmap_h();
-    uint64_t bm_v = p2->blocks_bitmap_v();
+    u64 bm_h = p2->blocks_bitmap_h();
+    u64 bm_v = p2->blocks_bitmap_v();
 
     // Square block should appear in both
     CHECK(puzzle::bitmap_get_bit(bm_h, 6, 1, 1));
@@ -320,12 +320,12 @@ TEST_CASE("bitmap_newly_occupied north - single vertical block with space above"
 {
     // 4x4 board, vertical 1x2 block at (1,2)
     puzzle p(4, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 2, 1, 2));
+    auto p2 = p.try_add_block(block(1, 2, 1, 2));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t vert = p2->blocks_bitmap_v();
-    uint64_t bm = combined;
+    u64 combined = p2->blocks_bitmap();
+    u64 vert = p2->blocks_bitmap_v();
+    u64 bm = combined;
 
     p2->bitmap_newly_occupied_after_move(bm, vert, nor);
 
@@ -346,12 +346,12 @@ TEST_CASE("bitmap_newly_occupied south - single vertical block with space below"
 {
     // 4x4 board, vertical 1x2 block at (1,0)
     puzzle p(4, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 0, 1, 2));
+    auto p2 = p.try_add_block(block(1, 0, 1, 2));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t vert = p2->blocks_bitmap_v();
-    uint64_t bm = combined;
+    u64 combined = p2->blocks_bitmap();
+    u64 vert = p2->blocks_bitmap_v();
+    u64 bm = combined;
 
     p2->bitmap_newly_occupied_after_move(bm, vert, sou);
 
@@ -366,12 +366,12 @@ TEST_CASE("bitmap_newly_occupied east - single horizontal block with space right
 {
     // 5x4 board, horizontal 2x1 block at (0,1)
     puzzle p(5, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 1, 2, 1));
+    auto p2 = p.try_add_block(block(0, 1, 2, 1));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t horiz = p2->blocks_bitmap_h();
-    uint64_t bm = combined;
+    u64 combined = p2->blocks_bitmap();
+    u64 horiz = p2->blocks_bitmap_h();
+    u64 bm = combined;
 
     p2->bitmap_newly_occupied_after_move(bm, horiz, eas);
 
@@ -386,12 +386,12 @@ TEST_CASE("bitmap_newly_occupied west - single horizontal block with space left"
 {
     // 5x4 board, horizontal 2x1 block at (2,1)
     puzzle p(5, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(2, 1, 2, 1));
+    auto p2 = p.try_add_block(block(2, 1, 2, 1));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t horiz = p2->blocks_bitmap_h();
-    uint64_t bm = combined;
+    u64 combined = p2->blocks_bitmap();
+    u64 horiz = p2->blocks_bitmap_h();
+    u64 bm = combined;
 
     p2->bitmap_newly_occupied_after_move(bm, horiz, wes);
 
@@ -406,12 +406,12 @@ TEST_CASE("bitmap_newly_occupied does not wrap east across rows", "[bitmap_move]
 {
     // 4x4 board, horizontal 2x1 block at (2,0) - rightmost position
     puzzle p(4, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(2, 0, 2, 1));
+    auto p2 = p.try_add_block(block(2, 0, 2, 1));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t horiz = p2->blocks_bitmap_h();
-    uint64_t bm = combined;
+    u64 combined = p2->blocks_bitmap();
+    u64 horiz = p2->blocks_bitmap_h();
+    u64 bm = combined;
 
     p2->bitmap_newly_occupied_after_move(bm, horiz, eas);
 
@@ -424,12 +424,12 @@ TEST_CASE("bitmap_newly_occupied does not wrap west across rows", "[bitmap_move]
 {
     // 4x4 board, horizontal 2x1 block at (0,1)
     puzzle p(4, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 1, 2, 1));
+    auto p2 = p.try_add_block(block(0, 1, 2, 1));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t horiz = p2->blocks_bitmap_h();
-    uint64_t bm = combined;
+    u64 combined = p2->blocks_bitmap();
+    u64 horiz = p2->blocks_bitmap_h();
+    u64 bm = combined;
 
     p2->bitmap_newly_occupied_after_move(bm, horiz, wes);
 
@@ -441,14 +441,14 @@ TEST_CASE("bitmap_newly_occupied blocked by another block", "[bitmap_move]")
 {
     // 6x4 board, two horizontal blocks side by side
     puzzle p(6, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 2, 1));
+    auto p2 = p.try_add_block(block(0, 0, 2, 1));
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(2, 0, 2, 1));
+    auto p3 = p2->try_add_block(block(2, 0, 2, 1));
     REQUIRE(p3);
 
-    uint64_t combined = p3->blocks_bitmap();
-    uint64_t horiz = p3->blocks_bitmap_h();
-    uint64_t bm = combined;
+    u64 combined = p3->blocks_bitmap();
+    u64 horiz = p3->blocks_bitmap_h();
+    u64 bm = combined;
 
     p3->bitmap_newly_occupied_after_move(bm, horiz, eas);
 
@@ -468,11 +468,11 @@ TEST_CASE("restricted_bitmap_get_moves north - returns correct source cell", "[g
 {
     // 4x4 board, vertical 1x2 block at (1,2)
     puzzle p(4, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 2, 1, 2));
+    auto p2 = p.try_add_block(block(1, 2, 1, 2));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t vert = p2->blocks_bitmap_v();
+    u64 combined = p2->blocks_bitmap();
+    u64 vert = p2->blocks_bitmap_v();
 
     auto moves = p2->restricted_bitmap_get_moves(combined, vert, nor);
 
@@ -487,11 +487,11 @@ TEST_CASE("restricted_bitmap_get_moves south - returns correct source cell", "[g
 {
     // 4x4 board, vertical 1x2 block at (1,0)
     puzzle p(4, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 0, 1, 2));
+    auto p2 = p.try_add_block(block(1, 0, 1, 2));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t vert = p2->blocks_bitmap_v();
+    u64 combined = p2->blocks_bitmap();
+    u64 vert = p2->blocks_bitmap_v();
 
     auto moves = p2->restricted_bitmap_get_moves(combined, vert, sou);
 
@@ -511,11 +511,11 @@ TEST_CASE("restricted_bitmap_get_moves east - returns correct source cell", "[ge
 {
     // 5x4 board, horizontal 2x1 block at (0,1)
     puzzle p(5, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 1, 2, 1));
+    auto p2 = p.try_add_block(block(0, 1, 2, 1));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t horiz = p2->blocks_bitmap_h();
+    u64 combined = p2->blocks_bitmap();
+    u64 horiz = p2->blocks_bitmap_h();
 
     auto moves = p2->restricted_bitmap_get_moves(combined, horiz, eas);
 
@@ -530,11 +530,11 @@ TEST_CASE("restricted_bitmap_get_moves west - returns correct source cell", "[ge
 {
     // 5x4 board, horizontal 2x1 block at (2,1)
     puzzle p(5, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(2, 1, 2, 1));
+    auto p2 = p.try_add_block(block(2, 1, 2, 1));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t horiz = p2->blocks_bitmap_h();
+    u64 combined = p2->blocks_bitmap();
+    u64 horiz = p2->blocks_bitmap_h();
 
     auto moves = p2->restricted_bitmap_get_moves(combined, horiz, wes);
 
@@ -549,11 +549,11 @@ TEST_CASE("restricted_bitmap_get_moves returns empty when blocked", "[get_moves]
 {
     // 4x4 board, vertical 1x2 block at (1,0) - can't move north (at top edge)
     puzzle p(4, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 0, 1, 2));
+    auto p2 = p.try_add_block(block(1, 0, 1, 2));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t vert = p2->blocks_bitmap_v();
+    u64 combined = p2->blocks_bitmap();
+    u64 vert = p2->blocks_bitmap_v();
 
     auto moves = p2->restricted_bitmap_get_moves(combined, vert, nor);
 
@@ -569,11 +569,11 @@ TEST_CASE("restricted_bitmap_get_moves with width 6 board", "[get_moves]")
 {
     // 6x6 board, vertical 1x2 block at (2,3)
     puzzle p(6, 6, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(2, 3, 1, 2));
+    auto p2 = p.try_add_block(block(2, 3, 1, 2));
     REQUIRE(p2);
 
-    uint64_t combined = p2->blocks_bitmap();
-    uint64_t vert = p2->blocks_bitmap_v();
+    u64 combined = p2->blocks_bitmap();
+    u64 vert = p2->blocks_bitmap_v();
 
     auto moves = p2->restricted_bitmap_get_moves(combined, vert, nor);
 
@@ -588,20 +588,20 @@ TEST_CASE("restricted_bitmap_get_moves multiple blocks can move", "[get_moves]")
 {
     // 6x6 board, two vertical blocks with space above
     puzzle p(6, 6, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 2, 1, 2));
+    auto p2 = p.try_add_block(block(1, 2, 1, 2));
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(4, 3, 1, 2));
+    auto p3 = p2->try_add_block(block(4, 3, 1, 2));
     REQUIRE(p3);
 
-    uint64_t combined = p3->blocks_bitmap();
-    uint64_t vert = p3->blocks_bitmap_v();
+    u64 combined = p3->blocks_bitmap();
+    u64 vert = p3->blocks_bitmap_v();
 
     auto moves = p3->restricted_bitmap_get_moves(combined, vert, nor);
 
     // Both blocks can move north
     // Block 1: newly occupied (1,1), source (1,2) = 1+2*6 = 13
     // Block 2: newly occupied (4,2), source (4,3) = 4+3*6 = 22
-    std::set<uint8_t> move_set;
+    std::set<u8> move_set;
     for (int i = 0; i < puzzle::MAX_BLOCKS && moves[i] != 0xFF; ++i) {
         move_set.insert(moves[i]);
     }
@@ -617,7 +617,7 @@ TEST_CASE("restricted_bitmap_get_moves multiple blocks can move", "[get_moves]")
 TEST_CASE("try_move_block_at basic moves", "[move]")
 {
     puzzle p(4, 4, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 1, 1, 1));
+    auto p2 = p.try_add_block(block(1, 1, 1, 1));
     REQUIRE(p2);
 
     auto north = p2->try_move_block_at(1, 1, nor);
@@ -640,7 +640,7 @@ TEST_CASE("try_move_block_at basic moves", "[move]")
 TEST_CASE("try_move_block_at blocked by edge", "[move]")
 {
     puzzle p(4, 4, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 1, 1));
+    auto p2 = p.try_add_block(block(0, 0, 1, 1));
     REQUIRE(p2);
 
     CHECK_FALSE(p2->try_move_block_at(0, 0, nor).has_value());
@@ -650,9 +650,9 @@ TEST_CASE("try_move_block_at blocked by edge", "[move]")
 TEST_CASE("try_move_block_at blocked by collision", "[move]")
 {
     puzzle p(4, 4, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 1, 1));
+    auto p2 = p.try_add_block(block(0, 0, 1, 1));
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(1, 0, 1, 1));
+    auto p3 = p2->try_add_block(block(1, 0, 1, 1));
     REQUIRE(p3);
 
     CHECK_FALSE(p3->try_move_block_at(0, 0, eas).has_value());
@@ -661,12 +661,12 @@ TEST_CASE("try_move_block_at blocked by collision", "[move]")
 TEST_CASE("try_move_block_at_fast matches try_move_block_at", "[move]")
 {
     puzzle p(5, 5, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 1, 2, 1));
+    auto p2 = p.try_add_block(block(1, 1, 2, 1));
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(0, 3, 1, 2));
+    auto p3 = p2->try_add_block(block(0, 3, 1, 2));
     REQUIRE(p3);
 
-    uint64_t bm = p3->blocks_bitmap();
+    u64 bm = p3->blocks_bitmap();
 
     for (const dir d : {nor, eas, sou, wes}) {
         // Block 0 is the first in sorted order
@@ -686,7 +686,7 @@ TEST_CASE("try_move_block_at restricted mode respects principal dirs", "[move]")
 {
     puzzle p(5, 5, 0, 0, true, false); // restricted
     // Horizontal block 2x1 at (1,2)
-    auto p2 = p.try_add_block(puzzle::block(1, 2, 2, 1));
+    auto p2 = p.try_add_block(block(1, 2, 2, 1));
     REQUIRE(p2);
 
     // In restricted mode, horizontal block can only move east/west
@@ -760,16 +760,16 @@ static auto collect_adjacent_simple(const puzzle& p) -> std::set<size_t>
 // Helper: collect all adjacent states using for_each_adjacent_restricted
 static auto collect_adjacent_restricted(const puzzle& p) -> std::set<size_t>
 {
-    const uint8_t w = p.get_width();
-    std::array<uint8_t, 64> bitmap_block_indices{};
+    const u8 w = p.get_width();
+    std::array<u8, 64> bitmap_block_indices{};
     for (size_t i = 0; i < puzzle::MAX_BLOCKS; ++i) {
-        const puzzle::block b(p.repr_view().data()[i]);
+        const block b(p.repr_view().data()[i]);
         if (i >= static_cast<size_t>(p.block_count())) {
             break;
         }
         const auto [bx, by, bw, bh, bt, bi] = b.unpack_repr();
-        for (uint8_t x = bx; x < bx + bw; ++x) {
-            for (uint8_t y = by; y < by + bh; ++y) {
+        for (u8 x = bx; x < bx + bw; ++x) {
+            for (u8 y = by; y < by + bh; ++y) {
                 bitmap_block_indices[y * w + x] = i;
             }
         }
@@ -786,7 +786,7 @@ static auto collect_adjacent_restricted(const puzzle& p) -> std::set<size_t>
 TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - single block", "[cross_validate]")
 {
     puzzle p(4, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 1, 1, 1));
+    auto p2 = p.try_add_block(block(1, 1, 1, 1));
     REQUIRE(p2);
 
     auto simple = collect_adjacent_simple(*p2);
@@ -798,7 +798,7 @@ TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - single block
 TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - horizontal block", "[cross_validate]")
 {
     puzzle p(5, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 1, 2, 1));
+    auto p2 = p.try_add_block(block(1, 1, 2, 1));
     REQUIRE(p2);
 
     auto simple = collect_adjacent_simple(*p2);
@@ -810,7 +810,7 @@ TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - horizontal b
 TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - vertical block", "[cross_validate]")
 {
     puzzle p(4, 5, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 1, 1, 2));
+    auto p2 = p.try_add_block(block(1, 1, 1, 2));
     REQUIRE(p2);
 
     auto simple = collect_adjacent_simple(*p2);
@@ -822,9 +822,9 @@ TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - vertical blo
 TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - two blocks", "[cross_validate]")
 {
     puzzle p(5, 5, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 2, 1)); // horizontal
+    auto p2 = p.try_add_block(block(0, 0, 2, 1)); // horizontal
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(4, 1, 1, 2)); // vertical
+    auto p3 = p2->try_add_block(block(4, 1, 1, 2)); // vertical
     REQUIRE(p3);
 
     auto simple = collect_adjacent_simple(*p3);
@@ -836,13 +836,13 @@ TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - two blocks",
 TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - crowded board", "[cross_validate]")
 {
     puzzle p(5, 5, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 2, 1));
+    auto p2 = p.try_add_block(block(0, 0, 2, 1));
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(3, 0, 1, 2));
+    auto p3 = p2->try_add_block(block(3, 0, 1, 2));
     REQUIRE(p3);
-    auto p4 = p3->try_add_block(puzzle::block(0, 2, 1, 3));
+    auto p4 = p3->try_add_block(block(0, 2, 1, 3));
     REQUIRE(p4);
-    auto p5 = p4->try_add_block(puzzle::block(2, 3, 2, 1));
+    auto p5 = p4->try_add_block(block(2, 3, 2, 1));
     REQUIRE(p5);
 
     auto simple = collect_adjacent_simple(*p5);
@@ -854,13 +854,13 @@ TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - crowded boar
 TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - 6x6 board", "[cross_validate]")
 {
     puzzle p(6, 6, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 3, 1)); // horizontal
+    auto p2 = p.try_add_block(block(0, 0, 3, 1)); // horizontal
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(5, 0, 1, 2)); // vertical
+    auto p3 = p2->try_add_block(block(5, 0, 1, 2)); // vertical
     REQUIRE(p3);
-    auto p4 = p3->try_add_block(puzzle::block(2, 2, 1, 2)); // vertical
+    auto p4 = p3->try_add_block(block(2, 2, 1, 2)); // vertical
     REQUIRE(p4);
-    auto p5 = p4->try_add_block(puzzle::block(3, 2, 2, 1)); // horizontal
+    auto p5 = p4->try_add_block(block(3, 2, 2, 1)); // horizontal
     REQUIRE(p5);
 
     auto simple = collect_adjacent_simple(*p5);
@@ -889,7 +889,7 @@ TEST_CASE("for_each_adjacent_restricted matches for_each_adjacent - the main puz
 TEST_CASE("explore_state_space simple case - single 1x1 block", "[explore]")
 {
     puzzle p(3, 3, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 1, 1, 1));
+    auto p2 = p.try_add_block(block(1, 1, 1, 1));
     REQUIRE(p2);
 
     auto [states, transitions] = p2->explore_state_space();
@@ -901,7 +901,7 @@ TEST_CASE("explore_state_space simple case - single 1x1 block", "[explore]")
 TEST_CASE("explore_state_space restricted - vertical block", "[explore]")
 {
     puzzle p(3, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(1, 0, 1, 2));
+    auto p2 = p.try_add_block(block(1, 0, 1, 2));
     REQUIRE(p2);
 
     auto [states, transitions] = p2->explore_state_space();
@@ -914,7 +914,7 @@ TEST_CASE("explore_state_space restricted - vertical block", "[explore]")
 TEST_CASE("explore_state_space restricted - horizontal block", "[explore]")
 {
     puzzle p(4, 3, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 1, 2, 1));
+    auto p2 = p.try_add_block(block(0, 1, 2, 1));
     REQUIRE(p2);
 
     auto [states, transitions] = p2->explore_state_space();
@@ -927,7 +927,7 @@ TEST_CASE("explore_state_space restricted - horizontal block", "[explore]")
 TEST_CASE("explore_state_space restricted - square block", "[explore]")
 {
     puzzle p(3, 3, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 1, 1));
+    auto p2 = p.try_add_block(block(0, 0, 1, 1));
     REQUIRE(p2);
 
     auto [states, transitions] = p2->explore_state_space();
@@ -939,7 +939,7 @@ TEST_CASE("explore_state_space restricted - square block", "[explore]")
 TEST_CASE("explore_state_space preserves board metadata", "[explore]")
 {
     puzzle p(5, 4, 2, 1, true, true);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 1, 1, true));
+    auto p2 = p.try_add_block(block(0, 0, 1, 1, true));
     REQUIRE(p2);
 
     auto [states, transitions] = p2->explore_state_space();
@@ -959,9 +959,9 @@ TEST_CASE("explore_state_space two blocks restricted", "[explore]")
     // 4x4 board, restricted
     // Horizontal 2x1 at (0,0) and vertical 1x2 at (3,0)
     puzzle p(4, 4, 0, 0, true, false);
-    auto p2 = p.try_add_block(puzzle::block(0, 0, 2, 1));
+    auto p2 = p.try_add_block(block(0, 0, 2, 1));
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(3, 0, 1, 2));
+    auto p3 = p2->try_add_block(block(3, 0, 1, 2));
     REQUIRE(p3);
 
     auto [states, transitions] = p3->explore_state_space();
@@ -988,15 +988,15 @@ TEST_CASE("explore_state_space two blocks restricted", "[explore]")
 
 TEST_CASE("East move does not wrap for various board widths", "[bitmap_move]")
 {
-    for (uint8_t w = 3; w <= 8; ++w) {
+    for (u8 w = 3; w <= 8; ++w) {
         puzzle p(w, 3, 0, 0, true, false);
         // Place a 1x1 block at rightmost column, row 0
-        auto p2 = p.try_add_block(puzzle::block(w - 1, 0, 1, 1));
+        auto p2 = p.try_add_block(block(w - 1, 0, 1, 1));
         REQUIRE(p2);
 
-        uint64_t combined = p2->blocks_bitmap();
-        uint64_t horiz = p2->blocks_bitmap_h(); // 1x1 is square, so in both h and v
-        uint64_t bm = combined;
+        u64 combined = p2->blocks_bitmap();
+        u64 horiz = p2->blocks_bitmap_h(); // 1x1 is square, so in both h and v
+        u64 bm = combined;
 
         p2->bitmap_newly_occupied_after_move(bm, horiz, eas);
 
@@ -1009,15 +1009,15 @@ TEST_CASE("East move does not wrap for various board widths", "[bitmap_move]")
 
 TEST_CASE("West move does not wrap for various board widths", "[bitmap_move]")
 {
-    for (uint8_t w = 3; w <= 8; ++w) {
+    for (u8 w = 3; w <= 8; ++w) {
         puzzle p(w, 3, 0, 0, true, false);
         // Place a 1x1 block at leftmost column, row 1
-        auto p2 = p.try_add_block(puzzle::block(0, 1, 1, 1));
+        auto p2 = p.try_add_block(block(0, 1, 1, 1));
         REQUIRE(p2);
 
-        uint64_t combined = p2->blocks_bitmap();
-        uint64_t horiz = p2->blocks_bitmap_h();
-        uint64_t bm = combined;
+        u64 combined = p2->blocks_bitmap();
+        u64 horiz = p2->blocks_bitmap_h();
+        u64 bm = combined;
 
         p2->bitmap_newly_occupied_after_move(bm, horiz, wes);
 
@@ -1034,34 +1034,34 @@ TEST_CASE("West move does not wrap for various board widths", "[bitmap_move]")
 TEST_CASE("bitmap_check_collision detects collision", "[collision]")
 {
     puzzle p(5, 5, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(2, 2, 1, 1));
+    auto p2 = p.try_add_block(block(2, 2, 1, 1));
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(0, 0, 2, 1));
+    auto p3 = p2->try_add_block(block(0, 0, 2, 1));
     REQUIRE(p3);
 
-    uint64_t bm = p3->blocks_bitmap();
+    u64 bm = p3->blocks_bitmap();
 
     // Check if a hypothetical block at (1,2) 2x1 collides
-    puzzle::block hyp(1, 2, 2, 1);
+    block hyp(1, 2, 2, 1);
     CHECK(p3->bitmap_check_collision(bm, hyp)); // overlaps with (2,2)
 
     // Check if a hypothetical block at (3,3) 1x1 collides
-    puzzle::block hyp2(3, 3, 1, 1);
+    block hyp2(3, 3, 1, 1);
     CHECK_FALSE(p3->bitmap_check_collision(bm, hyp2));
 }
 
 TEST_CASE("bitmap_check_collision directional", "[collision]")
 {
     puzzle p(5, 5, 0, 0, false, false);
-    auto p2 = p.try_add_block(puzzle::block(2, 0, 1, 1));
+    auto p2 = p.try_add_block(block(2, 0, 1, 1));
     REQUIRE(p2);
-    auto p3 = p2->try_add_block(puzzle::block(2, 1, 1, 1));
+    auto p3 = p2->try_add_block(block(2, 1, 1, 1));
     REQUIRE(p3);
 
-    uint64_t bm = p3->blocks_bitmap();
+    u64 bm = p3->blocks_bitmap();
 
     // Clear block at (2,1) from bitmap to check if (2,1) can move north
-    puzzle::block b(2, 1, 1, 1);
+    block b(2, 1, 1, 1);
     p3->bitmap_clear_block(bm, b);
 
     // (2,1) moving north -> check (2,0) which has a block

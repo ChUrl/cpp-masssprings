@@ -22,15 +22,17 @@ class user_interface
         const int padding;
 
     public:
-        grid(const int _x, const int _y, const int _width, const int _height, const int _columns,
-             const int _rows, const int _padding)
-            : x(_x), y(_y), width(_width), height(_height), columns(_columns), rows(_rows),
-              padding(_padding)
-        {}
+        grid(const int _x,
+             const int _y,
+             const int _width,
+             const int _height,
+             const int _columns,
+             const int _rows,
+             const int _padding)
+            : x(_x), y(_y), width(_width), height(_height), columns(_columns), rows(_rows), padding(_padding) {}
 
     public:
-        auto update_bounds(int _x, int _y, int _width, int _height, int _columns, int _rows)
-            -> void;
+        auto update_bounds(int _x, int _y, int _width, int _height, int _columns, int _rows) -> void;
         auto update_bounds(int _x, int _y, int _width, int _height) -> void;
         auto update_bounds(int _x, int _y) -> void;
 
@@ -38,8 +40,7 @@ class user_interface
         [[nodiscard]] auto bounds(int _x, int _y, int _width, int _height) const -> Rectangle;
 
         [[nodiscard]] auto square_bounds() const -> Rectangle;
-        [[nodiscard]] auto square_bounds(int _x, int _y, int _width, int _height) const
-            -> Rectangle;
+        [[nodiscard]] auto square_bounds(int _x, int _y, int _width, int _height) const -> Rectangle;
     };
 
     struct style
@@ -87,14 +88,17 @@ private:
 
     grid menu_grid = grid(0, 0, GetScreenWidth(), MENU_HEIGHT, MENU_COLS, MENU_ROWS, MENU_PAD);
 
-    grid board_grid =
-        grid(0, MENU_HEIGHT, GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT,
-             state.get_current_state().get_width(), state.get_current_state().get_height(), BOARD_PADDING);
+    grid board_grid = grid(0,
+                           MENU_HEIGHT,
+                           GetScreenWidth() / 2,
+                           GetScreenHeight() - MENU_HEIGHT,
+                           state.get_current_state().get_width(),
+                           state.get_current_state().get_height(),
+                           BOARD_PADDING);
 
     grid graph_overlay_grid = grid(GetScreenWidth() / 2, MENU_HEIGHT, 200, 100, 1, 4, MENU_PAD);
 
-    grid debug_overlay_grid =
-        grid(GetScreenWidth() / 2, GetScreenHeight() - 75, 200, 75, 1, 3, MENU_PAD);
+    grid debug_overlay_grid = grid(GetScreenWidth() / 2, GetScreenHeight() - 75, 200, 75, 1, 3, MENU_PAD);
 
     // Windows
 
@@ -114,10 +118,7 @@ public:
         init();
     }
 
-    user_interface(const user_interface& copy) = delete;
-    auto operator=(const user_interface& copy) -> user_interface& = delete;
-    user_interface(user_interface&& move) = delete;
-    auto operator=(user_interface&& move) -> user_interface& = delete;
+    NO_COPY_NO_MOVE(user_interface);
 
 private:
     static auto init() -> void;
@@ -133,32 +134,68 @@ private:
 
     [[nodiscard]] static auto popup_bounds() -> Rectangle;
 
-    auto draw_button(Rectangle bounds, const std::string& label, Color color, bool enabled = true,
+    auto draw_button(Rectangle bounds,
+                     const std::string& label,
+                     Color color,
+                     bool enabled = true,
                      int font_size = FONT_SIZE) const -> int;
 
-    auto draw_menu_button(int x, int y, int width, int height, const std::string& label,
-                          Color color, bool enabled = true, int font_size = FONT_SIZE) const -> int;
+    auto draw_menu_button(int x,
+                          int y,
+                          int width,
+                          int height,
+                          const std::string& label,
+                          Color color,
+                          bool enabled = true,
+                          int font_size = FONT_SIZE) const -> int;
 
-    auto draw_toggle_slider(Rectangle bounds, const std::string& off_label,
-                            const std::string& on_label, int* active, Color color,
-                            bool enabled = true, int font_size = FONT_SIZE) const -> int;
+    auto draw_toggle_slider(Rectangle bounds,
+                            const std::string& off_label,
+                            const std::string& on_label,
+                            int* active,
+                            Color color,
+                            bool enabled = true,
+                            int font_size = FONT_SIZE) const -> int;
 
-    auto draw_menu_toggle_slider(int x, int y, int width, int height, const std::string& off_label,
-                                 const std::string& on_label, int* active, Color color,
-                                 bool enabled = true, int font_size = FONT_SIZE) const -> int;
+    auto draw_menu_toggle_slider(int x,
+                                 int y,
+                                 int width,
+                                 int height,
+                                 const std::string& off_label,
+                                 const std::string& on_label,
+                                 int* active,
+                                 Color color,
+                                 bool enabled = true,
+                                 int font_size = FONT_SIZE) const -> int;
 
-    auto draw_spinner(Rectangle bounds, const std::string& label, int* value, int min, int max,
-                      Color color, bool enabled = true, int font_size = FONT_SIZE) const -> int;
+    auto draw_spinner(Rectangle bounds,
+                      const std::string& label,
+                      int* value,
+                      int min,
+                      int max,
+                      Color color,
+                      bool enabled = true,
+                      int font_size = FONT_SIZE) const -> int;
 
-    auto draw_menu_spinner(int x, int y, int width, int height, const std::string& label,
-                           int* value, int min, int max, Color color, bool enabled = true,
+    auto draw_menu_spinner(int x,
+                           int y,
+                           int width,
+                           int height,
+                           const std::string& label,
+                           int* value,
+                           int min,
+                           int max,
+                           Color color,
+                           bool enabled = true,
                            int font_size = FONT_SIZE) const -> int;
 
-    auto draw_label(Rectangle bounds, const std::string& text, Color color, bool enabled = true,
+    auto draw_label(Rectangle bounds,
+                    const std::string& text,
+                    Color color,
+                    bool enabled = true,
                     int font_size = FONT_SIZE) const -> int;
 
-    auto draw_board_block(int x, int y, int width, int height, Color color,
-                          bool enabled = true) const -> bool;
+    auto draw_board_block(int x, int y, int width, int height, Color color, bool enabled = true) const -> bool;
 
     [[nodiscard]] auto window_open() const -> bool;
 
