@@ -291,7 +291,7 @@ rec {
           boost
 
           # Debugging/Testing/Profiling
-          tracy-wayland
+          tracy_0_13
           backward-cpp
           libbfd
           catch2_3
