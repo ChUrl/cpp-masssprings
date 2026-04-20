@@ -11,3 +11,4 @@ cmake-build-release
 /clusters.puzzle
 /benchs.json
 /benchs.old.json
+/.direnv

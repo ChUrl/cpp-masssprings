@@ -93,41 +93,66 @@ rec {
           buildDebug = mkBuildScript "Debug";
           buildRelease = mkBuildScript "Release";
 
-          # Use this to specify commands that should be ran after entering fish shell
-          initProjectShell = pkgs.writers.writeFish "init-shell.fish" ''
-            echo "Entering \"${description}\" environment..."
-
-            # Determine the project root, used e.g. in cmake scripts
-            set -g -x FLAKE_PROJECT_ROOT (git rev-parse --show-toplevel)
-
+          # Add project-local fish abbrs here
+          abbrs = {
             # C/C++:
-            abbr -a cmake-debug "${cmakeDebug}"
-            abbr -a cmake-release "${cmakeRelease}"
-            abbr -a build-debug "${buildDebug}"
-            abbr -a build-release "${buildRelease}"
-            abbr -a debug-clean "${cmakeDebug} && ${buildDebug} && ./cmake-build-debug/masssprings"
-            abbr -a release-clean "${cmakeRelease} && ${buildRelease} && ./cmake-build-release/masssprings"
-            abbr -a debug "${buildDebug} && ./cmake-build-debug/masssprings"
-            abbr -a release "${buildRelease} && ./cmake-build-release/masssprings"
+            cmake-debug = "${cmakeDebug}";
+            cmake-release = "${cmakeRelease}";
 
-            abbr -a run "${buildRelease} && ./cmake-build-release/masssprings"
-            abbr -a runclusters "${buildRelease} && ./cmake-build-release/masssprings --output=clusters.puzzle --space=rh --moves=10 --blocks=4"
-            abbr -a runtests "${buildDebug} && ./cmake-build-debug/tests"
-            abbr -a runbenchs "mv -f benchs.json benchs.old.json; ${buildRelease} && sudo cpupower frequency-set --governor performance && ./cmake-build-release/benchmarks --benchmark_out=benchs.json --benchmark_out_format=console; sudo cpupower frequency-set --governor powersave"
-            abbr -a rungdb "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings"
-            abbr -a runvalgrind "${buildDebug} && valgrind --leak-check=full --show-reachable=no --show-leak-kinds=definite,indirect,possible --track-origins=no --suppressions=valgrind.supp --log-file=valgrind.log ./cmake-build-debug/masssprings && cat valgrind.log"
-            abbr -a runperf "${buildRelease} && perf record -g ./cmake-build-release/masssprings && hotspot ./perf.data"
-            abbr -a runperf-graph "${buildRelease} && perf record -g ./cmake-build-release/benchmarks --benchmark_filter='explore_state_space' && hotspot ./perf.data"
-            abbr -a runperf-space "${buildRelease} && perf record -g ./cmake-build-release/benchmarks --benchmark_filter='explore_rush_hour_puzzle_space' && hotspot ./perf.data"
-            abbr -a runtracy "tracy -a 127.0.0.1 &; ${buildRelease} && sudo -E ./cmake-build-release/masssprings"
+            build-debug = "${buildDebug}";
+            build-release = "${buildRelease}";
 
-            abbr -a runclion "clion ./CMakeLists.txt 2>/dev/null 1>&2 & disown;"
+            debug = "${buildDebug} && ./cmake-build-debug/masssprings";
+            release = "${buildRelease} && ./cmake-build-release/masssprings";
+            debug-clean = "${cmakeDebug} && ${buildDebug} && ./cmake-build-debug/masssprings";
+            release-clean = "${cmakeRelease} && ${buildRelease} && ./cmake-build-release/masssprings";
+
+            run = "${buildRelease} && ./cmake-build-release/masssprings";
+            runclusters = "${buildRelease} && ./cmake-build-release/masssprings --output=clusters.puzzle --space=rh --moves=10 --blocks=4";
+            runtests = "${buildDebug} && ./cmake-build-debug/tests";
+            runbenchs = "mv -f benchs.json benchs.old.json; ${buildRelease} && sudo cpupower frequency-set --governor performance && ./cmake-build-release/benchmarks --benchmark_out=benchs.json --benchmark_out_format=console; sudo cpupower frequency-set --governor powersave";
+            rungdb = "${buildDebug} && gdb --tui ./cmake-build-debug/masssprings";
+            runvalgrind = "${buildDebug} && valgrind --leak-check=full --show-reachable=no --show-leak-kinds=definite,indirect,possible --track-origins=no --suppressions=valgrind.supp --log-file=valgrind.log ./cmake-build-debug/masssprings && cat valgrind.log";
+            runperf = "${buildRelease} && perf record -g ./cmake-build-release/masssprings && hotspot ./perf.data";
+            runperf-graph = "${buildRelease} && perf record -g ./cmake-build-release/benchmarks --benchmark_filter='explore_state_space' && hotspot ./perf.data";
+            runperf-space = "${buildRelease} && perf record -g ./cmake-build-release/benchmarks --benchmark_filter='explore_rush_hour_puzzle_space' && hotspot ./perf.data";
+            runtracy = "tracy -a 127.0.0.1 &; ${buildRelease} && sudo -E ./cmake-build-release/masssprings";
+
+            runclion = "clion ./CMakeLists.txt 2>/dev/null 1>&2 & disown;";
+          };
+
+          eraseAbbr = name: value: ''abbr --erase ${name} 2>/dev/null'';
+          createAbbr = name: value: ''abbr -a ${name} "${value}"'';
+
+          # This will be sourced by the global fish config if INIT_PROJECT_SHELL gets unset
+          unloadProjectShell = pkgs.writers.writeFish "unload-shell.fish" ''
+            echo "Unloading \"${description}\" environment..."
+
+            ${builtins.concatStringsSep "\n" (lib.mapAttrsToList eraseAbbr abbrs)}
+          '';
+
+          # This will be sourced by the global fish config if INIT_PROJECT_SHELL gets set
+          initProjectShell = pkgs.writers.writeFish "init-shell.fish" ''
+            # Unload just in case, to not have redefinition errors
+            source ${unloadProjectShell}
+
+            echo "Sourcing \"${description}\" environment..."
+
+            ${builtins.concatStringsSep "\n" (lib.mapAttrsToList createAbbr abbrs)}
           '';
         in
           builtins.concatStringsSep "\n" [
             # Launch into pure fish shell
             ''
-              exec "$(type -p fish)" -C "source ${initProjectShell}"
+              # Can't do the "exec" with nix-direnv
+              # - The "exec fish" would call direnv again => Infinite loop
+              # - The shellHook is Bash/POSIX, so fish syntax doesn't work
+              # exec "$(type -p fish)" -C "source ${initProjectShell} && abbr -a menu '${pkgs.bat}/bin/bat "${initProjectShell}"'"
+
+              # Determine the project root, used e.g. in cmake scripts
+              export FLAKE_PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+              export INIT_PROJECT_SHELL="${initProjectShell}"
+              export UNLOAD_PROJECT_SHELL="${unloadProjectShell}"
             ''
           ];
 
