@@ -36,6 +36,10 @@ set(SOURCES
 include(FetchContent)
 find_package(raylib REQUIRED)
 find_package(GLEW REQUIRED)
+# Map Debug to the Release imported config so the real libGLEW.so is used.
+if(TARGET GLEW::GLEW)
+    set_target_properties(GLEW::GLEW PROPERTIES MAP_IMPORTED_CONFIG_DEBUG Release)
+endif()
 find_package(libmorton REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
 set(LIBS raylib GLEW::GLEW Boost::headers Boost::program_options)
