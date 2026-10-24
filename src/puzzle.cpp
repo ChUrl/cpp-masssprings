@@ -3,13 +3,22 @@
 #include "graph_distances.hpp"
 
 #include <algorithm>
-#include <set>
 #include <boost/program_options/detail/cmdline.hpp>
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <set>
 
-auto block::create_repr(const u8 x, const u8 y, const u8 w, const u8 h, const bool t, const bool i) -> u16
+auto block::create_repr(const u8 x, const u8 y, const u8 w, const u8 h, const bool t, const bool i)
+    -> u16
 {
-    return block().set_x(x).set_y(y).set_width(w).set_height(h).set_target(t).set_immovable(i).repr & ~INVALID;
+    return block()
+               .set_x(x)
+               .set_y(y)
+               .set_width(w)
+               .set_height(h)
+               .set_target(t)
+               .set_immovable(i)
+               .repr &
+        ~INVALID;
 }
 
 auto block::unpack_repr() const -> std::tuple<u8, u8, u8, u8, bool, bool>
@@ -99,21 +108,24 @@ auto puzzle::create_meta(const std::tuple<u8, u8, u8, u8, bool, bool>& meta) -> 
     return m;
 }
 
-auto puzzle::create_repr(const u8 w,
-                         const u8 h,
-                         const u8 tx,
-                         const u8 ty,
-                         const bool r,
-                         const bool g,
-                         const std::array<u16, MAX_BLOCKS>& b) -> repr_cooked
+auto puzzle::create_repr(const u8 w, const u8 h, const u8 tx, const u8 ty, const bool r,
+                         const bool g, const std::array<u16, MAX_BLOCKS>& b) -> repr_cooked
 {
-    repr_cooked repr = puzzle().set_width(w).set_height(h).set_goal_x(tx).set_goal_y(ty).set_restricted(r).set_goal(g).
-                                set_blocks(b).repr.cooked;
+    repr_cooked repr = puzzle()
+                           .set_width(w)
+                           .set_height(h)
+                           .set_goal_x(tx)
+                           .set_goal_y(ty)
+                           .set_restricted(r)
+                           .set_goal(g)
+                           .set_blocks(b)
+                           .repr.cooked;
     repr.meta &= ~INVALID;
     return repr;
 }
 
-auto puzzle::create_repr(const u64 byte_0, const u64 byte_1, const u64 byte_2, const u64 byte_3) -> repr_cooked
+auto puzzle::create_repr(const u64 byte_0, const u64 byte_1, const u64 byte_2, const u64 byte_3)
+    -> repr_cooked
 {
     repr_u repr{};
     repr.raw = std::array<u64, 4>{byte_0, byte_1, byte_2, byte_3};
@@ -213,10 +225,7 @@ auto puzzle::try_parse_string_repr(const std::string& string_repr) -> std::optio
     std::vector<u16> bs;
     std::array<u16, MAX_BLOCKS> blocks = invalid_blocks();
 
-    const auto digit = [&](const char c)
-    {
-        return std::string("0123456789").contains(c);
-    };
+    const auto digit = [&](const char c) { return std::string("0123456789").contains(c); };
 
     // S:[3x3]
     const auto parse_size = [&](size_t& pos)
@@ -364,7 +373,8 @@ auto puzzle::try_parse_string_repr(const std::string& string_repr) -> std::optio
         return std::nullopt;
     }
 
-    return create_repr(size.first, size.second, goal.first, goal.second, restricted, parsed_goal, blocks);
+    return create_repr(size.first, size.second, goal.first, goal.second, restricted, parsed_goal,
+                       blocks);
 }
 
 auto puzzle::valid() const -> bool
@@ -403,7 +413,8 @@ auto puzzle::try_get_invalid_reason() const -> std::optional<std::string>
         }
     }
 
-    if (get_goal() && b && gx > 0 && gx + b->get_width() < w && gy > 0 && gy + b->get_height() < h) {
+    if (get_goal() && b && gx > 0 && gx + b->get_width() < w && gy > 0 &&
+        gy + b->get_height() < h) {
         return "Goal Inside";
     }
 
@@ -832,21 +843,29 @@ auto puzzle::explore_state_space() const -> std::pair<std::vector<puzzle>, std::
         // Make a copy because references might be invalidated when inserting into the vector
         const puzzle current = state_pool[current_idx];
 
-        current.for_each_adjacent([&](const puzzle& p)
-        {
-            auto [it, inserted] = state_indices.emplace(p, state_pool.size());
-            if (inserted) {
-                state_pool.push_back(p);
-                queue.push_back(it->second);
-            }
-            links.emplace_back(current_idx, it->second);
-        });
+        current.for_each_adjacent(
+            [&](const puzzle& p)
+            {
+                auto [it, inserted] = state_indices.emplace(p, state_pool.size());
+                if (inserted) {
+                    state_pool.push_back(p);
+                    queue.push_back(it->second);
+                }
+
+                // Moves are reversible, so every undirected transition is discovered from both of
+                // its endpoints. Store it only once (from the lower to the higher index). Consumers
+                // (physics springs, distance BFS, renderer) all treat links as undirected.
+                if (current_idx < it->second) {
+                    links.emplace_back(current_idx, it->second);
+                }
+            });
     }
 
     return {std::move(state_pool), std::move(links)};
 }
 
-auto puzzle::get_cluster_id_and_solution() const -> std::tuple<puzzle, std::vector<puzzle>, bool, int>
+auto puzzle::get_cluster_id_and_solution() const
+    -> std::tuple<puzzle, std::vector<puzzle>, bool, int>
 {
     const auto& [puzzles, moves] = explore_state_space();
 
@@ -863,7 +882,8 @@ auto puzzle::get_cluster_id_and_solution() const -> std::tuple<puzzle, std::vect
 
     // TODO: We only need to search until a distance equal to min_moves is found.
     //       Maybe DFS instead of BFS could even be faster on average?
-    // TODO: Split moves from solvable calculation. We only need to count the moves if the cluster is solvable at all.
+    // TODO: Split moves from solvable calculation. We only need to count the moves if the cluster
+    // is solvable at all.
     graph_distances distances;
     distances.calculate_distances(puzzles.size(), moves, solutions);
 
@@ -877,10 +897,9 @@ auto puzzle::get_cluster_id_and_solution() const -> std::tuple<puzzle, std::vect
     return {min, puzzles, !solutions.empty(), max_distance};
 }
 
-auto puzzle::generate_block_sets(const puzzle& p,
-                                 const blockset2& permitted_blocks,
-                                 const block target_block,
-                                 const u8 max_blocks) -> std::vector<blockmap2<u8>>
+auto puzzle::generate_block_sets(const puzzle& p, const blockset2& permitted_blocks,
+                                 const block target_block, const u8 max_blocks)
+    -> std::vector<blockmap2<u8>>
 {
     std::vector<blockmap2<u8>> result;
 
@@ -896,7 +915,8 @@ auto puzzle::generate_block_sets(const puzzle& p,
     const u8 target_area = target_block.get_width() * target_block.get_height();
     for (const block& b : permitted_blocks) {
         const u8 block_area = block_areas[b];
-        max_counts[b] = std::min(max_blocks, static_cast<u8>((board_area - target_area) / block_area));
+        max_counts[b] =
+            std::min(max_blocks, static_cast<u8>((board_area - target_area) / block_area));
     }
 
     blockmap2<u8> current_set;
@@ -934,9 +954,9 @@ auto puzzle::generate_block_sets(const puzzle& p,
     return result;
 }
 
-auto puzzle::generate_initial_puzzles(const puzzle& p,
-                                      const block target_block,
-                                      const std::tuple<u8, u8, u8, u8>& target_block_pos_range) -> std::vector<puzzle>
+auto puzzle::generate_initial_puzzles(const puzzle& p, const block target_block,
+                                      const std::tuple<u8, u8, u8, u8>& target_block_pos_range)
+    -> std::vector<puzzle>
 {
     std::vector<puzzle> result;
 
@@ -948,12 +968,12 @@ auto puzzle::generate_initial_puzzles(const puzzle& p,
             t = t.set_x(tx);
             t = t.set_y(ty);
 
-            // This cannot happen if the target_block_pos_range is set correctly
-            #ifdef RUNTIME_CHECKS
+// This cannot happen if the target_block_pos_range is set correctly
+#ifdef RUNTIME_CHECKS
             if (!p.covers(t)) {
                 continue;
             }
-            #endif
+#endif
 
             std::array<u16, MAX_BLOCKS> blocks = invalid_blocks();
             blocks[0] = t.repr;
@@ -974,11 +994,9 @@ auto puzzle::generate_initial_puzzles(const puzzle& p,
     return result;
 }
 
-auto puzzle::explore_puzzle_space(const blockset2& permitted_blocks,
-                                  const block target_block,
+auto puzzle::explore_puzzle_space(const blockset2& permitted_blocks, const block target_block,
                                   const std::tuple<u8, u8, u8, u8>& target_block_pos_range,
-                                  const size_t max_blocks,
-                                  const int min_moves,
+                                  const size_t max_blocks, const int min_moves,
                                   const threadpool thread_pool) const -> puzzleset
 {
     const auto [w, h, gx, gy, r, g] = unpack_meta();
@@ -998,15 +1016,14 @@ auto puzzle::explore_puzzle_space(const blockset2& permitted_blocks,
     puzzleset visited_clusters;
     const puzzle empty_puzzle = puzzle(w, h, gx, gy, r, g);
 
-    // TODO: Don't use a hashmap for this, use denser vector representation for better recursion performance
-    // Call with max_blocks - 1 because the target is already placed
-    const std::vector<blockmap2<u8>> sets = generate_block_sets(empty_puzzle,
-                                                                permitted_blocks,
-                                                                target_block,
-                                                                max_blocks - 1);
+    // TODO: Don't use a hashmap for this, use denser vector representation for better recursion
+    // performance Call with max_blocks - 1 because the target is already placed
+    const std::vector<blockmap2<u8>> sets =
+        generate_block_sets(empty_puzzle, permitted_blocks, target_block, max_blocks - 1);
     traceln("Generated {} block inventories", sets.size());
 
-    const std::vector<puzzle> puzzles = generate_initial_puzzles(empty_puzzle, target_block, target_block_pos_range);
+    const std::vector<puzzle> puzzles =
+        generate_initial_puzzles(empty_puzzle, target_block, target_block_pos_range);
     traceln("Generated {} starting configurations", puzzles.size());
 
     int total = 0;
@@ -1028,12 +1045,10 @@ auto puzzle::explore_puzzle_space(const blockset2& permitted_blocks,
 
         {
             std::lock_guard<std::mutex> lock(print_mtx);
-            traceln("Placing inventory {} for starting configuration {}", current_inventory, current_puzzle);
+            traceln("Placing inventory {} for starting configuration {}", current_inventory,
+                    current_puzzle);
         }
-        place_block_set(p,
-                        set,
-                        bitmap,
-                        1,
+        place_block_set(p, set, bitmap, 1,
                         [&](const puzzle& _p)
                         {
                             // Sort the blocks, so identical puzzles get the same hash
@@ -1066,9 +1081,10 @@ auto puzzle::explore_puzzle_space(const blockset2& permitted_blocks,
                                 return;
                             }
 
-                            // TODO: This is the main issue. Need a lot of prefiltering/as much caching as I have memory
-                            const auto [cluster_id, statespace, winnable, max_moves] = sorted.
-                                get_cluster_id_and_solution();
+                            // TODO: This is the main issue. Need a lot of prefiltering/as much
+                            // caching as I have memory
+                            const auto [cluster_id, statespace, winnable, max_moves] =
+                                sorted.get_cluster_id_and_solution();
 
                             {
                                 std::lock_guard<std::mutex> lock(cache_mtx);
@@ -1082,7 +1098,8 @@ auto puzzle::explore_puzzle_space(const blockset2& permitted_blocks,
                                 if (visited_clusters.contains(cluster_id)) {
                                     ++duplicates;
                                 } else if (winnable && max_moves >= min_moves) {
-                                    // print_bitmap(cluster_id.blocks_bitmap(), _p.get_width(), _p.get_height(), "Found Cluster");
+                                    // print_bitmap(cluster_id.blocks_bitmap(), _p.get_width(),
+                                    // _p.get_height(), "Found Cluster");
                                     visited_clusters.emplace(cluster_id);
                                 }
                             }
@@ -1091,14 +1108,17 @@ auto puzzle::explore_puzzle_space(const blockset2& permitted_blocks,
 
     // Iterate through all starting configurations + inventories
     if (thread_pool) {
-        (*thread_pool)->submit_loop(0, puzzles.size() * sets.size(), place_blocks, LARGE_TASK_BLOCK_SIZE).wait();
+        (*thread_pool)
+            ->submit_loop(0, puzzles.size() * sets.size(), place_blocks, LARGE_TASK_BLOCK_SIZE)
+            .wait();
     } else {
         for (size_t i = 0; i < puzzles.size() * sets.size(); ++i) {
             place_blocks(i);
         }
     }
 
-    infoln("Found {} solvable clusters with at least {} required moves", visited_clusters.size(), min_moves);
+    infoln("Found {} solvable clusters with at least {} required moves", visited_clusters.size(),
+           min_moves);
     traceln("- Scanned {} puzzles", total);
     traceln("- {} belong to duplicate clusters", duplicates);
     traceln("- {} don't match the requirements", total - duplicates - visited_clusters.size());

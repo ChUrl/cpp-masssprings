@@ -1,8 +1,8 @@
 #ifndef MASS_SPRING_SYSTEM_HPP_
 #define MASS_SPRING_SYSTEM_HPP_
 
-#include "octree.hpp"
 #include "config.hpp"
+#include "octree.hpp"
 
 #include <optional>
 #include <raylib.h>
@@ -22,8 +22,20 @@ public:
 
     std::vector<spring> springs;
 
+private:
+    // Edge coloring for the parallel distance-constraint solve: no two springs of the same color
+    // share a mass, so each color can be projected in parallel without races.
+    std::vector<u32> spring_color;
+    std::vector<u32> color_offsets;   // CSR offsets into colored_springs, size max_color + 2
+    std::vector<u32> colored_springs; // spring indices grouped by color
+    u32 max_spring_color = 0;
+    bool coloring_dirty = true;
+
+    auto rebuild_coloring() -> void;
+
 public:
-    cpu_spring_system() {}
+    cpu_spring_system()
+    {}
 
     NO_COPY_NO_MOVE(cpu_spring_system);
 
@@ -36,12 +48,10 @@ public:
     auto calculate_spring_force(size_t s) -> void;
     auto calculate_spring_forces(threadpool thread_pool = std::nullopt) -> void;
     auto calculate_repulsion_forces(threadpool thread_pool = std::nullopt) -> void;
-    auto integrate_velocity(size_t m, float dt) -> void;
-    auto integrate_position(size_t m, float dt) -> void;
+    // Position-based distance constraints: project linked masses back to REST_LENGTH.
+    auto solve_distance_constraints(int iterations, threadpool thread_pool = std::nullopt) -> void;
     auto verlet_update(size_t m, float dt) -> void;
     auto update(float dt, threadpool thread_pool = std::nullopt) -> void;
-
-    auto center_masses(threadpool thread_pool = std::nullopt) -> void;
 };
 
 #endif

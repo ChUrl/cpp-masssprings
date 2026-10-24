@@ -4,7 +4,7 @@
 #include <raylib.h>
 
 // Calculate the octree parallel to the layout calculation.
-// Layout uses the octree from last frame.
+// Layout uses the octree (and its exact position snapshot) from the previous step.
 #define ASYNC_OCTREE
 
 // Gets set by CMake
@@ -13,20 +13,20 @@
 // #define TRACY      // Enable tracy profiling support
 
 #ifdef TRACY
-#include <tracy/Tracy.hpp>
+    #include <tracy/Tracy.hpp>
 #endif
 
 #if defined(_WIN32)
-#define NOGDI  // All GDI defines and routines
-#define NOUSER // All USER defines and routines
+    #define NOGDI  // All GDI defines and routines
+    #define NOUSER // All USER defines and routines
 #endif
 #define BS_THREAD_POOL_NATIVE_EXTENSIONS
 // ReSharper disable once CppUnusedIncludeDirective
 #include <BS_thread_pool.hpp>
 using threadpool = std::optional<BS::thread_pool<>* const>;
 #if defined(_WIN32) // raylib uses these names as function parameters
-#undef near
-#undef far
+    #undef near
+    #undef far
 #endif
 
 // Window
@@ -66,17 +66,40 @@ constexpr float TARGET_UPS = 90;             // How often to update physics
 constexpr float TIMESTEP = 1.0 / TARGET_UPS; // Update interval in seconds
 constexpr float SIM_SPEED = 4.0;             // How large each update should be
 constexpr float MASS = 1.0;                  // Mass spring system
-constexpr float SPRING_K = 4.0;              // Mass spring system
-constexpr float DAMPENING_K = 1.5;           // Mass spring system
-constexpr float REST_LENGTH = 3.0;           // Mass spring system
-constexpr float VERLET_DAMPENING = 0.1;      // [0, 1]
-constexpr float BH_FORCE = 2.5;              // Barnes-Hut [1.0, 3.0]
-constexpr float THETA = 1.0;                 // Barnes-Hut [0.5, 1.0]
-constexpr float SOFTENING = 0.05;            // Barnes-Hut [0.01, 1.0]
+// Transitions are stored once instead of once per direction, so these are doubled compared to
+// the old per-direction springs to keep the exact same forces.
+// Tension-only spring constant. Links can stretch so the graph expands under repulsion, while
+// compression below REST_LENGTH is handled by a hard positional constraint.
+constexpr float SPRING_K = 1.0; // Mass spring system
+// Explicit damping is stable only while DAMPENING_K * dt * max_degree < 2. Dense graph nodes
+// have 10-20 springs, so keep this small (3.0 was unstable and exploded).
+constexpr float DAMPENING_K = 0.5; // Mass spring system
+
+// Hard cap on the per-step displacement, so a bad force can never launch masses into the distance.
+constexpr float MAX_STEP = 1.0f;
+
+// Under-relaxation for the minimum-length link projection. Slightly below 1 damps local
+// oscillations in over-constrained clusters.
+constexpr float CONSTRAINT_RELAXATION = 0.8f;
+constexpr int CONSTRAINT_ITERATIONS = 1;
+// Project the minimum link lengths every N steps. The error from one skipped step is tiny; raise
+// this only if the layout stays stable.
+constexpr int CONSTRAINT_INTERVAL = 1;
+constexpr float REST_LENGTH = 3.0; // Mass spring system
+// Velocity is damped by this fraction every step (unconditionally stable).
+constexpr float VERLET_DAMPENING = 0.05; // [0, 1]
+
+constexpr float BH_FORCE = 3.0; // Barnes-Hut [1.0, 3.0]
+constexpr float THETA = 1.6;    // Barnes-Hut opening angle (1.5 is the usual accuracy limit)
+
+// Rebuild the octree every N physics steps. The tree and its query positions stay consistent,
+// so the lag is a whole configuration rather than a mismatched force field; still, watch for
+// wobbling if this is raised.
+constexpr size_t OCTREE_REBUILD_INTERVAL = 1;
+constexpr float SOFTENING = 0.05; // Barnes-Hut [0.01, 1.0]
 
 // Graph Drawing
 static const Color EDGE_COLOR = Fade(BLUE, 0.3);
-constexpr int DRAW_EDGES_LIMIT = 5'000'000;
 constexpr float VERTEX_SIZE = 0.75;
 constexpr int DRAW_VERTICES_LIMIT = 1'000'000;
 static const Color VERTEX_COLOR = Fade(BLUE, 0.8);
@@ -99,6 +122,8 @@ constexpr Color WALL_COLOR = BLACK;
 
 // Threadpool
 static constexpr int SMALL_TASK_BLOCK_SIZE = 256; // Weirdly larger blocks decrease performance...
-static constexpr int LARGE_TASK_BLOCK_SIZE = 256;
+// Barnes-Hut queries have very different costs depending on the local mass density. Blocks need
+// to be small enough for load balancing, but not so small that task overhead dominates.
+static constexpr int LARGE_TASK_BLOCK_SIZE = 64;
 
 #endif

@@ -49,9 +49,20 @@ class cpu_layout_engine
         std::condition_variable_any data_consumed_cnd;
         Vector3 mass_center = Vector3Zero();
         int ups = 0;
-        size_t mass_count = 0;       // For debug
-        size_t spring_count = 0;     // For debug
-        std::vector<Vector3> masses; // Read by renderer
+        size_t mass_count = 0;              // For debug
+        size_t spring_count = 0;            // For debug
+        float step_ms = 0.0f;               // For debug: smoothed physics compute time
+        float build_ms = 0.0f;              // For debug: snapshot + task submission
+        float tree_ms = 0.0f;               // For debug: actual octree build wall time
+        float tree_cpu_ms = 0.0f;           // For debug: actual octree build CPU time
+        float wait_ms = 0.0f;               // For debug: waiting for the async octree build
+        size_t tree_nodes = 0;              // For debug: nodes in the last built tree
+        size_t tree_children = 0;           // For debug: child entries in the last built tree
+        std::array<float, 6> tree_stages{}; // For debug: bbox/morton/sort/leaves/levels/flatten
+        float spring_ms = 0.0f;             // For debug: spring forces
+        float repulsion_ms = 0.0f;          // For debug: Barnes-Hut forces
+        float integrate_ms = 0.0f;          // For debug: integration
+        std::vector<Vector3> masses;        // Read by renderer
         bool data_ready = false;
         bool data_consumed = true;
 
@@ -66,8 +77,7 @@ public:
     physics_state state;
 
 public:
-    explicit cpu_layout_engine(
-        const threadpool _thread_pool = std::nullopt)
+    explicit cpu_layout_engine(const threadpool _thread_pool = std::nullopt)
         : thread_pool(_thread_pool), physics(physics_thread, std::ref(state), std::ref(thread_pool))
     {}
 
@@ -86,15 +96,13 @@ private:
     static auto set_octree_pool_thread_name(size_t idx) -> void;
 #endif
 
-    static auto physics_thread(physics_state& state,
-                               threadpool thread_pool) -> void;
+    static auto physics_thread(physics_state& state, threadpool thread_pool) -> void;
 
 public:
     auto clear_cmd() -> void;
     auto add_mass_cmd() -> void;
     auto add_spring_cmd(size_t a, size_t b) -> void;
-    auto add_mass_springs_cmd(size_t num_masses,
-                              const std::vector<spring>& springs) -> void;
+    auto add_mass_springs_cmd(size_t num_masses, const std::vector<spring>& springs) -> void;
 };
 
 #endif

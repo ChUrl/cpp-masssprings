@@ -1,18 +1,18 @@
 #include "config.hpp"
-#include "input_handler.hpp"
 #include "cpu_layout_engine.hpp"
+#include "input_handler.hpp"
 #include "renderer.hpp"
 #include "state_manager.hpp"
 #include "user_interface.hpp"
 
-#include <chrono>
-#include <mutex>
 #include <GL/glew.h>
-#include <raylib.h>
+#include <chrono>
 #include <filesystem>
+#include <mutex>
+#include <raylib.h>
 
 #if not defined(_WIN32)
-#include <boost/program_options.hpp>
+    #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 #endif
 
@@ -23,7 +23,8 @@ auto set_pool_thread_name(size_t idx) -> void
     BS::this_thread::set_os_thread_name(std::format("worker-{}", idx));
 }
 
-BS::thread_pool<> threads(std::thread::hardware_concurrency() - 2, set_pool_thread_name);
+const unsigned int hardware_threads = std::thread::hardware_concurrency();
+BS::thread_pool<> threads(hardware_threads > 2 ? hardware_threads - 2 : 1, set_pool_thread_name);
 constexpr threadpool thread_pool = &threads;
 #else
 constexpr threadpool thread_pool = std::nullopt;
@@ -49,13 +50,17 @@ std::tuple<u8, u8, u8, u8> target_block_pos_range;
 // TODO: Fix naming:
 //       - Target: The block that has to leave the board to win
 //       - Goal: The opening in the board for the target
-//       - Puzzle (not board or state): A puzzle configuration (width, height, goal_x, goal_y, restricted, goal)
+//       - Puzzle (not board or state): A puzzle configuration (width, height, goal_x, goal_y,
+//       restricted, goal)
 //       - Block: A puzzle block (x, y, width, height, target, immovable)
-//       - Puzzle State: A specific puzzle state (width, height, goal_x, goal_y, restricted, goal, blocks)
-//       - Cluster: A graph of puzzle states connected by moves, generated from a specific Puzzle State
+//       - Puzzle State: A specific puzzle state (width, height, goal_x, goal_y, restricted, goal,
+//       blocks)
+//       - Cluster: A graph of puzzle states connected by moves, generated from a specific Puzzle
+//       State
 //       - Puzzle Space: A number of Clusters generated from a generic Puzzle
 // TODO: Add state space generation time to debug overlay
-// TODO: Move selection accordingly when undoing moves (need to diff two states and get the moved blocks)
+// TODO: Move selection accordingly when undoing moves (need to diff two states and get the moved
+// blocks)
 
 auto ui_mode() -> int
 {
@@ -92,12 +97,24 @@ auto ui_mode() -> int
     std::vector<Vector3> masses; // Read from physics
     size_t mass_count = 0;
     size_t spring_count = 0;
+    float physics_step_ms = 0.0f;
+    float physics_build_ms = 0.0f;
+    float physics_tree_ms = 0.0f;
+    float physics_tree_cpu_ms = 0.0f;
+    float physics_wait_ms = 0.0f;
+    size_t physics_tree_nodes = 0;
+    size_t physics_tree_children = 0;
+    std::array<float, 6> physics_tree_stages{};
+    float physics_spring_ms = 0.0f;
+    float physics_repulsion_ms = 0.0f;
+    float physics_integrate_ms = 0.0f;
+    double render_ms = 0.0;
 
     // Game loop
     while (!WindowShouldClose()) {
-        #ifdef TRACY
+#ifdef TRACY
         FrameMarkStart("MainThread");
-        #endif
+#endif
 
         // Time tracking
         std::chrono::time_point now = std::chrono::high_resolution_clock::now();
@@ -108,25 +125,37 @@ auto ui_mode() -> int
         // Input update
         input.handle_input();
 
-        // Read positions from physics thread
-        #ifdef TRACY
+// Read positions from physics thread
+#ifdef TRACY
         FrameMarkStart("MainThreadConsumeLock");
-        #endif
+#endif
         {
-            #ifdef TRACY
+#ifdef TRACY
             std::unique_lock<LockableBase(std::mutex)> lock(physics.state.data_mtx);
-            #else
+#else
             std::unique_lock<std::mutex> lock(physics.state.data_mtx);
-            #endif
+#endif
 
             ups = physics.state.ups;
             mass_center = physics.state.mass_center;
             mass_count = physics.state.mass_count;
             spring_count = physics.state.spring_count;
+            physics_step_ms = physics.state.step_ms;
+            physics_build_ms = physics.state.build_ms;
+            physics_tree_ms = physics.state.tree_ms;
+            physics_tree_cpu_ms = physics.state.tree_cpu_ms;
+            physics_wait_ms = physics.state.wait_ms;
+            physics_tree_nodes = physics.state.tree_nodes;
+            physics_tree_children = physics.state.tree_children;
+            physics_tree_stages = physics.state.tree_stages;
+            physics_spring_ms = physics.state.spring_ms;
+            physics_repulsion_ms = physics.state.repulsion_ms;
+            physics_integrate_ms = physics.state.integrate_ms;
 
-            // Only copy data if any has been produced
+            // Take ownership of the published buffer (the physics thread reuses the one we give
+            // back on its next publish), avoiding a 5 MB copy in the render thread.
             if (physics.state.data_ready) {
-                masses = physics.state.masses;
+                masses.swap(physics.state.masses);
 
                 physics.state.data_ready = false;
                 physics.state.data_consumed = true;
@@ -136,32 +165,48 @@ auto ui_mode() -> int
                 physics.state.data_consumed_cnd.notify_all();
             }
         }
-        #ifdef TRACY
+#ifdef TRACY
         FrameMarkEnd("MainThreadConsumeLock");
-        #endif
+#endif
 
         // Update the camera after the physics, so target lock is smooth
         size_t current_index = state.get_current_index();
         if (masses.size() > current_index) {
             const Vector3& current_mass = masses[current_index];
-            camera.update(current_mass, mass_center, input.camera_lock, input.camera_mass_center_lock);
+            camera.update(current_mass, mass_center, input.camera_lock,
+                          input.camera_mass_center_lock);
         }
 
         // Rendering
+        const auto render_start = std::chrono::high_resolution_clock::now();
         renderer.render(masses, fps, ups, mass_count, spring_count);
+        const std::chrono::duration<double, std::milli> render_elapsed =
+            std::chrono::high_resolution_clock::now() - render_start;
+        render_ms = 0.9 * render_ms + 0.1 * render_elapsed.count();
 
         if (fps_accumulator.count() > 1.0) {
             // Update each second
             fps = loop_iterations;
             loop_iterations = 0;
             fps_accumulator = std::chrono::duration<double>(0);
+            infoln("fps={} ups={} masses={} springs={} render={:.1f}ms physics_step={:.1f}ms "
+                   "[build={:.1f} tree={:.1f} cpu={:.1f} wait={:.1f} spring={:.1f} repulse={:.1f} "
+                   "integrate={:.1f}] nodes={} children={} "
+                   "[bbox={:.1f} morton={:.1f} sort={:.1f} leaves={:.1f} levels={:.1f} "
+                   "flatten={:.1f}]",
+                   fps, ups, mass_count, spring_count, render_ms, physics_step_ms, physics_build_ms,
+                   physics_tree_ms, physics_tree_cpu_ms, physics_wait_ms, physics_spring_ms,
+                   physics_repulsion_ms, physics_integrate_ms, physics_tree_nodes,
+                   physics_tree_children, physics_tree_stages[0], physics_tree_stages[1],
+                   physics_tree_stages[2], physics_tree_stages[3], physics_tree_stages[4],
+                   physics_tree_stages[5]);
         }
         ++loop_iterations;
 
-        #ifdef TRACY
+#ifdef TRACY
         FrameMark;
         FrameMarkEnd("MainThread");
-        #endif
+#endif
     }
 
     CloseWindow();
@@ -176,12 +221,8 @@ auto rush_hour_puzzle_space() -> void
     goal_x = 4;
     goal_y = 2;
     restricted = true;
-    permitted_blocks = {
-        block(0, 0, 2, 1, false, false),
-        block(0, 0, 3, 1, false, false),
-        block(0, 0, 1, 2, false, false),
-        block(0, 0, 1, 3, false, false)
-    };
+    permitted_blocks = {block(0, 0, 2, 1, false, false), block(0, 0, 3, 1, false, false),
+                        block(0, 0, 1, 2, false, false), block(0, 0, 1, 3, false, false)};
     target_block = block(0, 0, 2, 1, true, false);
     target_block_pos_range = {0, goal_y, board_width - target_block.get_width(), goal_y};
 }
@@ -209,7 +250,8 @@ auto klotski_puzzle_space() -> void
 
 auto puzzle_space() -> int
 {
-    // We don't only pick max_blocks out of n (with duplicates), but also 1 out of n, 2, 3, ... max_blocks-1 out of n
+    // We don't only pick max_blocks out of n (with duplicates), but also 1 out of n, 2, 3, ...
+    // max_blocks-1 out of n
     int upper_set_count = 0;
     for (int i = 1; i <= max_blocks; ++i) {
         upper_set_count += binom(permitted_blocks.size() + i - 1, i);
@@ -234,12 +276,7 @@ auto puzzle_space() -> int
 
     STARTTIME;
     const puzzleset result = p.explore_puzzle_space(
-        permitted_blocks,
-        target_block,
-        target_block_pos_range,
-        max_blocks,
-        min_moves,
-        thread_pool);
+        permitted_blocks, target_block, target_block_pos_range, max_blocks, min_moves, thread_pool);
     ENDTIME(std::format("Found {} different clusters", result.size()), std::chrono::seconds, "s");
 
     // TODO: The exported clusters are the numerically smallest state of the cluster.
@@ -278,23 +315,28 @@ enum class runmode
 
 auto argparse(const int argc, char* argv[]) -> runmode
 {
-    #if not defined(_WIN32)
+#if not defined(_WIN32)
     po::options_description desc("Allowed options");
-    desc.add_options()                                                                                         //
-        ("help", "produce help message")                                                                       //
-        ("presets", po::value<std::string>()->default_value(preset_file), "load presets from file")            //
-        ("output", po::value<std::string>()->default_value(output_file), "output file for generated clusters") //
-        ("space", po::value<std::string>()->value_name("rh|klotski"), "generate puzzle space with ruleset")    //
-        // ("w", po::value<int>()->default_value(board_width)->value_name("[3, 8]"), "board width")                  //
-        // ("h", po::value<int>()->default_value(board_height)->value_name("[3, 8"), "board height")                 //
-        // ("gx", po::value<int>()->default_value(goal_x)->value_name("[0, w-1]"), "board goal horizontal position") //
-        // ("gy", po::value<int>()->default_value(goal_y)->value_name("[0, h-1]"), "board goal vertical position")   //
-        // ("free", "allow free block movement")                                                                     //
-        ("blocks",
-         po::value<int>()->default_value(max_blocks)->value_name("[1, 15]"),
+    desc.add_options()                   //
+        ("help", "produce help message") //
+        ("presets", po::value<std::string>()->default_value(preset_file),
+         "load presets from file") //
+        ("output", po::value<std::string>()->default_value(output_file),
+         "output file for generated clusters") //
+        ("space", po::value<std::string>()->value_name("rh|klotski"),
+         "generate puzzle space with ruleset") //
+        // ("w", po::value<int>()->default_value(board_width)->value_name("[3, 8]"), "board width")
+        // //
+        // ("h", po::value<int>()->default_value(board_height)->value_name("[3, 8"), "board height")
+        // //
+        // ("gx", po::value<int>()->default_value(goal_x)->value_name("[0, w-1]"), "board goal
+        // horizontal position") //
+        // ("gy", po::value<int>()->default_value(goal_y)->value_name("[0, h-1]"), "board goal
+        // vertical position")   //
+        // ("free", "allow free block movement") //
+        ("blocks", po::value<int>()->default_value(max_blocks)->value_name("[1, 15]"),
          "block limit for puzzle space generation") //
-        ("moves",
-         po::value<int>()->default_value(min_moves),
+        ("moves", po::value<int>()->default_value(min_moves),
          "only save puzzles with at least this many required moves") //
         ;
 
@@ -355,39 +397,39 @@ auto argparse(const int argc, char* argv[]) -> runmode
     if (vm.contains("presets")) {
         preset_file = vm["presets"].as<std::string>();
     }
-    #endif
+#endif
 
     return runmode::USER_INTERFACE;
 }
 
 auto main(const int argc, char* argv[]) -> int
 {
-    #ifdef BACKWARD
+#ifdef BACKWARD
     infoln("Backward stack-traces enabled.");
-    #else
+#else
     infoln("Backward stack-traces disabled.");
-    #endif
+#endif
 
-    #ifdef TRACY
+#ifdef TRACY
     infoln("Tracy adapter enabled.");
-    #else
+#else
     infoln("Tracy adapter disabled.");
-    #endif
+#endif
 
     infoln("Using background thread for physics.");
     infoln("Using linear octree + Barnes-Hut for graph layout.");
 
-    #ifdef ASYNC_OCTREE
+#ifdef ASYNC_OCTREE
     infoln("Using asynchronous octree build.");
-    #else
+#else
     infoln("Using synchronous octree build.");
-    #endif
+#endif
 
-    #ifdef THREADPOOL
+#ifdef THREADPOOL
     infoln("Additional thread-pool enabled ({} threads).", threads.get_thread_count());
-    #else
+#else
     infoln("Additional thread-pool disabled.");
-    #endif
+#endif
 
     switch (argparse(argc, argv)) {
     case runmode::USER_INTERFACE:

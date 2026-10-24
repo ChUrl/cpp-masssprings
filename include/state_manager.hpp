@@ -1,9 +1,9 @@
 #ifndef STATE_MANAGER_HPP_
 #define STATE_MANAGER_HPP_
 
+#include "cpu_layout_engine.hpp"
 #include "graph_distances.hpp"
 #include "load_save.hpp"
-#include "cpu_layout_engine.hpp"
 #include "puzzle.hpp"
 
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -27,11 +27,14 @@ private:
     std::vector<spring> links;       // Indices are equal to mass_springs springs indices
 
     graph_distances node_target_distances; // Buffered and reused if the graph doesn't change
-    boost::unordered_flat_set<size_t> winning_indices; // Indices of all states where the board is solved
-    std::vector<size_t> winning_path; // Ordered list of node indices leading to the nearest solved state
-    boost::unordered_flat_set<size_t> path_indices; // For faster lookup if a vertex is part of the path in renderer
+    boost::unordered_flat_set<size_t>
+        winning_indices; // Indices of all states where the board is solved
+    std::vector<size_t>
+        winning_path; // Ordered list of node indices leading to the nearest solved state
+    boost::unordered_flat_set<size_t>
+        path_indices; // For faster lookup if a vertex is part of the path in renderer
 
-    std::vector<size_t> move_history;                    // Moves between the starting state and the current state
+    std::vector<size_t> move_history; // Moves between the starting state and the current state
     boost::unordered_flat_map<size_t, int> visit_counts; // How often each state was visited
 
     size_t starting_state_index = 0;
@@ -80,7 +83,8 @@ private:
      * @param states List of states to insert
      * @param _links List of links to insert
      */
-    auto synced_insert_statespace(const std::vector<puzzle>& states, const std::vector<spring>& _links) -> void;
+    auto synced_insert_statespace(const std::vector<puzzle>& states,
+                                  const std::vector<spring>& _links) -> void;
 
     /**
      * Clears all states and links (and related) from the state_manager and the physics system.
@@ -137,7 +141,7 @@ public:
     [[nodiscard]] auto get_current_preset_comment() const -> const std::string&;
     [[nodiscard]] auto has_history() const -> bool;
     [[nodiscard]] auto has_distances() const -> bool;
-    [[nodiscard]] auto get_distances() const -> std::vector<int>;
+    [[nodiscard]] auto get_distances() const -> const std::vector<int>&;
     [[nodiscard]] auto get_total_moves() const -> size_t;
     [[nodiscard]] auto was_edited() const -> bool;
 };

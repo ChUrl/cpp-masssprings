@@ -232,9 +232,9 @@ auto state_manager::goto_closest_target_state() -> void
 
 auto state_manager::populate_graph() -> void
 {
-    #ifdef TRACY
+#ifdef TRACY
     ZoneScoped;
-    #endif
+#endif
 
     // Need to make a copy before clearing the state_pool
     const puzzle s = get_starting_state();
@@ -244,14 +244,17 @@ auto state_manager::populate_graph() -> void
     synced_clear_statespace();
 
     // Explore the entire statespace starting from the current state
-    const std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+    const std::chrono::high_resolution_clock::time_point start =
+        std::chrono::high_resolution_clock::now();
 
     const auto& [states, _links] = s.explore_state_space();
     synced_insert_statespace(states, _links);
 
-    const std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+    const std::chrono::high_resolution_clock::time_point end =
+        std::chrono::high_resolution_clock::now();
 
-    infoln("Explored puzzle. Took {}ms.", std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+    infoln("Explored puzzle. Took {}ms.",
+           std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
     infoln("State space has size {} with {} transitions.", state_pool.size(), links.size());
 
     current_state_index = state_indices[p];
@@ -298,9 +301,9 @@ auto state_manager::populate_winning_indices() -> void
 
 auto state_manager::populate_node_target_distances() -> void
 {
-    #ifdef TRACY
+#ifdef TRACY
     ZoneScoped;
-    #endif
+#endif
 
     if (links.empty() || winning_indices.empty()) {
         return;
@@ -429,7 +432,7 @@ auto state_manager::has_distances() const -> bool
     return !node_target_distances.empty();
 }
 
-auto state_manager::get_distances() const -> std::vector<int>
+auto state_manager::get_distances() const -> const std::vector<int>&
 {
     return node_target_distances.distances;
 }

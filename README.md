@@ -99,14 +99,16 @@ Inside the braces every cell contains either `_` or a block sized `W`×`H` that 
 
 ### Graph layout and physics
 
-Each puzzle state is a mass and each legal move is a spring connecting two masses. A spring pulls with a Hooke force (`SPRING_K`, rest length `REST_LENGTH`) and a velocity-dependent damping term. In addition, all pairs of masses repel each other.
+Each puzzle state is a mass and each legal move is a link. Links have a **hard minimum length** (`REST_LENGTH`): after integration, compressed links are projected back to that length (position-based dynamics). Above the minimum, a tension-only spring (`SPRING_K`) with velocity damping pulls linked masses together. In addition, all pairs of masses repel each other.
 
-Repulsion is calculated with Barnes-Hut using a linear octree built from Morton codes of the mass positions; distant nodes are approximated by their center of mass once the node's size-to-distance ratio exceeds `THETA`. The simulation runs in 3D at 90 updates per second using Verlet integration with slight damping. All tunable constants live in `include/config.hpp`.
+The minimum-length projection is what keeps dense clusters stable: there is no stiff spring/repulsion force balance at short range, which used to cause persistent jitter. Springs are projected in parallel using an edge coloring in which no two links of the same color share a mass.
 
-New masses are spawned close to their neighbor, so the graph initially "explodes" and then settles into clusters.
+Repulsion is calculated with Barnes-Hut using a linear octree built from Morton codes of the mass positions; distant nodes are approximated by their center of mass once the node's size-to-distance ratio exceeds `THETA`. Force queries use the exact position snapshot the tree was built from, so a lagged tree does not produce a mismatched force field. The simulation runs in 3D at 90 updates per second using Verlet integration with slight damping. All tunable constants live in `include/config.hpp`.
+
+New masses are spawned close to their neighbor, so the graph initially "explodes" and then settles into clusters. `OCTREE_REBUILD_INTERVAL` and `CONSTRAINT_INTERVAL` control how often the tree and the link projection are refreshed; both default to every step for stability.
 
 ### Threading model
 
 The layout engine runs on its own thread. The main thread submits commands (add mass, add spring, clear graph) through a mutex-protected queue, and the physics thread hands its positions back through a mutex-protected exchange with ready/consumed condition variables.
 
-When `ASYNC_OCTREE` is defined (the default), the octree for the next frame is built in parallel while forces are computed from the previous frame's tree. The optional `BS::thread_pool` (enabled by `THREADPOOL`) additionally parallelizes spring forces, repulsion forces and integration over `hardware_concurrency() - 2` threads.
+When `ASYNC_OCTREE` is defined (the default), the octree for the next frame is built on a dedicated thread while forces are computed from the previous tree. The optional `BS::thread_pool` (enabled by `THREADPOOL`) parallelizes spring forces, repulsion forces, the link projection and integration.
