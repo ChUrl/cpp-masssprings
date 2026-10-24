@@ -36,6 +36,7 @@ private:
     size_t edge_index_capacity = 0;
     size_t edge_index_count = 0;
     size_t edge_last_link_count = 0;
+    int edge_last_stride = 0;
     std::vector<u32> edge_indices;
     Shader edge_shader = LoadShader("shader/edge_vertex.glsl", "shader/edge_fragment.glsl");
     int edge_color_loc = -1;
@@ -59,9 +60,18 @@ private:
     bool color_mark_solutions = false;
     bool color_mark_path = false;
     bool color_by_distance_cached = false;
-    Mesh cube_instance = GenMeshCube(VERTEX_SIZE, VERTEX_SIZE, VERTEX_SIZE);
+    Mesh cube_instance = GenMeshCube(1.0f, 1.0f, 1.0f);
     Shader instancing_shader =
         LoadShader("shader/instancing_vertex.glsl", "shader/instancing_fragment.glsl");
+    int cube_scale_loc = -1;
+
+    Mesh quad_instance = GenMeshPlane(1.0f, 1.0f, 1, 1);
+    Shader billboard_shader =
+        LoadShader("shader/billboard_vertex.glsl", "shader/billboard_fragment.glsl");
+    int billboard_scale_loc = -1;
+    int billboard_right_loc = -1;
+    int billboard_up_loc = -1;
+
     unsigned int color_vbo_id = 0;
 
 public:
@@ -81,8 +91,14 @@ public:
         // Vertex instancing
         instancing_shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(instancing_shader, "mvp");
         GetShaderLocationAttrib(instancing_shader, "instancePosition");
-        instancing_shader.locs[SHADER_LOC_VECTOR_VIEW] =
-            GetShaderLocation(instancing_shader, "viewPos");
+        cube_scale_loc = GetShaderLocation(instancing_shader, "vertexScale");
+
+        billboard_shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(billboard_shader, "mvp");
+        GetShaderLocationAttrib(billboard_shader, "instancePosition");
+        GetShaderLocationAttrib(billboard_shader, "instanceColor");
+        billboard_scale_loc = GetShaderLocation(billboard_shader, "vertexScale");
+        billboard_right_loc = GetShaderLocation(billboard_shader, "cameraRight");
+        billboard_up_loc = GetShaderLocation(billboard_shader, "cameraUp");
 
         colors.reserve(DRAW_VERTICES_LIMIT);
         color_vbo_id = rlLoadVertexBuffer(nullptr, DRAW_VERTICES_LIMIT * sizeof(Color), true);
@@ -92,7 +108,14 @@ public:
         rlSetVertexAttribute(INSTANCE_COLOR_ATTR, 4, RL_UNSIGNED_BYTE, true, 0, 0);
         rlEnableVertexAttribute(INSTANCE_COLOR_ATTR);
         rlSetVertexAttributeDivisor(INSTANCE_COLOR_ATTR, 1);
+        rlDisableVertexBuffer();
+        rlDisableVertexArray();
 
+        rlEnableVertexArray(quad_instance.vaoId);
+        rlEnableVertexBuffer(color_vbo_id);
+        rlSetVertexAttribute(INSTANCE_COLOR_ATTR, 4, RL_UNSIGNED_BYTE, true, 0, 0);
+        rlEnableVertexAttribute(INSTANCE_COLOR_ATTR);
+        rlSetVertexAttributeDivisor(INSTANCE_COLOR_ATTR, 1);
         rlDisableVertexBuffer();
         rlDisableVertexArray();
     }
@@ -120,6 +143,8 @@ public:
         // Instancing
         UnloadMesh(cube_instance);
         UnloadShader(instancing_shader);
+        UnloadMesh(quad_instance);
+        UnloadShader(billboard_shader);
 
         rlUnloadVertexBuffer(color_vbo_id);
     }

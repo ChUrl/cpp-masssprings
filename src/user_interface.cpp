@@ -1,8 +1,11 @@
 #include "user_interface.hpp"
 #include "config.hpp"
 #include "input_handler.hpp"
+#include "settings.hpp"
 
+#include <algorithm>
 #include <raylib.h>
+#include <thread>
 
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
@@ -696,11 +699,16 @@ auto user_interface::draw_main_menu() -> void
 
     draw_menu_header(GRAY);
 
-    // Second compact row: controls overlay, settings (placeholder), save.
+    // Second compact row: controls overlay, settings overlay, save.
     if (draw_menu_button(0, 1, 1, 1, input.controls_open ? "Hide Controls" : "Controls", ORANGE)) {
         input.controls_open = !input.controls_open;
+        if (input.controls_open) {
+            input.settings_open = false;
+        }
     }
-    draw_menu_button(1, 1, 1, 1, "Settings", ORANGE);
+    if (draw_menu_button(1, 1, 1, 1, input.settings_open ? "Hide Settings" : "Settings", ORANGE)) {
+        input.toggle_settings();
+    }
     if (draw_menu_button(2, 1, 1, 1, "Save as Preset", GRAY)) {
         if (const std::optional<std::string>& reason =
                 state.get_current_state().try_get_invalid_reason()) {
@@ -741,6 +749,197 @@ auto user_interface::draw_controls_overlay() -> void
     draw_menu_footer(GRAY, 5);
 
     active_grid = &menu_grid;
+}
+
+auto user_interface::draw_settings_overlay() -> void
+{
+    if (!input.settings_open) {
+        return;
+    }
+
+    const int screen_width = GetScreenWidth();
+    const int screen_height = GetScreenHeight();
+    const int top = COMPACT_MENU_HEIGHT;
+
+    // Floating panel, not a full-window sheet: leave the graph/board visible around it.
+    const int margin = 24;
+    const int panel_width = std::min(screen_width - 2 * margin, 1000);
+    const int panel_height = std::max(240, std::min(screen_height - top - 2 * margin, 620));
+    const int panel_x = (screen_width - panel_width) / 2;
+    const int panel_y = top + margin;
+
+    DrawRectangle(panel_x + 4, panel_y + 4, panel_width, panel_height, Fade(BLACK, 0.16f));
+    DrawRectangle(panel_x, panel_y, panel_width, panel_height, Fade(get_background_color(), 0.98f));
+    DrawRectangleLines(panel_x, panel_y, panel_width, panel_height, BLACK);
+
+    simulation_settings cfg = get_settings();
+
+    // Left: section list.
+    const int list_x = panel_x + 8;
+    const int list_width = 190;
+    const int button_height = 38;
+    const int button_gap = 4;
+    const std::array<std::pair<settings_section, const char*>, 6> sections = {{
+        {settings_section::barnes_hut, "Barnes-Hut"},
+        {settings_section::physics, "Physics"},
+        {settings_section::links, "Links"},
+        {settings_section::camera, "Camera"},
+        {settings_section::rendering, "Rendering"},
+        {settings_section::performance, "Performance"},
+    }};
+
+    int list_y = panel_y + 8;
+    for (const auto& [section, label] : sections) {
+        const bool selected = settings_tab == section;
+        if (draw_button(Rectangle(static_cast<float>(list_x), static_cast<float>(list_y),
+                                  static_cast<float>(list_width),
+                                  static_cast<float>(button_height)),
+                        label, selected ? ORANGE : GRAY)) {
+            settings_tab = section;
+            settings_scroll = 0.0f;
+        }
+        list_y += button_height + button_gap;
+    }
+
+    const int footer_y = panel_y + panel_height - 2 * (button_height + button_gap) - 8;
+    if (draw_button(Rectangle(static_cast<float>(list_x), static_cast<float>(footer_y),
+                              static_cast<float>(list_width), static_cast<float>(button_height)),
+                    "Reset All", RED)) {
+        cfg = default_settings();
+        camera.fov = cfg.fov;
+        camera.distance = cfg.camera_distance;
+    }
+    if (draw_button(Rectangle(static_cast<float>(list_x),
+                              static_cast<float>(footer_y + button_height + button_gap),
+                              static_cast<float>(list_width), static_cast<float>(button_height)),
+                    "Close", GRAY)) {
+        input.settings_open = false;
+        save_settings();
+    }
+
+    // Right: scrollable parameter pane.
+    const int pane_x = list_x + list_width + 12;
+    const int pane_width = panel_x + panel_width - 12 - pane_x;
+    const int pane_top = panel_y + 8;
+    const int pane_height = panel_height - 16;
+
+    BeginScissorMode(pane_x, pane_top, pane_width, pane_height);
+    float row_y = static_cast<float>(pane_top) - settings_scroll;
+
+    const auto float_row = [&](const char* label, float& value, float min, float max)
+    {
+        draw_label(Rectangle(static_cast<float>(pane_x), row_y, static_cast<float>(pane_width), 22),
+                   std::format("{}: {:.3f}", label, value), BLACK);
+        GuiSlider(
+            Rectangle(static_cast<float>(pane_x), row_y + 22, static_cast<float>(pane_width), 24),
+            "", "", &value, min, max);
+        row_y += 58;
+    };
+    const auto int_row = [&](const char* label, int& value, int min, int max)
+    {
+        draw_label(
+            Rectangle(static_cast<float>(pane_x), row_y, static_cast<float>(pane_width - 110), 28),
+            label, BLACK);
+        GuiSpinner(Rectangle(static_cast<float>(pane_x + pane_width - 100), row_y, 100, 28), "", "",
+                   &value, min, max, false);
+        row_y += 38;
+    };
+    const auto bool_row = [&](const char* label, bool& value, bool enabled = true)
+    {
+        const int gui_state = GuiGetState();
+        if (!enabled) {
+            GuiSetState(STATE_DISABLED);
+        }
+        GuiCheckBox(Rectangle(static_cast<float>(pane_x), row_y + 2, 24, 24), "", &value);
+        GuiSetState(gui_state);
+        draw_label(Rectangle(static_cast<float>(pane_x + 32), row_y,
+                             static_cast<float>(pane_width - 32), 28),
+                   label, enabled ? BLACK : GRAY);
+        row_y += 32;
+    };
+    const auto info_row = [&](const std::string& text)
+    {
+        draw_label(Rectangle(static_cast<float>(pane_x), row_y, static_cast<float>(pane_width), 28),
+                   text, DARKGRAY);
+        row_y += 30;
+    };
+
+    switch (settings_tab) {
+    case settings_section::barnes_hut:
+        float_row("Theta", cfg.theta, 0.4f, 2.5f);
+        float_row("Repulsion strength", cfg.bh_force, 0.0f, 10.0f);
+        float_row("Softening", cfg.softening, 0.001f, 1.0f);
+        int_row("Tree depth", cfg.max_depth, 6, 12);
+        int_row("Rebuild interval", cfg.rebuild_interval, 1, 4);
+        bool_row("Async octree build", cfg.async_octree);
+        bool_row("GPU repulsion (not implemented)", cfg.gpu_repulsion, false);
+        break;
+    case settings_section::physics:
+        float_row("Simulation speed", cfg.sim_speed, 0.25f, 8.0f);
+        float_row("Target UPS", cfg.target_ups, 30.0f, 240.0f);
+        float_row("Verlet damping", cfg.verlet_dampening, 0.0f, 0.5f);
+        float_row("Mass", cfg.mass, 0.1f, 10.0f);
+        float_row("Max step", cfg.max_step, 0.1f, 5.0f);
+        break;
+    case settings_section::links:
+        float_row("Spring K", cfg.spring_k, 0.0f, 5.0f);
+        float_row("Spring damping", cfg.dampening_k, 0.0f, 1.5f);
+        float_row("Minimum length", cfg.rest_length, 0.5f, 15.0f);
+        int_row("Projection iterations", cfg.constraint_iterations, 1, 4);
+        float_row("Projection relaxation", cfg.constraint_relaxation, 0.1f, 1.0f);
+        int_row("Projection interval", cfg.constraint_interval, 1, 4);
+        float_row("Initial spread (next populate)", cfg.spawn_spread, 0.0f, 1.0f);
+        break;
+    case settings_section::camera:
+        {
+            const float old_fov = cfg.fov;
+            const float old_distance = cfg.camera_distance;
+            float_row("Field of view", cfg.fov, 10.0f, 540.0f);
+            float_row("Distance", cfg.camera_distance, 2.0f, 2000.0f);
+            float_row("Smoothing speed", cfg.camera_smooth_speed, 1.0f, 60.0f);
+            float_row("Zoom speed", cfg.zoom_speed, 0.1f, 10.0f);
+            float_row("FOV speed", cfg.fov_speed, 0.1f, 10.0f);
+            float_row("Pan speed", cfg.pan_speed, 0.1f, 10.0f);
+            float_row("Rotate speed", cfg.rot_speed, 0.1f, 10.0f);
+            if (std::fabs(cfg.fov - old_fov) > 1e-5f) {
+                camera.fov = cfg.fov;
+            }
+            if (std::fabs(cfg.camera_distance - old_distance) > 1e-5f) {
+                camera.distance = cfg.camera_distance;
+            }
+            break;
+        }
+    case settings_section::rendering:
+        float_row("Node size", cfg.vertex_size, 0.1f, 3.0f);
+        bool_row("Draw edges", cfg.draw_edges);
+        int_row("Edge stride", cfg.edge_stride, 1, 16);
+        bool_row("Billboard nodes", cfg.billboard_nodes);
+        bool_row("Show view labels", cfg.show_labels);
+        bool_row("Show physics debug", cfg.show_debug);
+        break;
+    case settings_section::performance:
+        int_row("Worker threads (0 = auto, restart)", cfg.worker_threads, 0, 64);
+        int_row("Small task block", cfg.small_task_block_size, 1, 4096);
+        int_row("Large task block", cfg.large_task_block_size, 1, 4096);
+        info_row("Worker count is applied at startup.");
+        break;
+    }
+
+    EndScissorMode();
+
+    const int content_height = static_cast<int>(row_y + settings_scroll) - pane_top;
+    const int max_scroll = std::max(0, content_height - pane_height);
+    if (CheckCollisionPointRec(GetMousePosition(),
+                               Rectangle(static_cast<float>(pane_x), static_cast<float>(pane_top),
+                                         static_cast<float>(pane_width),
+                                         static_cast<float>(pane_height)))) {
+        settings_scroll = Clamp(settings_scroll - GetMouseWheelMove() * 48.0f, 0.0f,
+                                static_cast<float>(max_scroll));
+    } else {
+        settings_scroll = Clamp(settings_scroll, 0.0f, static_cast<float>(max_scroll));
+    }
+
+    set_settings(cfg);
 }
 
 auto user_interface::draw_puzzle_board() -> void
@@ -871,19 +1070,23 @@ auto user_interface::draw_graph_overlay(int fps, int ups, size_t mass_count, siz
     graph_overlay_grid.update_bounds(GetScreenWidth() / 2, COMPACT_MENU_HEIGHT);
     debug_overlay_grid.update_bounds(GetScreenWidth() / 2, GetScreenHeight() - 75);
 
-    draw_label(graph_overlay_grid.bounds(0, 0, 1, 1),
-               std::format("Dist: {:0>7.2f}", camera.distance), BLACK);
-    draw_label(graph_overlay_grid.bounds(0, 1, 1, 1), std::format("FoV:  {:0>6.2f}", camera.fov),
-               BLACK);
-    draw_label(graph_overlay_grid.bounds(0, 2, 1, 1), std::format("FPS:  {:0>3}", fps), LIME);
-    draw_label(graph_overlay_grid.bounds(0, 3, 1, 1), std::format("UPS:  {:0>3}", ups), ORANGE);
+    const simulation_settings cfg = get_settings();
+    if (cfg.show_labels) {
+        draw_label(graph_overlay_grid.bounds(0, 0, 1, 1),
+                   std::format("Dist: {:0>7.2f}", camera.distance), BLACK);
+        draw_label(graph_overlay_grid.bounds(0, 1, 1, 1),
+                   std::format("FoV:  {:0>6.2f}", camera.fov), BLACK);
+        draw_label(graph_overlay_grid.bounds(0, 2, 1, 1), std::format("FPS:  {:0>3}", fps), LIME);
+        draw_label(graph_overlay_grid.bounds(0, 3, 1, 1), std::format("UPS:  {:0>3}", ups), ORANGE);
+    }
 
-    // Debug
-    draw_label(debug_overlay_grid.bounds(0, 0, 1, 1), std::format("Physics Debug:"), BLACK);
-    draw_label(debug_overlay_grid.bounds(0, 1, 1, 1), std::format("Masses:  {}", mass_count),
-               BLACK);
-    draw_label(debug_overlay_grid.bounds(0, 2, 1, 1), std::format("Springs: {}", spring_count),
-               BLACK);
+    if (cfg.show_debug) {
+        draw_label(debug_overlay_grid.bounds(0, 0, 1, 1), std::format("Physics Debug:"), BLACK);
+        draw_label(debug_overlay_grid.bounds(0, 1, 1, 1), std::format("Masses:  {}", mass_count),
+                   BLACK);
+        draw_label(debug_overlay_grid.bounds(0, 2, 1, 1), std::format("Springs: {}", spring_count),
+                   BLACK);
+    }
 }
 
 auto user_interface::draw(const int fps, const int ups, const size_t mass_count,
@@ -916,6 +1119,7 @@ auto user_interface::draw(const int fps, const int ups, const size_t mass_count,
 
     draw_graph_overlay(fps, ups, mass_count, spring_count);
     draw_controls_overlay();
+    draw_settings_overlay();
     draw_save_preset_popup();
     draw_ok_message_box();
     draw_yes_no_message_box();

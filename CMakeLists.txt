@@ -28,6 +28,7 @@ set(SOURCES
     src/orbit_camera.cpp
     src/puzzle.cpp
     src/renderer.cpp
+    src/settings.cpp
     src/state_manager.cpp
     src/user_interface.cpp
 )

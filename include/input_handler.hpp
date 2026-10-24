@@ -77,6 +77,7 @@ public:
     bool connect_solutions = false;
     bool color_by_distance = false;
     bool controls_open = false; // controls overlay expanded below the compact menu
+    bool settings_open = false; // settings overlay expanded below the compact menu
 
     // Camera
     bool camera_lock = true;
@@ -128,6 +129,7 @@ public:
     auto select_state() const -> void;
 
     // Key actions
+    auto toggle_settings() -> void;
     auto toggle_camera_lock() -> void;
     auto toggle_camera_mass_center_lock() -> void;
     auto toggle_camera_projection() const -> void;

@@ -1,5 +1,6 @@
 #include "orbit_camera.hpp"
 #include "config.hpp"
+#include "settings.hpp"
 
 #include <raylib.h>
 #include <raymath.h>
@@ -8,8 +9,9 @@ auto orbit_camera::rotate(const Vector2 last_mouse, const Vector2 mouse) -> void
 {
     const auto [dx, dy] = Vector2Subtract(mouse, last_mouse);
 
-    angle_x -= dx * ROT_SPEED / 200.0f;
-    angle_y += dy * ROT_SPEED / 200.0f;
+    const simulation_settings cfg = get_settings();
+    angle_x -= dx * cfg.rot_speed / 200.0f;
+    angle_y += dy * cfg.rot_speed / 200.0f;
 
     angle_y = Clamp(angle_y, -1.5, 1.5); // Prevent flipping
 }
@@ -18,11 +20,12 @@ auto orbit_camera::pan(const Vector2 last_mouse, const Vector2 mouse) -> void
 {
     const auto [dx, dy] = Vector2Subtract(mouse, last_mouse);
 
+    const simulation_settings cfg = get_settings();
     float speed;
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
-        speed = distance * PAN_SPEED / 1000.0f * PAN_MULTIPLIER;
+        speed = distance * cfg.pan_speed / 1000.0f * PAN_MULTIPLIER;
     } else {
-        speed = distance * PAN_SPEED / 1000.0f;
+        speed = distance * cfg.pan_speed / 1000.0f;
     }
 
     // The panning needs to happen in camera coordinates, otherwise rotating the
@@ -45,12 +48,12 @@ auto orbit_camera::update(const Vector3& current_target,
         if (mass_center_lock) {
             target = Vector3MoveTowards(target,
                                         mass_center,
-                                        CAMERA_SMOOTH_SPEED * GetFrameTime() * Vector3Length(
+                                        get_settings().camera_smooth_speed * GetFrameTime() * Vector3Length(
                                             Vector3Subtract(target, mass_center)));
         } else {
             target = Vector3MoveTowards(target,
                                         current_target,
-                                        CAMERA_SMOOTH_SPEED * GetFrameTime() * Vector3Length(
+                                        get_settings().camera_smooth_speed * GetFrameTime() * Vector3Length(
                                             Vector3Subtract(target, current_target)));
         }
     }

@@ -48,6 +48,12 @@ nix run git+https://gitea.local.chriphost.de/christoph/cpp-masssprings -- preset
 nix run git+https://gitea.local.chriphost.de/christoph/cpp-masssprings -- --space rh --output clusters.puzzle --blocks 4 --moves 10
 ```
 
+### Settings
+
+The **Settings** button in the top bar (or the **`,`** key) opens a live settings overlay: Barnes-Hut parameters, tree depth and rebuild interval, integration/physics constants, link and constraint parameters, camera speeds, rendering options (node size, edges, edge LOD stride, billboard nodes) and task block sizes. Changes apply immediately where possible; the tree depth is picked up by the next rebuild, the async-octree switch is applied on the next physics step, and the worker-thread count is applied at startup. The GPU-repulsion switch is a placeholder for now.
+
+Settings are persisted to `settings.ini` in the working directory on a clean exit and loaded at startup. **Reset All** restores the defaults.
+
 ## Technical
 
 ### Architecture
@@ -111,4 +117,4 @@ New masses are spawned close to their neighbor, so the graph initially "explodes
 
 The layout engine runs on its own thread. The main thread submits commands (add mass, add spring, clear graph) through a mutex-protected queue, and the physics thread hands its positions back through a mutex-protected exchange with ready/consumed condition variables.
 
-When `ASYNC_OCTREE` is defined (the default), the octree for the next frame is built on a dedicated thread while forces are computed from the previous tree. The optional `BS::thread_pool` (enabled by `THREADPOOL`) parallelizes spring forces, repulsion forces, the link projection and integration.
+When **Async octree build** is enabled in the settings (the default), the octree for the next frame is built on a dedicated thread while forces are computed from the previous tree; it can be switched at runtime. The optional `BS::thread_pool` (enabled by `THREADPOOL`) parallelizes spring forces, repulsion forces, the link projection and integration. Its worker count can be set in the settings (0 = automatic) and is applied at startup.

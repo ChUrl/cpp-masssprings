@@ -1,5 +1,6 @@
 #include "input_handler.hpp"
 #include "config.hpp"
+#include "settings.hpp"
 
 #include <raylib.h>
 
@@ -45,6 +46,7 @@ auto input_handler::init_handlers() -> void
     register_key_pressed_handler(KEY_O, &input_handler::toggle_connect_solutions);
     register_key_pressed_handler(KEY_Z, &input_handler::toggle_color_by_distance);
 
+    register_key_pressed_handler(KEY_COMMA, &input_handler::toggle_settings);
     register_key_pressed_handler(KEY_TAB, &input_handler::toggle_editing);
     register_key_pressed_handler(KEY_F, &input_handler::toggle_restricted_movement);
     register_key_pressed_handler(KEY_T, &input_handler::toggle_target_block);
@@ -69,6 +71,10 @@ auto input_handler::mouse_in_menu_pane() const -> bool
 
 auto input_handler::mouse_in_controls_overlay() const -> bool
 {
+    if (settings_open) {
+        return mouse.y >= COMPACT_MENU_HEIGHT;
+    }
+
     return controls_open && mouse.y >= COMPACT_MENU_HEIGHT &&
         mouse.y < COMPACT_MENU_HEIGHT + OVERLAY_ROWS * MENU_ROW_HEIGHT;
 }
@@ -143,11 +149,12 @@ auto input_handler::camera_zoom() const -> void
     }
 
     const float wheel = GetMouseWheelMove();
+    const float zoom_speed = get_settings().zoom_speed;
 
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
-        camera.distance -= wheel * ZOOM_SPEED * ZOOM_MULTIPLIER;
+        camera.distance -= wheel * zoom_speed * ZOOM_MULTIPLIER;
     } else {
-        camera.distance -= wheel * ZOOM_SPEED;
+        camera.distance -= wheel * zoom_speed;
     }
 }
 
@@ -158,11 +165,12 @@ auto input_handler::camera_fov() const -> void
     }
 
     const float wheel = GetMouseWheelMove();
+    const float fov_speed = get_settings().fov_speed;
 
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
-        camera.fov -= wheel * FOV_SPEED * FOV_MULTIPLIER;
+        camera.fov -= wheel * fov_speed * FOV_MULTIPLIER;
     } else {
-        camera.fov -= wheel * FOV_SPEED;
+        camera.fov -= wheel * fov_speed;
     }
 }
 
@@ -291,6 +299,16 @@ auto input_handler::select_state() const -> void
 
     const puzzle& selected = state.get_state(collision_mass);
     state.update_current_state(selected);
+}
+
+auto input_handler::toggle_settings() -> void
+{
+    settings_open = !settings_open;
+    if (settings_open) {
+        controls_open = false;
+    } else {
+        save_settings();
+    }
 }
 
 auto input_handler::toggle_camera_lock() -> void

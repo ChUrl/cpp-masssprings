@@ -2,6 +2,7 @@
 #define CAMERA_HPP_
 
 #include "config.hpp"
+#include "settings.hpp"
 
 #include <raylib.h>
 #include <raymath.h>
@@ -19,12 +20,22 @@ public:
 
     Camera camera = Camera{Vector3(0, 0, -distance), target, Vector3(0, 1.0, 0), fov, projection};
 
+    orbit_camera()
+    {
+        const simulation_settings cfg = get_settings();
+        distance = cfg.camera_distance;
+        fov = cfg.fov;
+        camera.position = Vector3(0, 0, -distance);
+        camera.fovy = fov;
+    }
+
 public:
     auto rotate(Vector2 last_mouse, Vector2 mouse) -> void;
 
     auto pan(Vector2 last_mouse, Vector2 mouse) -> void;
 
-    auto update(const Vector3& current_target, const Vector3& mass_center, bool lock, bool mass_center_lock) -> void;
+    auto update(const Vector3& current_target, const Vector3& mass_center, bool lock,
+                bool mass_center_lock) -> void;
 };
 
 #endif

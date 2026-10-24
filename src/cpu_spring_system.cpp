@@ -32,7 +32,7 @@ auto cpu_spring_system::add_mass() -> void
     //   static_cast<float>(GetRandomValue(-100, 100)), static_cast<float>(GetRandomValue(-100,
     //   100)), static_cast<float>(GetRandomValue(-100, 100))
     // };
-    // position = Vector3Scale(Vector3Normalize(position), REST_LENGTH * 2.0);
+    // position = Vector3Scale(Vector3Normalize(position), cfg.rest_length * 2.0);
 
     positions.emplace_back(Vector3Zero());
     previous_positions.emplace_back(Vector3Zero());
@@ -53,7 +53,7 @@ auto cpu_spring_system::add_spring(size_t a, size_t b) -> void
 
     // By spawning the masses close together, we "explode" them naturally, so they cluster faster
     // (also looks cool)
-    offset = Vector3Normalize(offset) * REST_LENGTH * 0.1;
+    offset = Vector3Normalize(offset) * cfg.rest_length * cfg.spawn_spread;
 
     // If the offset moves the mass closer to the current center of mass, flip it
     if (!tree.empty()) {
@@ -107,12 +107,12 @@ auto cpu_spring_system::calculate_spring_force(const size_t s) -> void
 
     // Tension-only spring: compression is handled positionally by the distance constraint, which
     // is what removes the stiff short-range force balance that used to jitter.
-    if (len <= REST_LENGTH) {
+    if (len <= cfg.rest_length) {
         return;
     }
 
-    const float hooke = SPRING_K * (len - REST_LENGTH);
-    const float dampening = DAMPENING_K * Vector3DotProduct(delta_vel, delta_pos) * inv_len;
+    const float hooke = cfg.spring_k * (len - cfg.rest_length);
+    const float dampening = cfg.dampening_k * Vector3DotProduct(delta_vel, delta_pos) * inv_len;
 
     const Vector3 a_force = Vector3Scale(delta_pos, -(hooke + dampening) * inv_len);
     const Vector3 b_force = a_force * -1.0f;
@@ -131,7 +131,7 @@ auto cpu_spring_system::calculate_spring_forces(const threadpool thread_pool) ->
 
     if (thread_pool) {
         (*thread_pool)
-            ->submit_loop(0, springs.size(), solve_spring_force, SMALL_TASK_BLOCK_SIZE)
+            ->submit_loop(0, springs.size(), solve_spring_force, cfg.small_task_block_size)
             .wait();
     } else {
         for (size_t i = 0; i < springs.size(); ++i) {
@@ -170,7 +170,7 @@ auto cpu_spring_system::calculate_repulsion_forces(const threadpool thread_pool)
 
     // Calculate forces using Barnes-Hut
     if (thread_pool) {
-        (*thread_pool)->submit_loop(0, count, solve_octree, LARGE_TASK_BLOCK_SIZE).wait();
+        (*thread_pool)->submit_loop(0, count, solve_octree, cfg.large_task_block_size).wait();
     } else {
         for (size_t i = 0; i < count; ++i) {
             solve_octree(i);
@@ -180,7 +180,7 @@ auto cpu_spring_system::calculate_repulsion_forces(const threadpool thread_pool)
 
 auto cpu_spring_system::verlet_update(const size_t m, const float dt) -> void
 {
-    const Vector3 acc = (forces[m] / MASS) * dt * dt;
+    const Vector3 acc = (forces[m] / cfg.mass) * dt * dt;
     const Vector3 pos = positions[m];
 
     // Velocity at the *start* of this step. The spring damping pass reads this array on the next
@@ -188,14 +188,14 @@ auto cpu_spring_system::verlet_update(const size_t m, const float dt) -> void
     velocities[m] = (pos - previous_positions[m]) / dt;
 
     Vector3 delta_pos = pos - previous_positions[m];
-    delta_pos *= 1.0 - VERLET_DAMPENING; // Minimal dampening
+    delta_pos *= 1.0 - cfg.verlet_dampening; // Minimal dampening
 
     Vector3 step = delta_pos + acc;
 
     // Safety net: never let a bad force launch a mass out of the scene.
     const float step_sq = Vector3LengthSqr(step);
-    if (step_sq > MAX_STEP * MAX_STEP) {
-        step *= MAX_STEP / std::sqrt(step_sq);
+    if (step_sq > cfg.max_step * cfg.max_step) {
+        step *= cfg.max_step / std::sqrt(step_sq);
     }
 
     positions[m] += step;
@@ -268,7 +268,7 @@ auto cpu_spring_system::solve_distance_constraints(const int iterations,
 
     // Rigid links: repulsion is the only force, so the springs no longer participate in a stiff
     // force balance that can jitter. Instead, after integration we project every linked pair
-    // back to REST_LENGTH (position-based dynamics). Colors are processed one after another;
+    // back to cfg.rest_length (position-based dynamics). Colors are processed one after another;
     // within a color no two springs share a mass, so the projection is race-free in parallel.
     const auto solve_spring = [&](const u32 spring_index)
     {
@@ -283,11 +283,11 @@ auto cpu_spring_system::solve_distance_constraints(const int iterations,
 
         // Hard minimum length only: stretched links are left to the tension-only spring force,
         // so the graph can still expand under repulsion.
-        if (len >= REST_LENGTH) {
+        if (len >= cfg.rest_length) {
             return;
         }
 
-        const float correction = (len - REST_LENGTH) / len * 0.5f * CONSTRAINT_RELAXATION;
+        const float correction = (len - cfg.rest_length) / len * 0.5f * cfg.constraint_relaxation;
 
         positions[a] -= delta * correction;
         positions[b] += delta * correction;
@@ -325,7 +325,7 @@ auto cpu_spring_system::update(const float dt, const threadpool thread_pool) -> 
     const auto update = [&](const int i) { verlet_update(i, dt); };
 
     if (thread_pool) {
-        (*thread_pool)->submit_loop(0, positions.size(), update, SMALL_TASK_BLOCK_SIZE).wait();
+        (*thread_pool)->submit_loop(0, positions.size(), update, cfg.small_task_block_size).wait();
     } else {
         for (size_t i = 0; i < positions.size(); ++i) {
             update(i);

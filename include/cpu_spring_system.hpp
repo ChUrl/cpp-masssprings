@@ -13,6 +13,8 @@ class cpu_spring_system
 {
 public:
     octree tree;
+    // Snapshot of the runtime settings, refreshed by the layout engine at the start of each step.
+    simulation_settings cfg;
 
     // This is the main ownership of all the states/masses/springs.
     std::vector<Vector3> positions;

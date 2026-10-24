@@ -2,14 +2,17 @@
 #include "cpu_layout_engine.hpp"
 #include "input_handler.hpp"
 #include "renderer.hpp"
+#include "settings.hpp"
 #include "state_manager.hpp"
 #include "user_interface.hpp"
 
 #include <GL/glew.h>
 #include <chrono>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <raylib.h>
+#include <thread>
 
 #if not defined(_WIN32)
     #include <boost/program_options.hpp>
@@ -23,9 +26,8 @@ auto set_pool_thread_name(size_t idx) -> void
     BS::this_thread::set_os_thread_name(std::format("worker-{}", idx));
 }
 
-const unsigned int hardware_threads = std::thread::hardware_concurrency();
-BS::thread_pool<> threads(hardware_threads > 2 ? hardware_threads - 2 : 1, set_pool_thread_name);
-constexpr threadpool thread_pool = &threads;
+std::unique_ptr<BS::thread_pool<>> threads;
+threadpool thread_pool = std::nullopt;
 #else
 constexpr threadpool thread_pool = std::nullopt;
 #endif
@@ -210,6 +212,7 @@ auto ui_mode() -> int
     }
 
     CloseWindow();
+    save_settings();
 
     return 0;
 }
@@ -404,6 +407,21 @@ auto argparse(const int argc, char* argv[]) -> runmode
 
 auto main(const int argc, char* argv[]) -> int
 {
+    load_settings();
+
+#ifdef THREADPOOL
+    {
+        const simulation_settings cfg = get_settings();
+        const unsigned int hardware = std::thread::hardware_concurrency();
+        const unsigned int default_workers = hardware > 2 ? hardware - 2 : 1;
+        const unsigned int workers = cfg.worker_threads > 0
+            ? static_cast<unsigned int>(cfg.worker_threads)
+            : default_workers;
+        threads = std::make_unique<BS::thread_pool<>>(std::max(1u, workers), set_pool_thread_name);
+        thread_pool = threads.get();
+    }
+#endif
+
 #ifdef BACKWARD
     infoln("Backward stack-traces enabled.");
 #else
@@ -419,14 +437,10 @@ auto main(const int argc, char* argv[]) -> int
     infoln("Using background thread for physics.");
     infoln("Using linear octree + Barnes-Hut for graph layout.");
 
-#ifdef ASYNC_OCTREE
-    infoln("Using asynchronous octree build.");
-#else
-    infoln("Using synchronous octree build.");
-#endif
+    infoln("Octree build mode: {}.", get_settings().async_octree ? "asynchronous" : "synchronous");
 
 #ifdef THREADPOOL
-    infoln("Additional thread-pool enabled ({} threads).", threads.get_thread_count());
+    infoln("Additional thread-pool enabled ({} threads).", threads->get_thread_count());
 #else
     infoln("Additional thread-pool disabled.");
 #endif

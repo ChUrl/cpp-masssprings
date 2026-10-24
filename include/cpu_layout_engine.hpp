@@ -92,9 +92,7 @@ public:
     }
 
 private:
-#ifdef ASYNC_OCTREE
     static auto set_octree_pool_thread_name(size_t idx) -> void;
-#endif
 
     static auto physics_thread(physics_state& state, threadpool thread_pool) -> void;
 

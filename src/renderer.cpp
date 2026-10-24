@@ -1,5 +1,6 @@
 #include "renderer.hpp"
 #include "config.hpp"
+#include "settings.hpp"
 
 #include <GL/glew.h>
 #include <raylib.h>
@@ -66,6 +67,15 @@ auto renderer::ensure_edge_buffers(const size_t mass_count, const size_t index_c
     rlSetVertexAttributeDivisor(INSTANCE_POSITION_ATTR, 1);
     rlDisableVertexBuffer();
     rlDisableVertexArray();
+
+    // Same for the billboard quad VAO.
+    rlEnableVertexArray(quad_instance.vaoId);
+    rlEnableVertexBuffer(edge_position_vbo_id);
+    rlSetVertexAttribute(INSTANCE_POSITION_ATTR, 3, RL_FLOAT, false, sizeof(Vector3), 0);
+    rlEnableVertexAttribute(INSTANCE_POSITION_ATTR);
+    rlSetVertexAttributeDivisor(INSTANCE_POSITION_ATTR, 1);
+    rlDisableVertexBuffer();
+    rlDisableVertexArray();
 }
 
 auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
@@ -85,17 +95,25 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
         ZoneNamedN(prepare_edge_buffers, "PrepareEdgeBuffers", true);
 #endif
 
+        const simulation_settings cfg = get_settings();
+        const int stride = std::max(1, cfg.edge_stride);
         const size_t link_count = state.get_link_count();
-        const bool rebuild_indices = link_count != edge_last_link_count;
+        const bool rebuild_indices =
+            link_count != edge_last_link_count || stride != edge_last_stride;
 
         if (rebuild_indices) {
             edge_indices.clear();
-            edge_indices.reserve(link_count * 2);
+            edge_indices.reserve((link_count / static_cast<size_t>(stride) + 1) * 2);
+            size_t link_index = 0;
             for (const auto& [from, to] : state.get_links()) {
+                if (link_index++ % static_cast<size_t>(stride) != 0) {
+                    continue;
+                }
                 edge_indices.push_back(static_cast<u32>(from));
                 edge_indices.push_back(static_cast<u32>(to));
             }
             edge_index_count = edge_indices.size();
+            edge_last_stride = stride;
         }
 
         ensure_edge_buffers(masses.size(), edge_index_count);
@@ -137,6 +155,9 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 #endif
 
         if (masses.size() < DRAW_VERTICES_LIMIT) {
+            const simulation_settings cfg = get_settings();
+            const float half_vertex = cfg.vertex_size / 2.0f;
+
             // Collisions
             // TODO: This would benefit greatly from a spatial data structure.
             //       Would it be worth to copy the octree from the physics thread?
@@ -154,10 +175,8 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
                 for (const auto& [x, y, z] : masses) {
                     const RayCollision collision = GetRayCollisionBox(
                         ray,
-                        BoundingBox{{x - VERTEX_SIZE / 2.0f, y - VERTEX_SIZE / 2.0f,
-                                     z - VERTEX_SIZE / 2.0f},
-                                    {x + VERTEX_SIZE / 2.0f, y + VERTEX_SIZE / 2.0f,
-                                     z + VERTEX_SIZE / 2.0f}});
+                        BoundingBox{{x - half_vertex, y - half_vertex, z - half_vertex},
+                                    {x + half_vertex, y + half_vertex, z + half_vertex}});
                     if (collision.hit) {
                         input.collision_mass = mass;
                         break;
@@ -278,7 +297,8 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
                                                  EDGE_COLOR.b / 255.0f, EDGE_COLOR.a / 255.0f};
         rlSetUniform(edge_color_loc, edge_color.data(), SHADER_UNIFORM_VEC4, 1);
 
-        if (edge_index_count > 0) {
+        const simulation_settings cfg = get_settings();
+        if (cfg.draw_edges && edge_index_count > 0) {
             glBindVertexArray(edge_vao_id);
             glDrawElements(GL_LINES, static_cast<GLsizei>(edge_index_count), GL_UNSIGNED_INT,
                            nullptr);
@@ -286,25 +306,6 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
         }
 
         rlDisableShader();
-
-        // This draws triangles:
-        // rlEnableVertexArray(edge_vao_id);
-        // rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
-        // rlDrawVertexArray(0, edge_vertices.size());
-        // rlDisableVertexArray();
-
-        // This is fucking slow:
-        // rlBegin(RL_LINES);
-        // for (const auto& [from, to] : state.get_links()) {
-        //     if (masses.size() > from && masses.size() > to) {
-        //         const auto& [ax, ay, az] = masses[from];
-        //         const auto& [bx, by, bz] = masses[to];
-        //         rlColor4ub(EDGE_COLOR.r, EDGE_COLOR.g, EDGE_COLOR.b, EDGE_COLOR.a);
-        //         rlVertex3f(ax, ay, az);
-        //         rlVertex3f(bx, by, bz);
-        //     }
-        // }
-        // rlEnd();
     }
 
     // Draw masses (instanced)
@@ -314,23 +315,51 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
 #endif
 
         if (masses.size() < DRAW_VERTICES_LIMIT) {
-            // Draw the cubes ourselves instead of using DrawMeshInstanced: raylib would upload a
-            // 64-byte matrix per instance, while the shader only needs the 12-byte position that
-            // is already in the shared position buffer.
-            rlEnableShader(instancing_shader.id);
+            const simulation_settings cfg = get_settings();
 
             Matrix modelview = rlGetMatrixModelview();
             Matrix projection = rlGetMatrixProjection();
             Matrix mvp = MatrixMultiply(modelview, projection);
-            rlSetUniformMatrix(instancing_shader.locs[SHADER_LOC_MATRIX_MVP], mvp);
 
-            glBindVertexArray(cube_instance.vaoId);
-            glDrawElementsInstanced(GL_TRIANGLES, cube_instance.triangleCount * 3,
-                                    GL_UNSIGNED_SHORT, nullptr,
-                                    static_cast<GLsizei>(masses.size()));
-            glBindVertexArray(0);
+            if (cfg.billboard_nodes) {
+                // Camera-facing quad; the fragment shader discards the corners to make it round.
+                rlEnableShader(billboard_shader.id);
+                rlSetUniformMatrix(billboard_shader.locs[SHADER_LOC_MATRIX_MVP], mvp);
+                rlSetUniform(billboard_scale_loc, &cfg.vertex_size, SHADER_UNIFORM_FLOAT, 1);
 
-            rlDisableShader();
+                const Vector3 forward =
+                    Vector3Normalize(camera.camera.target - camera.camera.position);
+                const Vector3 right =
+                    Vector3Normalize(Vector3CrossProduct(forward, camera.camera.up));
+                const Vector3 up = Vector3CrossProduct(right, forward);
+                const std::array<float, 3> right_values = {right.x, right.y, right.z};
+                const std::array<float, 3> up_values = {up.x, up.y, up.z};
+                rlSetUniform(billboard_right_loc, right_values.data(), SHADER_UNIFORM_VEC3, 1);
+                rlSetUniform(billboard_up_loc, up_values.data(), SHADER_UNIFORM_VEC3, 1);
+
+                glBindVertexArray(quad_instance.vaoId);
+                glDrawElementsInstanced(GL_TRIANGLES, quad_instance.triangleCount * 3,
+                                        GL_UNSIGNED_SHORT, nullptr,
+                                        static_cast<GLsizei>(masses.size()));
+                glBindVertexArray(0);
+
+                rlDisableShader();
+            } else {
+                // Draw the cubes ourselves instead of using DrawMeshInstanced: raylib would upload
+                // a 64-byte matrix per instance, while the shader only needs the 12-byte position
+                // that is already in the shared position buffer.
+                rlEnableShader(instancing_shader.id);
+                rlSetUniformMatrix(instancing_shader.locs[SHADER_LOC_MATRIX_MVP], mvp);
+                rlSetUniform(cube_scale_loc, &cfg.vertex_size, SHADER_UNIFORM_FLOAT, 1);
+
+                glBindVertexArray(cube_instance.vaoId);
+                glDrawElementsInstanced(GL_TRIANGLES, cube_instance.triangleCount * 3,
+                                        GL_UNSIGNED_SHORT, nullptr,
+                                        static_cast<GLsizei>(masses.size()));
+                glBindVertexArray(0);
+
+                rlDisableShader();
+            }
         }
     }
 
@@ -350,8 +379,8 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
     const size_t current_index = state.get_current_index();
     if (masses.size() > current_index) {
         const Vector3& current_mass = masses[current_index];
-        DrawCube(current_mass, VERTEX_SIZE * 2, VERTEX_SIZE * 2, VERTEX_SIZE * 2,
-                 VERTEX_CURRENT_COLOR);
+        const float size = get_settings().vertex_size * 2.0f;
+        DrawCube(current_mass, size, size, size, VERTEX_CURRENT_COLOR);
     }
 
     EndMode3D();
@@ -403,10 +432,11 @@ auto renderer::draw_textures(const int fps, const int ups, const size_t mass_cou
 
     // Draw borders
     DrawRectangleLinesEx(Rectangle(0, 0, GetScreenWidth(), COMPACT_MENU_HEIGHT), 1.0f, BLACK);
-    DrawRectangleLinesEx(
-        Rectangle(0, COMPACT_MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - COMPACT_MENU_HEIGHT), 1.0f,
-        BLACK);
-    DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0f, COMPACT_MENU_HEIGHT, GetScreenWidth() / 2.0f,
+    DrawRectangleLinesEx(Rectangle(0, COMPACT_MENU_HEIGHT, GetScreenWidth() / 2.0f,
+                                   GetScreenHeight() - COMPACT_MENU_HEIGHT),
+                         1.0f, BLACK);
+    DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0f, COMPACT_MENU_HEIGHT,
+                                   GetScreenWidth() / 2.0f,
                                    GetScreenHeight() - COMPACT_MENU_HEIGHT),
                          1.0f, BLACK);
 

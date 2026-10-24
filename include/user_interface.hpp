@@ -10,6 +10,18 @@
 
 class user_interface
 {
+public:
+    enum class settings_section : int
+    {
+        barnes_hut,
+        physics,
+        links,
+        camera,
+        rendering,
+        performance,
+    };
+
+private:
     class grid
     {
     public:
@@ -83,7 +95,9 @@ class user_interface
 private:
     input_handler& input;
     state_manager& state;
-    const orbit_camera& camera;
+    orbit_camera& camera;
+    settings_section settings_tab = settings_section::barnes_hut;
+    float settings_scroll = 0.0f;
 
     grid menu_grid =
         grid(0, 0, GetScreenWidth(), COMPACT_MENU_HEIGHT, MENU_COLS, COMPACT_MENU_ROWS, MENU_PAD);
@@ -115,7 +129,7 @@ private:
     bool help_window = false;
 
 public:
-    user_interface(input_handler& _input, state_manager& _state, const orbit_camera& _camera)
+    user_interface(input_handler& _input, state_manager& _state, orbit_camera& _camera)
         : input(_input), state(_state), camera(_camera)
     {
         init();
@@ -183,6 +197,7 @@ public:
     auto draw_yes_no_message_box() -> void;
     auto draw_main_menu() -> void;
     auto draw_controls_overlay() -> void;
+    auto draw_settings_overlay() -> void;
     auto draw_puzzle_board() -> void;
     auto draw_graph_overlay(int fps, int ups, size_t mass_count, size_t spring_count) -> void;
     auto draw(int fps, int ups, size_t mass_count, size_t spring_count) -> void;

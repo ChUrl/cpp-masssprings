@@ -2,6 +2,7 @@
 #define OCTREE_HPP_
 
 #include "config.hpp"
+#include "settings.hpp"
 #include "util.hpp"
 
 #include <array>
@@ -31,11 +32,9 @@ class octree
     static_assert(sizeof(node) == 32, "octree::node should stay compact for cache efficiency");
 
 private:
-    // 12 * 3 = 36 bits for the combined x/y/z morton-code. The cells only need to be fine
-    // enough to separate masses for Barnes-Hut; 12 bits per axis (4096^3 cells) is far more
-    // than float positions can resolve and keeps the sort key and the number of tree levels
-    // small. Any remaining cell collisions are resolved by the code-bumping pass.
-    static constexpr int MAX_DEPTH = 8;
+    // Upper bound for the configurable tree depth (12 * 3 = 36 Morton bits). The actual depth
+    // is a runtime setting in [6, MAX_DEPTH_LIMIT].
+    static constexpr int MAX_DEPTH_LIMIT = 12;
 
     struct leaf_ref
     {
@@ -59,6 +58,14 @@ private:
     // Layout is leaves first, then internal levels up to the root, so leaf nodes never have to
     // be copied into their final position.
     int root_idx = 0;
+
+    // Build-time configuration. Force queries use these exact values so the tree and the force
+    // model stay consistent even if the UI changes them later.
+    int depth = 8;
+    float theta = 1.6f;
+    float bh_force = 3.0f;
+    float softening = 0.05f;
+    float mass = 1.0f;
 
     // Child node indices, stored contiguously per parent. Kept out of `node` so that leaves
     // (the vast majority of nodes) don't waste 32 bytes on unused child slots.
@@ -112,7 +119,7 @@ private:
                                                           float box_max, int bits) -> u32;
 
     [[nodiscard]] INLINE static inline auto pos_to_morton(const Vector3& p, const Vector3& root_min,
-                                                          const Vector3& root_max) -> u64;
+                                                          const Vector3& root_max, int bits) -> u64;
 
     // Use this to obtain an ancestor node of a leaf node (on any level).
     // Because the morton codes (interleaved coordinates) encode the octree path, we can take
@@ -140,7 +147,8 @@ public:
 
     // Morton/linear octree implementation
     static auto build_octree_morton(octree& t, const std::vector<Vector3>& positions,
-                                    const std::optional<BS::thread_pool<>*>& thread_pool) -> void;
+                                    const std::optional<BS::thread_pool<>*>& thread_pool,
+                                    const simulation_settings& settings) -> void;
     [[nodiscard]] auto calculate_force_morton(int node_idx, const Vector3& pos, int self_id) const
         -> Vector3;
 };
@@ -163,11 +171,11 @@ INLINE inline auto octree::quantize_axis(const float coordinate, const float box
 }
 
 INLINE inline auto octree::pos_to_morton(const Vector3& p, const Vector3& root_min,
-                                         const Vector3& root_max) -> u64
+                                         const Vector3& root_max, const int bits) -> u64
 {
-    const u32 x = quantize_axis(p.x, root_min.x, root_max.x, MAX_DEPTH);
-    const u32 y = quantize_axis(p.y, root_min.y, root_max.y, MAX_DEPTH);
-    const u32 z = quantize_axis(p.z, root_min.z, root_max.z, MAX_DEPTH);
+    const u32 x = quantize_axis(p.x, root_min.x, root_max.x, bits);
+    const u32 y = quantize_axis(p.y, root_min.y, root_max.y, bits);
+    const u32 z = quantize_axis(p.z, root_min.z, root_max.z, bits);
     return libmorton::morton3D_64_encode(x, y, z);
 }
 

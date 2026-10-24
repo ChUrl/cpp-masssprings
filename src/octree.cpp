@@ -47,7 +47,8 @@ auto octree::root() const -> const node&
 
 // Replaced the 50 line recursive octree insertion with this morton bitch to gain 5 UPS, FML
 auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& positions,
-                                 const std::optional<BS::thread_pool<>*>& thread_pool) -> void
+                                 const std::optional<BS::thread_pool<>*>& thread_pool,
+                                 const simulation_settings& settings) -> void
 {
 #ifdef TRACY
     ZoneScoped;
@@ -57,6 +58,13 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
     if (positions.empty()) {
         return;
     }
+
+    t.depth = std::clamp(settings.max_depth, 6, MAX_DEPTH_LIMIT);
+    t.theta = settings.theta;
+    t.bh_force = settings.bh_force;
+    t.softening = settings.softening;
+    t.mass = settings.mass;
+    const int depth = t.depth;
 
     // Keep the exact configuration the tree is built from; force queries use this snapshot.
     t.snapshot = positions;
@@ -98,11 +106,11 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
     sort_container.resize(positions.size());
 
     const auto calculate_morton = [&](const u32 i)
-    { sort_container[i] = (pos_to_morton(positions[i], root_min, root_max) << 32) | i; };
+    { sort_container[i] = (pos_to_morton(positions[i], root_min, root_max, depth) << 32) | i; };
 
     if (thread_pool) {
         (*thread_pool)
-            ->submit_loop(0, positions.size(), calculate_morton, SMALL_TASK_BLOCK_SIZE)
+            ->submit_loop(0, positions.size(), calculate_morton, settings.small_task_block_size)
             .wait();
     } else {
         for (u32 i = 0; i < positions.size(); ++i) {
@@ -115,7 +123,7 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
     // codes, this provides us with "spatial locality" in the datastructure.
     //
     // The code lives in the upper 32 bits, so the radix sort only needs to touch the 3 *
-    // MAX_DEPTH code bits (2 passes at depth 8). Both buffers are reused across builds.
+    // depth-dependent code bits. Both buffers are reused across builds.
     {
         auto& sort_tmp = t.sort_tmp;
         sort_tmp.resize(sort_container.size());
@@ -123,7 +131,7 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
         auto* src = &sort_container;
         auto* dst = &sort_tmp;
 
-        for (int shift = 32; shift < 32 + 3 * MAX_DEPTH; shift += 12) {
+        for (int shift = 32; shift < 32 + 3 * depth; shift += 12) {
             std::array<u32, 1 << 12> histogram{};
             for (const u64 key : *src) {
                 ++histogram[(key >> shift) & 0xFFFu];
@@ -165,7 +173,7 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
     mark_stage(2);
 
     auto& tree_levels = t.level_scratch;
-    tree_levels.resize(MAX_DEPTH + 1);
+    tree_levels.resize(depth + 1);
     for (auto& level : tree_levels) {
         level.clear();
     }
@@ -180,7 +188,7 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
     t.nodes.clear();
     t.nodes.resize(sort_container.size());
 
-    const float leaf_size = root_extent / static_cast<float>(1u << MAX_DEPTH);
+    const float leaf_size = root_extent / static_cast<float>(1u << depth);
     for (u32 i = 0; i < static_cast<u32>(sort_container.size()); ++i) {
         const u64 key = sort_container[i];
         const u32 id = static_cast<u32>(key);
@@ -189,22 +197,22 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
         node& leaf = t.nodes[i];
         leaf.mass_id = static_cast<int>(id);
         leaf.size = leaf_size;
-        leaf.mass_total = MASS;
+        leaf.mass_total = t.mass;
         leaf.mass_center = pos; // exact (unjittered) position
         leaf.first_child = -1;
         leaf.child_count = 0;
 
         t.order[i] = id;
-        leaves[i] = {key >> 32, i, (i << 4) | MAX_DEPTH};
+        leaves[i] = {key >> 32, i, (i << 4) | static_cast<u32>(depth)};
     }
     mark_stage(3);
 
     auto& next_refs = t.next_refs_scratch;
 
-    // Build internal levels from MAX_DEPTH-1 to 0. Each element's ancestor is computed exactly
+    // Build internal levels from depth-1 to 0. Each element's ancestor is computed exactly
     // once per level (the previous version computed it again for every comparison), and the
     // working vectors are reused across levels and frames.
-    for (int current_depth = MAX_DEPTH - 1; current_depth >= 0; --current_depth) {
+    for (int current_depth = depth - 1; current_depth >= 0; --current_depth) {
         auto& current_level = tree_levels[current_depth];
         current_level.clear();
         next_refs.clear();
@@ -217,11 +225,11 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
         const float parent_size = root_extent / static_cast<float>(1u << current_depth);
 
         size_t group_begin = 0;
-        u64 key = path_to_ancestor(leaves[0].code, MAX_DEPTH, current_depth);
+        u64 key = path_to_ancestor(leaves[0].code, depth, current_depth);
         for (size_t i = 1; i <= leaves.size(); ++i) {
             const u64 next_key = (i < leaves.size())
-                ? path_to_ancestor(leaves[i].code, MAX_DEPTH, current_depth)
-                : ~0ull; // sentinel: cannot collide with a 3*MAX_DEPTH bit key
+                ? path_to_ancestor(leaves[i].code, depth, current_depth)
+                : ~0ull; // sentinel: cannot collide with a 3*depth bit key
             if (next_key == key) {
                 continue;
             }
@@ -250,7 +258,7 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
                 parent.size = parent_size;
                 parent.first_child = static_cast<int>(t.children.size());
                 parent.child_count = static_cast<u8>(group_size);
-                parent.mass_total = MASS * static_cast<float>(leaf_count);
+                parent.mass_total = t.mass * static_cast<float>(leaf_count);
                 parent.mass_center = Vector3Scale(center, 1.0f / static_cast<float>(leaf_count));
 
                 // Store packed local references; they are converted to global indices after all
@@ -277,19 +285,19 @@ auto octree::build_octree_morton(octree& t, const std::vector<Vector3>& position
     }
     mark_stage(4);
 
-    // Flatten levels: all depth 0 nodes come first, then depth 1, last depth MAX_DEPTH.
+    // Flatten internal levels, deepest first.
     // Leaves already occupy [0, leaf_count). Append internal levels from deepest to the root;
     // leaves are never copied.
-    std::array<int, MAX_DEPTH + 1> offsets{};
-    offsets[MAX_DEPTH] = 0;
+    std::array<int, MAX_DEPTH_LIMIT + 1> offsets{};
+    offsets[depth] = 0;
     int total = static_cast<int>(t.nodes.size());
-    for (int d = MAX_DEPTH - 1; d >= 0; --d) {
+    for (int d = depth - 1; d >= 0; --d) {
         offsets[d] = total;
         total += static_cast<int>(tree_levels[d].size());
     }
 
     t.nodes.reserve(total);
-    for (int d = MAX_DEPTH - 1; d >= 0; --d) {
+    for (int d = depth - 1; d >= 0; --d) {
         t.nodes.insert(t.nodes.end(), tree_levels[d].begin(), tree_levels[d].end());
     }
 
@@ -317,14 +325,14 @@ auto octree::calculate_force_morton(const int node_idx, const Vector3& pos, cons
     float fz = 0.0f;
 
     // A DFS over the octree can hold at most 7 pending siblings per level plus the
-    // current path, so 1 + 7 * MAX_DEPTH entries are enough. Keep the stack on the
+    // current path, so 1 + 7 * MAX_DEPTH_LIMIT entries are enough. Keep the stack on the
     // caller's stack: this function is called once per mass per physics update, and
     // a heap allocation here dominates large graphs.
-    std::array<int, 1 + 7 * MAX_DEPTH> stack{};
+    std::array<int, 1 + 7 * MAX_DEPTH_LIMIT> stack{};
     size_t stack_size = 0;
     stack[stack_size++] = node_idx;
 
-    constexpr float theta2 = THETA * THETA;
+    const float theta2 = theta * theta;
 
     while (stack_size > 0) {
         const int idx = stack[--stack_size];
@@ -341,12 +349,12 @@ auto octree::calculate_force_morton(const int node_idx, const Vector3& pos, cons
         const float dy = pos.y - n.mass_center.y;
         const float dz = pos.z - n.mass_center.z;
 
-        const float dist_sq = dx * dx + dy * dy + dz * dz + SOFTENING;
+        const float dist_sq = dx * dx + dy * dy + dz * dz + softening;
 
         // Barnes–Hut criterion
         if (is_leaf || ((n.size * n.size) / dist_sq) < theta2) {
             const float inv_dist = 1.0f / std::sqrt(dist_sq);
-            const float force_mag = (BH_FORCE * n.mass_total) / dist_sq; // ~ 1/r^2
+            const float force_mag = (bh_force * n.mass_total) / dist_sq; // ~ 1/r^2
             const float s = force_mag * inv_dist; // scale by 1/r to get vector
             fx += dx * s;
             fy += dy * s;
