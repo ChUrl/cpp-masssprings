@@ -1,9 +1,9 @@
 #ifndef USER_INTERFACE_HPP_
 #define USER_INTERFACE_HPP_
 
-#include "orbit_camera.hpp"
 #include "config.hpp"
 #include "input_handler.hpp"
+#include "orbit_camera.hpp"
 #include "state_manager.hpp"
 
 #include <raylib.h>
@@ -22,17 +22,15 @@ class user_interface
         const int padding;
 
     public:
-        grid(const int _x,
-             const int _y,
-             const int _width,
-             const int _height,
-             const int _columns,
-             const int _rows,
-             const int _padding)
-            : x(_x), y(_y), width(_width), height(_height), columns(_columns), rows(_rows), padding(_padding) {}
+        grid(const int _x, const int _y, const int _width, const int _height, const int _columns,
+             const int _rows, const int _padding)
+            : x(_x), y(_y), width(_width), height(_height), columns(_columns), rows(_rows),
+              padding(_padding)
+        {}
 
     public:
-        auto update_bounds(int _x, int _y, int _width, int _height, int _columns, int _rows) -> void;
+        auto update_bounds(int _x, int _y, int _width, int _height, int _columns, int _rows)
+            -> void;
         auto update_bounds(int _x, int _y, int _width, int _height) -> void;
         auto update_bounds(int _x, int _y) -> void;
 
@@ -40,7 +38,8 @@ class user_interface
         [[nodiscard]] auto bounds(int _x, int _y, int _width, int _height) const -> Rectangle;
 
         [[nodiscard]] auto square_bounds() const -> Rectangle;
-        [[nodiscard]] auto square_bounds(int _x, int _y, int _width, int _height) const -> Rectangle;
+        [[nodiscard]] auto square_bounds(int _x, int _y, int _width, int _height) const
+            -> Rectangle;
     };
 
     struct style
@@ -86,19 +85,23 @@ private:
     state_manager& state;
     const orbit_camera& camera;
 
-    grid menu_grid = grid(0, 0, GetScreenWidth(), MENU_HEIGHT, MENU_COLS, MENU_ROWS, MENU_PAD);
+    grid menu_grid =
+        grid(0, 0, GetScreenWidth(), COMPACT_MENU_HEIGHT, MENU_COLS, COMPACT_MENU_ROWS, MENU_PAD);
+    grid overlay_grid = grid(0, COMPACT_MENU_HEIGHT, GetScreenWidth(),
+                             OVERLAY_ROWS* MENU_ROW_HEIGHT, MENU_COLS, OVERLAY_ROWS, MENU_PAD);
+    // Menu helpers draw into whichever grid is currently active (compact bar or overlay).
+    mutable const grid* active_grid = &menu_grid;
 
-    grid board_grid = grid(0,
-                           MENU_HEIGHT,
-                           GetScreenWidth() / 2,
-                           GetScreenHeight() - MENU_HEIGHT,
-                           state.get_current_state().get_width(),
-                           state.get_current_state().get_height(),
-                           BOARD_PADDING);
+    grid board_grid =
+        grid(0, COMPACT_MENU_HEIGHT, GetScreenWidth() / 2, GetScreenHeight() - COMPACT_MENU_HEIGHT,
+             state.get_current_state().get_width(), state.get_current_state().get_height(),
+             BOARD_PADDING);
 
-    grid graph_overlay_grid = grid(GetScreenWidth() / 2, MENU_HEIGHT, 200, 100, 1, 4, MENU_PAD);
+    grid graph_overlay_grid =
+        grid(GetScreenWidth() / 2, COMPACT_MENU_HEIGHT, 200, 100, 1, 4, MENU_PAD);
 
-    grid debug_overlay_grid = grid(GetScreenWidth() / 2, GetScreenHeight() - 75, 200, 75, 1, 3, MENU_PAD);
+    grid debug_overlay_grid =
+        grid(GetScreenWidth() / 2, GetScreenHeight() - 75, 200, 75, 1, 3, MENU_PAD);
 
     // Windows
 
@@ -134,79 +137,43 @@ private:
 
     [[nodiscard]] static auto popup_bounds() -> Rectangle;
 
-    auto draw_button(Rectangle bounds,
-                     const std::string& label,
-                     Color color,
-                     bool enabled = true,
+    auto draw_button(Rectangle bounds, const std::string& label, Color color, bool enabled = true,
                      int font_size = FONT_SIZE) const -> int;
 
-    auto draw_menu_button(int x,
-                          int y,
-                          int width,
-                          int height,
-                          const std::string& label,
-                          Color color,
-                          bool enabled = true,
-                          int font_size = FONT_SIZE) const -> int;
+    auto draw_menu_button(int x, int y, int width, int height, const std::string& label,
+                          Color color, bool enabled = true, int font_size = FONT_SIZE) const -> int;
 
-    auto draw_toggle_slider(Rectangle bounds,
-                            const std::string& off_label,
-                            const std::string& on_label,
-                            int* active,
-                            Color color,
-                            bool enabled = true,
-                            int font_size = FONT_SIZE) const -> int;
+    auto draw_toggle_slider(Rectangle bounds, const std::string& off_label,
+                            const std::string& on_label, int* active, Color color,
+                            bool enabled = true, int font_size = FONT_SIZE) const -> int;
 
-    auto draw_menu_toggle_slider(int x,
-                                 int y,
-                                 int width,
-                                 int height,
-                                 const std::string& off_label,
-                                 const std::string& on_label,
-                                 int* active,
-                                 Color color,
-                                 bool enabled = true,
-                                 int font_size = FONT_SIZE) const -> int;
+    auto draw_menu_toggle_slider(int x, int y, int width, int height, const std::string& off_label,
+                                 const std::string& on_label, int* active, Color color,
+                                 bool enabled = true, int font_size = FONT_SIZE) const -> int;
 
-    auto draw_spinner(Rectangle bounds,
-                      const std::string& label,
-                      int* value,
-                      int min,
-                      int max,
-                      Color color,
-                      bool enabled = true,
-                      int font_size = FONT_SIZE) const -> int;
+    auto draw_spinner(Rectangle bounds, const std::string& label, int* value, int min, int max,
+                      Color color, bool enabled = true, int font_size = FONT_SIZE) const -> int;
 
-    auto draw_menu_spinner(int x,
-                           int y,
-                           int width,
-                           int height,
-                           const std::string& label,
-                           int* value,
-                           int min,
-                           int max,
-                           Color color,
-                           bool enabled = true,
+    auto draw_menu_spinner(int x, int y, int width, int height, const std::string& label,
+                           int* value, int min, int max, Color color, bool enabled = true,
                            int font_size = FONT_SIZE) const -> int;
 
-    auto draw_label(Rectangle bounds,
-                    const std::string& text,
-                    Color color,
-                    bool enabled = true,
+    auto draw_label(Rectangle bounds, const std::string& text, Color color, bool enabled = true,
                     int font_size = FONT_SIZE) const -> int;
 
-    auto draw_board_block(int x, int y, int width, int height, Color color, bool enabled = true) const -> bool;
+    auto draw_board_block(int x, int y, int width, int height, Color color,
+                          bool enabled = true) const -> bool;
 
     [[nodiscard]] auto window_open() const -> bool;
 
     // Different menu sections
     auto draw_menu_header(Color color) const -> void;
-    auto draw_graph_info(Color color) const -> void;
-    auto draw_graph_controls(Color color) const -> void;
-    auto draw_camera_controls(Color color) const -> void;
-    auto draw_puzzle_controls(Color color) const -> void;
-    auto draw_edit_controls(Color color) const -> void;
-    auto draw_menu_footer(Color color) -> void;
+    auto draw_graph_info(Color color, int row) const -> void;
+    auto draw_graph_controls(Color color, int row) const -> void;
+    auto draw_camera_controls(Color color, int row) const -> void;
+    auto draw_puzzle_controls(Color color, int row) const -> void;
+    auto draw_edit_controls(Color color, int row) const -> void;
+    auto draw_menu_footer(Color color, int row) -> void;
 
 public:
     static auto get_background_color() -> Color;
@@ -215,6 +182,7 @@ public:
     auto draw_ok_message_box() -> void;
     auto draw_yes_no_message_box() -> void;
     auto draw_main_menu() -> void;
+    auto draw_controls_overlay() -> void;
     auto draw_puzzle_board() -> void;
     auto draw_graph_overlay(int fps, int ups, size_t mass_count, size_t spring_count) -> void;
     auto draw(int fps, int ups, size_t mass_count, size_t spring_count) -> void;

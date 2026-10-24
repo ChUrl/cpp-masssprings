@@ -64,17 +64,25 @@ auto input_handler::init_handlers() -> void
 
 auto input_handler::mouse_in_menu_pane() const -> bool
 {
-    return mouse.y < MENU_HEIGHT;
+    return mouse.y < COMPACT_MENU_HEIGHT;
+}
+
+auto input_handler::mouse_in_controls_overlay() const -> bool
+{
+    return controls_open && mouse.y >= COMPACT_MENU_HEIGHT &&
+        mouse.y < COMPACT_MENU_HEIGHT + OVERLAY_ROWS * MENU_ROW_HEIGHT;
 }
 
 auto input_handler::mouse_in_board_pane() const -> bool
 {
-    return mouse.x < GetScreenWidth() / 2.0 && mouse.y >= MENU_HEIGHT;
+    return !mouse_in_controls_overlay() && mouse.x < GetScreenWidth() / 2.0 &&
+        mouse.y >= COMPACT_MENU_HEIGHT;
 }
 
 auto input_handler::mouse_in_graph_pane() const -> bool
 {
-    return mouse.x >= GetScreenWidth() / 2.0 && mouse.y >= MENU_HEIGHT;
+    return !mouse_in_controls_overlay() && mouse.x >= GetScreenWidth() / 2.0 &&
+        mouse.y >= COMPACT_MENU_HEIGHT;
 }
 
 auto input_handler::mouse_hover() -> void
@@ -129,7 +137,8 @@ auto input_handler::camera_stop_rotate() -> void
 
 auto input_handler::camera_zoom() const -> void
 {
-    if (!mouse_in_graph_pane() || IsKeyDown(KEY_LEFT_CONTROL) || camera.projection == CAMERA_ORTHOGRAPHIC) {
+    if (!mouse_in_graph_pane() || IsKeyDown(KEY_LEFT_CONTROL) ||
+        camera.projection == CAMERA_ORTHOGRAPHIC) {
         return;
     }
 
@@ -159,6 +168,10 @@ auto input_handler::camera_fov() const -> void
 
 auto input_handler::select_block() -> void
 {
+    if (mouse_in_menu_pane() || mouse_in_controls_overlay()) {
+        return;
+    }
+
     const puzzle& current = state.get_current_state();
     if (current.try_get_block(hov_x, hov_y)) {
         sel_x = hov_x;
@@ -168,9 +181,13 @@ auto input_handler::select_block() -> void
 
 auto input_handler::start_add_block() -> void
 {
+    if (mouse_in_menu_pane() || mouse_in_controls_overlay()) {
+        return;
+    }
+
     const puzzle& current = state.get_current_state();
-    if (!editing || current.try_get_block(hov_x, hov_y) || has_block_add_xy || current.block_count() >=
-        puzzle::MAX_BLOCKS) {
+    if (!editing || current.try_get_block(hov_x, hov_y) || has_block_add_xy ||
+        current.block_count() >= puzzle::MAX_BLOCKS) {
         return;
     }
 
@@ -194,9 +211,13 @@ auto input_handler::clear_add_block() -> void
 
 auto input_handler::add_block() -> void
 {
+    if (mouse_in_menu_pane() || mouse_in_controls_overlay()) {
+        return;
+    }
+
     const puzzle& current = state.get_current_state();
-    if (!editing || current.try_get_block(hov_x, hov_y) || !has_block_add_xy || current.block_count() >=
-        puzzle::MAX_BLOCKS) {
+    if (!editing || current.try_get_block(hov_x, hov_y) || !has_block_add_xy ||
+        current.block_count() >= puzzle::MAX_BLOCKS) {
         return;
     }
 
@@ -223,6 +244,10 @@ auto input_handler::add_block() -> void
 
 auto input_handler::remove_block() -> void
 {
+    if (mouse_in_menu_pane() || mouse_in_controls_overlay()) {
+        return;
+    }
+
     const puzzle& current = state.get_current_state();
     const std::optional<block>& b = current.try_get_block(hov_x, hov_y);
     if (!editing || has_block_add_xy || !b) {
@@ -289,7 +314,8 @@ auto input_handler::toggle_camera_mass_center_lock() -> void
 
 auto input_handler::toggle_camera_projection() const -> void
 {
-    camera.projection = camera.projection == CAMERA_PERSPECTIVE ? CAMERA_ORTHOGRAPHIC : CAMERA_PERSPECTIVE;
+    camera.projection =
+        camera.projection == CAMERA_PERSPECTIVE ? CAMERA_ORTHOGRAPHIC : CAMERA_PERSPECTIVE;
 }
 
 auto input_handler::move_block_nor() -> void
@@ -396,7 +422,8 @@ auto input_handler::goto_starting_state() -> void
         sel_y = 0;
     };
 
-    ui_commands.emplace(show_yes_no_message{"Reset Board?", "This Clears the Move History.", handler});
+    ui_commands.emplace(
+        show_yes_no_message{"Reset Board?", "This Clears the Move History.", handler});
 }
 
 auto input_handler::populate_graph() const -> void
@@ -406,12 +433,10 @@ auto input_handler::populate_graph() const -> void
 
 auto input_handler::clear_graph() -> void
 {
-    const auto handler = [&]
-    {
-        state.clear_graph_and_add_current();
-    };
+    const auto handler = [&] { state.clear_graph_and_add_current(); };
 
-    ui_commands.emplace(show_yes_no_message{"Clear Graph?", "This Clears the Move History.", handler});
+    ui_commands.emplace(
+        show_yes_no_message{"Clear Graph?", "This Clears the Move History.", handler});
 }
 
 auto input_handler::toggle_mark_solutions() -> void
@@ -567,38 +592,42 @@ auto input_handler::save_preset() -> void
         return;
     }
 
-    if (const std::optional<std::string>& reason = state.get_current_state().try_get_invalid_reason()) {
-        ui_commands.emplace(show_ok_message{"Can't Save Preset", std::format("Invalid Board: {}.", *reason)});
+    if (const std::optional<std::string>& reason =
+            state.get_current_state().try_get_invalid_reason()) {
+        ui_commands.emplace(
+            show_ok_message{"Can't Save Preset", std::format("Invalid Board: {}.", *reason)});
     } else {
         ui_commands.emplace(show_save_preset_window{});
     }
 }
 
-auto input_handler::register_generic_handler(const std::function<void(input_handler&)>& handler) -> void
+auto input_handler::register_generic_handler(const std::function<void(input_handler&)>& handler)
+    -> void
 {
     generic_handlers.push_back({handler});
 }
 
-auto input_handler::register_mouse_pressed_handler(const MouseButton button,
-                                                   const std::function<void(input_handler&)>& handler) -> void
+auto input_handler::register_mouse_pressed_handler(
+    const MouseButton button, const std::function<void(input_handler&)>& handler) -> void
 {
     mouse_pressed_handlers.push_back({{handler}, button});
 }
 
-auto input_handler::register_mouse_released_handler(const MouseButton button,
-                                                    const std::function<void(input_handler&)>& handler) -> void
+auto input_handler::register_mouse_released_handler(
+    const MouseButton button, const std::function<void(input_handler&)>& handler) -> void
 {
     mouse_released_handlers.push_back({{handler}, button});
 }
 
 auto input_handler::register_key_pressed_handler(const KeyboardKey key,
-                                                 const std::function<void(input_handler&)>& handler) -> void
+                                                 const std::function<void(input_handler&)>& handler)
+    -> void
 {
     key_pressed_handlers.push_back({{handler}, key});
 }
 
-auto input_handler::register_key_released_handler(const KeyboardKey key,
-                                                  const std::function<void(input_handler&)>& handler) -> void
+auto input_handler::register_key_released_handler(
+    const KeyboardKey key, const std::function<void(input_handler&)>& handler) -> void
 {
     key_released_handlers.push_back({{handler}, key});
 }

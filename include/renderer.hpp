@@ -19,12 +19,12 @@ private:
 
     const orbit_camera& camera;
     RenderTexture graph_target =
-        LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT);
+        LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - COMPACT_MENU_HEIGHT);
 
     // TODO: Those should be moved to the user_interface.h
     RenderTexture klotski_target =
-        LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - MENU_HEIGHT);
-    RenderTexture menu_target = LoadRenderTexture(GetScreenWidth(), MENU_HEIGHT);
+        LoadRenderTexture(GetScreenWidth() / 2, GetScreenHeight() - COMPACT_MENU_HEIGHT);
+    RenderTexture menu_target = LoadRenderTexture(GetScreenWidth(), COMPACT_MENU_HEIGHT);
 
     // Edges
     // The graph topology is static between populates, so the edge list is uploaded once as an

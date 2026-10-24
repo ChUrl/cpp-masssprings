@@ -41,6 +41,11 @@ constexpr int MENU_PAD = 5;
 constexpr int BUTTON_PAD = 12;
 constexpr int MENU_ROWS = 7;
 constexpr int MENU_COLS = 3;
+constexpr int MENU_ROW_HEIGHT = MENU_HEIGHT / MENU_ROWS;
+// Only two rows stay visible; the rest are shown as an overlay over the graph/board.
+constexpr int COMPACT_MENU_ROWS = 2;
+constexpr int COMPACT_MENU_HEIGHT = MENU_ROW_HEIGHT * COMPACT_MENU_ROWS;
+constexpr int OVERLAY_ROWS = MENU_ROWS - 1; // the old rows below the header
 constexpr const char* FONT = "fonts/SpaceMono.ttf";
 constexpr int FONT_SIZE = 26;
 

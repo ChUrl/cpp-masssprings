@@ -17,11 +17,11 @@ auto renderer::update_texture_sizes() -> void
     UnloadRenderTexture(menu_target);
 
     const int width = GetScreenWidth() / 2;
-    const int height = GetScreenHeight() - MENU_HEIGHT;
+    const int height = GetScreenHeight() - COMPACT_MENU_HEIGHT;
 
     graph_target = LoadRenderTexture(width, height);
     klotski_target = LoadRenderTexture(width, height);
-    menu_target = LoadRenderTexture(width * 2, MENU_HEIGHT);
+    menu_target = LoadRenderTexture(width * 2, COMPACT_MENU_HEIGHT);
 }
 
 auto renderer::ensure_edge_buffers(const size_t mass_count, const size_t index_count) -> void
@@ -146,7 +146,7 @@ auto renderer::draw_mass_springs(const std::vector<Vector3>& masses) -> void
                 ZoneNamedN(mass_collisions, "MassCollisions", true);
 #endif
                 const Ray ray = GetScreenToWorldRayEx(
-                    GetMousePosition() - Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT),
+                    GetMousePosition() - Vector2(GetScreenWidth() / 2.0f, COMPACT_MENU_HEIGHT),
                     camera.camera, graph_target.texture.width, graph_target.texture.height);
                 // Ray collision hit info
 
@@ -396,18 +396,18 @@ auto renderer::draw_textures(const int fps, const int ups, const size_t mass_cou
                    Vector2(0, 0), WHITE);
     DrawTextureRec(klotski_target.texture,
                    Rectangle(0, 0, klotski_target.texture.width, -klotski_target.texture.height),
-                   Vector2(0, MENU_HEIGHT), WHITE);
+                   Vector2(0, COMPACT_MENU_HEIGHT), WHITE);
     DrawTextureRec(graph_target.texture,
                    Rectangle(0, 0, graph_target.texture.width, -graph_target.texture.height),
-                   Vector2(GetScreenWidth() / 2.0f, MENU_HEIGHT), WHITE);
+                   Vector2(GetScreenWidth() / 2.0f, COMPACT_MENU_HEIGHT), WHITE);
 
     // Draw borders
-    DrawRectangleLinesEx(Rectangle(0, 0, GetScreenWidth(), MENU_HEIGHT), 1.0f, BLACK);
+    DrawRectangleLinesEx(Rectangle(0, 0, GetScreenWidth(), COMPACT_MENU_HEIGHT), 1.0f, BLACK);
     DrawRectangleLinesEx(
-        Rectangle(0, MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - MENU_HEIGHT), 1.0f,
+        Rectangle(0, COMPACT_MENU_HEIGHT, GetScreenWidth() / 2.0f, GetScreenHeight() - COMPACT_MENU_HEIGHT), 1.0f,
         BLACK);
-    DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0f, MENU_HEIGHT, GetScreenWidth() / 2.0f,
-                                   GetScreenHeight() - MENU_HEIGHT),
+    DrawRectangleLinesEx(Rectangle(GetScreenWidth() / 2.0f, COMPACT_MENU_HEIGHT, GetScreenWidth() / 2.0f,
+                                   GetScreenHeight() - COMPACT_MENU_HEIGHT),
                          1.0f, BLACK);
 
     gui.draw(fps, ups, mass_count, spring_count);

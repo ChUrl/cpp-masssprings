@@ -70,7 +70,7 @@ auto ui_mode() -> int
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
-    InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + MENU_HEIGHT, "MassSprings");
+    InitWindow(INITIAL_WIDTH * 2, INITIAL_HEIGHT + COMPACT_MENU_HEIGHT, "MassSprings");
 
     // GLEW setup
     glewExperimental = GL_TRUE;
