@@ -1,24 +1,26 @@
 #ifndef UTIL_HPP_
 #define UTIL_HPP_
 
-#include <vector>
+#include <atomic>
 #include <iostream>
 #include <raylib.h>
+#include <vector>
 
 #define INLINE __attribute__((always_inline))
 #define PACKED __attribute__((packed))
 
 #define STARTTIME const auto start = std::chrono::high_resolution_clock::now()
-#define ENDTIME(msg, cast, unit) const auto end = std::chrono::high_resolution_clock::now(); \
+#define ENDTIME(msg, cast, unit)                                                                   \
+    const auto end = std::chrono::high_resolution_clock::now();                                    \
     infoln("{}. Took {}{}.", msg, std::chrono::duration_cast<cast>(end - start).count(), unit)
 
 #define COMMENT if (false)
 
-#define NO_COPY_NO_MOVE(typename) \
-    typename(const typename& copy) = delete; \
-    auto operator=(const typename& copy) -> typename& = delete; \
-    typename(typename&& move) = delete; \
-    auto operator=(typename&& move) -> typename& = delete;
+#define NO_COPY_NO_MOVE(typename)                                                                  \
+    typename(const typename& copy) = delete;                                                       \
+    auto operator=(const typename& copy)->typename& = delete;                                      \
+    typename(typename && move) = delete;                                                           \
+    auto operator=(typename&& move)->typename& = delete;
 
 using u8 = uint8_t;
 using u16 = uint16_t;
@@ -120,37 +122,47 @@ inline auto operator<<(std::ostream& os, const Vector3& v) -> std::ostream&
     return os;
 }
 
+// Log level: 0 = off (warnings/errors still print), 1 = info, 2 = detailed (trace).
+extern std::atomic<int> g_log_level;
+
+inline auto log_enabled(const int level) -> bool
+{
+    return g_log_level.load(std::memory_order_relaxed) >= level;
+}
+
 // std::println doesn't work with mingw
 template <typename... Args>
 auto traceln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}TRACE{}]: ", ansi_bold_fg(fg::cyan), ansi_reset()) << std::format(
-        fmt,
-        std::forward<Args>(args)...) << std::endl;
+    if (!log_enabled(2)) {
+        return;
+    }
+    std::cout << std::format("[{}TRACE{}]: ", ansi_bold_fg(fg::cyan), ansi_reset())
+              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto infoln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}INFO{}]: ", ansi_bold_fg(fg::blue), ansi_reset()) << std::format(
-        fmt,
-        std::forward<Args>(args)...) << std::endl;
+    if (!log_enabled(1)) {
+        return;
+    }
+    std::cout << std::format("[{}INFO{}]: ", ansi_bold_fg(fg::blue), ansi_reset())
+              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto warnln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}WARNING{}]: ", ansi_bold_fg(fg::yellow), ansi_reset()) << std::format(
-        fmt,
-        std::forward<Args>(args)...) << std::endl;
+    std::cout << std::format("[{}WARNING{}]: ", ansi_bold_fg(fg::yellow), ansi_reset())
+              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto errln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}ERROR{}]: ", ansi_bold_fg(fg::red), ansi_reset()) << std::format(
-        fmt,
-        std::forward<Args>(args)...) << std::endl;
+    std::cout << std::format("[{}ERROR{}]: ", ansi_bold_fg(fg::red), ansi_reset())
+              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 #endif

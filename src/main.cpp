@@ -185,6 +185,7 @@ auto ui_mode() -> int
         const std::chrono::duration<double, std::milli> render_elapsed =
             std::chrono::high_resolution_clock::now() - render_start;
         render_ms = 0.9 * render_ms + 0.1 * render_elapsed.count();
+        gui.add_performance_sample(physics_step_ms, render_ms);
 
         if (fps_accumulator.count() > 1.0) {
             // Update each second
@@ -192,16 +193,29 @@ auto ui_mode() -> int
             loop_iterations = 0;
             fps_accumulator = std::chrono::duration<double>(0);
             infoln("fps={} ups={} masses={} springs={} render={:.1f}ms physics_step={:.1f}ms "
-                   "[build={:.1f} tree={:.1f} cpu={:.1f} wait={:.1f} spring={:.1f} repulse={:.1f} "
-                   "integrate={:.1f}] nodes={} children={} "
-                   "[bbox={:.1f} morton={:.1f} sort={:.1f} leaves={:.1f} levels={:.1f} "
-                   "flatten={:.1f}]",
-                   fps, ups, mass_count, spring_count, render_ms, physics_step_ms, physics_build_ms,
-                   physics_tree_ms, physics_tree_cpu_ms, physics_wait_ms, physics_spring_ms,
-                   physics_repulsion_ms, physics_integrate_ms, physics_tree_nodes,
-                   physics_tree_children, physics_tree_stages[0], physics_tree_stages[1],
-                   physics_tree_stages[2], physics_tree_stages[3], physics_tree_stages[4],
-                   physics_tree_stages[5]);
+                   "nodes={} children={}",
+                   fps, ups, mass_count, spring_count, render_ms, physics_step_ms,
+                   physics_tree_nodes, physics_tree_children);
+
+            const simulation_settings cfg = get_settings();
+            if (cfg.log_level >= 2) {
+                traceln("Frame: frame={:.2f}ms render={:.2f}ms physics={:.2f}ms fps={} ups={}",
+                        delta_time.count() * 1000.0, render_ms, physics_step_ms, fps, ups);
+                traceln("Physics: build={:.2f} tree={:.2f} cpu={:.2f} wait={:.2f} "
+                        "spring={:.2f} repulse={:.2f} integrate={:.2f}ms",
+                        physics_build_ms, physics_tree_ms, physics_tree_cpu_ms, physics_wait_ms,
+                        physics_spring_ms, physics_repulsion_ms, physics_integrate_ms);
+                traceln("Octree: nodes={} children={} bbox={:.2f} morton={:.2f} sort={:.2f} "
+                        "leaves={:.2f} levels={:.2f} flatten={:.2f}ms",
+                        physics_tree_nodes, physics_tree_children, physics_tree_stages[0],
+                        physics_tree_stages[1], physics_tree_stages[2], physics_tree_stages[3],
+                        physics_tree_stages[4], physics_tree_stages[5]);
+                traceln("Graph: masses={} springs={} center=({:.2f}, {:.2f}, {:.2f}) "
+                        "async={} depth={} rebuild={} constraint={}",
+                        mass_count, spring_count, mass_center.x, mass_center.y, mass_center.z,
+                        cfg.async_octree ? "on" : "off", cfg.max_depth, cfg.rebuild_interval,
+                        cfg.constraint_interval);
+            }
         }
         ++loop_iterations;
 

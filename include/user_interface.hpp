@@ -6,6 +6,8 @@
 #include "orbit_camera.hpp"
 #include "state_manager.hpp"
 
+#include <array>
+#include <cstddef>
 #include <raylib.h>
 
 class user_interface
@@ -98,6 +100,18 @@ private:
     orbit_camera& camera;
     settings_section settings_tab = settings_section::barnes_hut;
     float settings_scroll = 0.0f;
+
+    // Rolling per-frame timing samples for the performance graph (last 10 seconds).
+    struct performance_sample
+    {
+        double time;
+        float physics_ms;
+        float render_ms;
+    };
+    static constexpr size_t performance_capacity = 4096;
+    std::array<performance_sample, performance_capacity> performance_samples{};
+    size_t performance_head = 0;
+    size_t performance_count = 0;
 
     grid menu_grid =
         grid(0, 0, GetScreenWidth(), COMPACT_MENU_HEIGHT, MENU_COLS, COMPACT_MENU_ROWS, MENU_PAD);
@@ -200,6 +214,7 @@ public:
     auto draw_settings_overlay() -> void;
     auto draw_puzzle_board() -> void;
     auto draw_graph_overlay(int fps, int ups, size_t mass_count, size_t spring_count) -> void;
+    auto add_performance_sample(double physics_ms, double render_ms) -> void;
     auto draw(int fps, int ups, size_t mass_count, size_t spring_count) -> void;
 };
 

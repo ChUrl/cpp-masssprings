@@ -50,6 +50,9 @@ struct simulation_settings
     bool show_labels = true;
     bool show_debug = true;
 
+    // Logging
+    int log_level = 0; // 0 = off, 1 = info, 2 = detailed
+
     // Threading / performance
     int worker_threads = 0; // 0 = auto (hardware_concurrency - 2), applied at startup
     int small_task_block_size = 256;

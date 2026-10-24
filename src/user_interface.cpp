@@ -4,8 +4,10 @@
 #include "settings.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <raylib.h>
 #include <thread>
+#include <vector>
 
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
@@ -751,6 +753,14 @@ auto user_interface::draw_controls_overlay() -> void
     active_grid = &menu_grid;
 }
 
+auto user_interface::add_performance_sample(const double physics_ms, const double render_ms) -> void
+{
+    performance_samples[performance_head] = {GetTime(), static_cast<float>(physics_ms),
+                                             static_cast<float>(render_ms)};
+    performance_head = (performance_head + 1) % performance_capacity;
+    performance_count = std::min(performance_count + 1, performance_capacity);
+}
+
 auto user_interface::draw_settings_overlay() -> void
 {
     if (!input.settings_open) {
@@ -918,11 +928,145 @@ auto user_interface::draw_settings_overlay() -> void
         bool_row("Show physics debug", cfg.show_debug);
         break;
     case settings_section::performance:
-        int_row("Worker threads (0 = auto, restart)", cfg.worker_threads, 0, 64);
-        int_row("Small task block", cfg.small_task_block_size, 1, 4096);
-        int_row("Large task block", cfg.large_task_block_size, 1, 4096);
-        info_row("Worker count is applied at startup.");
-        break;
+        {
+            int_row("Log level (0 off, 1 info, 2 detailed)", cfg.log_level, 0, 2);
+            int_row("Worker threads (0 = auto, restart)", cfg.worker_threads, 0, 64);
+            int_row("Small task block", cfg.small_task_block_size, 1, 4096);
+            int_row("Large task block", cfg.large_task_block_size, 1, 4096);
+            info_row("Worker count applies at startup; log level is live.");
+
+            // Rolling physics/render timing graph: milliseconds over the last 10 seconds.
+            const int graph_height = 210;
+            const int graph_x = pane_x;
+            const int graph_y = static_cast<int>(row_y);
+            const int graph_w = pane_width;
+
+            DrawRectangle(graph_x, graph_y, graph_w, graph_height, Fade(RAYWHITE, 0.92f));
+            DrawRectangleLines(graph_x, graph_y, graph_w, graph_height, BLACK);
+
+            const int axis_left = 44;
+            const int axis_right = 10;
+            const int axis_top = 28;
+            const int axis_bottom = 20;
+            const int plot_x = graph_x + axis_left;
+            const int plot_y = graph_y + axis_top;
+            const int plot_w = graph_w - axis_left - axis_right;
+            const int plot_h = graph_height - axis_top - axis_bottom;
+
+            const double now = GetTime();
+            const double window_start = now - 10.0;
+            const Color physics_color = RED;
+            const Color render_color = BLUE;
+
+            float max_ms = 16.7f; // baseline: one 60 Hz frame
+            size_t visible_count = 0;
+            std::vector<float> visible_values;
+            visible_values.reserve(performance_count * 2);
+            for (size_t i = 0; i < performance_count; ++i) {
+                const size_t index =
+                    (performance_head + performance_capacity - performance_count + i) %
+                    performance_capacity;
+                const performance_sample& sample = performance_samples[index];
+                if (sample.time < window_start) {
+                    continue;
+                }
+                ++visible_count;
+                visible_values.push_back(sample.physics_ms);
+                visible_values.push_back(sample.render_ms);
+            }
+            // Scale to the 95th percentile so occasional hitches don't flatten the graph;
+            // values above the top are clamped to the top edge.
+            if (!visible_values.empty()) {
+                const size_t percentile_index = std::min(
+                    visible_values.size() - 1, static_cast<size_t>(visible_values.size() * 0.95));
+                std::nth_element(visible_values.begin(), visible_values.begin() + percentile_index,
+                                 visible_values.end());
+                max_ms = std::max(max_ms, visible_values[percentile_index] * 1.1f);
+            }
+            max_ms = std::ceil(max_ms / 5.0f) * 5.0f;
+
+            for (int i = 0; i <= 4; ++i) {
+                const int y = plot_y + plot_h - (plot_h * i) / 4;
+                DrawLine(plot_x, y, plot_x + plot_w, y, Fade(BLACK, 0.14f));
+                DrawText(TextFormat("%.1f", max_ms * static_cast<float>(i) / 4.0f), graph_x + 4,
+                         y - 7, 14, DARKGRAY);
+            }
+            DrawText("ms", graph_x + 4, graph_y + 4, 14, DARKGRAY);
+
+            for (int i = 0; i <= 2; ++i) {
+                const int x = plot_x + (plot_w * i) / 2;
+                DrawLine(x, plot_y, x, plot_y + plot_h, Fade(BLACK, 0.10f));
+                if (i == 2) {
+                    const int label_width = MeasureText("now", 14);
+                    DrawText("now", x - label_width, plot_y + plot_h + 4, 14, DARKGRAY);
+                } else {
+                    DrawText(TextFormat("-%ds", (2 - i) * 5), x + (i == 0 ? 2 : -8),
+                             plot_y + plot_h + 4, 14, DARKGRAY);
+                }
+            }
+
+            int legend_x = plot_x;
+            const auto legend = [&](const char* name, const Color color, const float value)
+            {
+                DrawLineEx(
+                    Vector2(static_cast<float>(legend_x), static_cast<float>(graph_y + 14)),
+                    Vector2(static_cast<float>(legend_x + 18), static_cast<float>(graph_y + 14)),
+                    2.0f, color);
+                DrawText(TextFormat("%s %.1fms", name, value), legend_x + 22, graph_y + 6, 14,
+                         color);
+                legend_x += 132;
+            };
+            const performance_sample* latest = performance_count > 0
+                ? &performance_samples[(performance_head + performance_capacity - 1) %
+                                       performance_capacity]
+                : nullptr;
+            legend("Physics", physics_color, latest ? latest->physics_ms : 0.0f);
+            legend("Render", render_color, latest ? latest->render_ms : 0.0f);
+
+            if (visible_count >= 2 && plot_w > 4 && plot_h > 4) {
+                const size_t stride =
+                    std::max<size_t>(1, visible_count / static_cast<size_t>(plot_w));
+                std::array<std::vector<Vector2>, 2> lines;
+                for (auto& line : lines) {
+                    line.reserve(visible_count / stride + 2);
+                }
+                const std::array<Color, 2> line_colors = {physics_color, render_color};
+
+                size_t visible_index = 0;
+                for (size_t i = 0; i < performance_count; ++i) {
+                    const size_t index =
+                        (performance_head + performance_capacity - performance_count + i) %
+                        performance_capacity;
+                    const performance_sample& sample = performance_samples[index];
+                    if (sample.time < window_start) {
+                        continue;
+                    }
+
+                    const bool last = visible_index + 1 == visible_count;
+                    if (visible_index % stride == 0 || last) {
+                        const float x = static_cast<float>(plot_x) +
+                            static_cast<float>((sample.time - window_start) / 10.0) * plot_w;
+                        const std::array<float, 2> values = {sample.physics_ms, sample.render_ms};
+                        for (size_t series = 0; series < values.size(); ++series) {
+                            const float y = static_cast<float>(plot_y + plot_h) -
+                                std::min(values[series], max_ms) / max_ms * plot_h;
+                            lines[series].push_back(Vector2(x, y));
+                        }
+                    }
+                    ++visible_index;
+                }
+
+                for (size_t series = 0; series < lines.size(); ++series) {
+                    if (lines[series].size() >= 2) {
+                        DrawLineStrip(lines[series].data(), static_cast<int>(lines[series].size()),
+                                      line_colors[series]);
+                    }
+                }
+            }
+
+            row_y += graph_height + 12;
+            break;
+        }
     }
 
     EndScissorMode();

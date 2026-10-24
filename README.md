@@ -50,7 +50,7 @@ nix run git+https://gitea.local.chriphost.de/christoph/cpp-masssprings -- --spac
 
 ### Settings
 
-The **Settings** button in the top bar (or the **`,`** key) opens a live settings overlay: Barnes-Hut parameters, tree depth and rebuild interval, integration/physics constants, link and constraint parameters, camera speeds, rendering options (node size, edges, edge LOD stride, billboard nodes) and task block sizes. Changes apply immediately where possible; the tree depth is picked up by the next rebuild, the async-octree switch is applied on the next physics step, and the worker-thread count is applied at startup. The GPU-repulsion switch is a placeholder for now.
+The **Settings** button in the top bar (or the **`,`** key) opens a live settings overlay: Barnes-Hut parameters, tree depth and rebuild interval, integration/physics constants, link and constraint parameters, camera speeds, rendering options (node size, edges, edge LOD stride, billboard nodes), task block sizes and the log level (0 = off, 1 = info, 2 = detailed). The Performance tab also shows a rolling 10-second graph with physics and render timings. Changes apply immediately where possible; the tree depth is picked up by the next rebuild, the async-octree switch is applied on the next physics step, and the worker-thread count is applied at startup. The GPU-repulsion switch is a placeholder for now.
 
 Settings are persisted to `settings.ini` in the working directory on a clean exit and loaded at startup. **Reset All** restores the defaults.
 

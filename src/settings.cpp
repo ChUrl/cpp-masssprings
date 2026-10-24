@@ -1,6 +1,7 @@
 #include "settings.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <fstream>
 #include <iomanip>
@@ -24,6 +25,7 @@ auto parse_bool(const std::string& value) -> bool
 
 std::mutex g_settings_mutex;
 simulation_settings g_settings;
+std::atomic<int> g_log_level{0};
 
 auto get_settings() -> simulation_settings
 {
@@ -33,8 +35,11 @@ auto get_settings() -> simulation_settings
 
 auto set_settings(const simulation_settings& settings) -> void
 {
-    std::lock_guard<std::mutex> lock(g_settings_mutex);
-    g_settings = settings;
+    {
+        std::lock_guard<std::mutex> lock(g_settings_mutex);
+        g_settings = settings;
+    }
+    g_log_level.store(settings.log_level, std::memory_order_relaxed);
 }
 
 auto default_settings() -> simulation_settings
@@ -130,6 +135,8 @@ auto load_settings(const std::string& path) -> void
                 s.show_labels = parse_bool(value);
             else if (key == "show_debug")
                 s.show_debug = parse_bool(value);
+            else if (key == "log_level")
+                s.log_level = std::clamp(std::stoi(value), 0, 2);
             else if (key == "worker_threads")
                 s.worker_threads = std::stoi(value);
             else if (key == "small_task_block_size")
@@ -188,6 +195,7 @@ auto save_settings(const std::string& path) -> void
     file << "billboard_nodes=" << (s.billboard_nodes ? 1 : 0) << '\n';
     file << "show_labels=" << (s.show_labels ? 1 : 0) << '\n';
     file << "show_debug=" << (s.show_debug ? 1 : 0) << '\n';
+    file << "log_level=" << s.log_level << '\n';
     file << "worker_threads=" << s.worker_threads << '\n';
     file << "small_task_block_size=" << s.small_task_block_size << '\n';
     file << "large_task_block_size=" << s.large_task_block_size << '\n';

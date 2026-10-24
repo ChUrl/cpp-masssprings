@@ -656,6 +656,18 @@ auto input_handler::handle_input() -> void
         return;
     }
 
+    // The controls and settings overlays are modal: clicks, wheel and drags must not reach the
+    // board or graph underneath. The overlays themselves are raygui widgets and are unaffected.
+    // The settings hotkey still works so the overlay can be closed from the keyboard.
+    if (controls_open || settings_open) {
+        camera_panning = false;
+        camera_rotating = false;
+        if (IsKeyPressed(KEY_COMMA)) {
+            toggle_settings();
+        }
+        return;
+    }
+
     for (const auto& [handler] : generic_handlers) {
         handler(*this);
     }
