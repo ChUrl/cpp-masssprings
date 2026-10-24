@@ -12,3 +12,4 @@ cmake-build-release
 /benchs.json
 /benchs.old.json
 /.direnv
+*.puzzles

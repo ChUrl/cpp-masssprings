@@ -3,6 +3,7 @@
 
 #include "config.hpp"
 #include "cpu_spring_system.hpp"
+#include "memory_usage.hpp"
 #include "util.hpp"
 
 #include <atomic>
@@ -14,6 +15,8 @@
 #include <thread>
 #include <variant>
 #include <vector>
+
+class gpu_context;
 
 class cpu_layout_engine
 {
@@ -49,26 +52,48 @@ class cpu_layout_engine
         std::condition_variable_any data_consumed_cnd;
         Vector3 mass_center = Vector3Zero();
         int ups = 0;
-        size_t mass_count = 0;       // For debug
-        size_t spring_count = 0;     // For debug
-        std::vector<Vector3> masses; // Read by renderer
+        size_t mass_count = 0;              // For debug
+        size_t spring_count = 0;            // For debug
+        float step_ms = 0.0f;               // For debug: smoothed physics compute time
+        float build_ms = 0.0f;              // For debug: snapshot + task submission
+        float tree_ms = 0.0f;               // For debug: actual octree build wall time
+        float tree_cpu_ms = 0.0f;           // For debug: actual octree build CPU time
+        float wait_ms = 0.0f;               // For debug: waiting for the async octree build
+        size_t tree_nodes = 0;              // For debug: nodes in the last built tree
+        size_t tree_children = 0;           // For debug: child entries in the last built tree
+        std::array<float, 6> tree_stages{}; // For debug: bbox/morton/sort/leaves/levels/flatten
+        float spring_ms = 0.0f;             // For debug: spring forces
+        float repulsion_ms = 0.0f;          // For debug: clear + springs + Barnes-Hut
+        float gpu_step_ms = 0.0f;           // For debug: full GPU step upload/dispatch/readback
+        float integrate_ms = 0.0f;          // For debug: integration
+        std::vector<Vector3> masses;        // Read by renderer
         bool data_ready = false;
         bool data_consumed = true;
 
         std::atomic<bool> running{true};
+
+        // Tracked memory published by the physics thread.
+        std::atomic<size_t> cpu_physics_bytes{0};
+        std::atomic<size_t> octree_bytes{0};
+        std::atomic<size_t> readback_bytes{0};
+        std::atomic<size_t> gpu_physics_bytes{0};
+        std::atomic<size_t> gpu_octree_bytes{0};
     };
 
 private:
     threadpool thread_pool;
+    gpu_context* gpu = nullptr;
+    gpu_context* tree_gpu = nullptr;
     std::thread physics;
 
 public:
     physics_state state;
 
 public:
-    explicit cpu_layout_engine(
-        const threadpool _thread_pool = std::nullopt)
-        : thread_pool(_thread_pool), physics(physics_thread, std::ref(state), std::ref(thread_pool))
+    explicit cpu_layout_engine(const threadpool _thread_pool = std::nullopt,
+                               gpu_context* _gpu = nullptr, gpu_context* _tree_gpu = nullptr)
+        : thread_pool(_thread_pool), gpu(_gpu), tree_gpu(_tree_gpu),
+          physics(physics_thread, std::ref(state), std::ref(thread_pool), _gpu, _tree_gpu)
     {}
 
     NO_COPY_NO_MOVE(cpu_layout_engine);
@@ -82,19 +107,32 @@ public:
     }
 
 private:
-#ifdef ASYNC_OCTREE
     static auto set_octree_pool_thread_name(size_t idx) -> void;
-#endif
 
-    static auto physics_thread(physics_state& state,
-                               threadpool thread_pool) -> void;
+    static auto physics_thread(physics_state& state, threadpool thread_pool, gpu_context* gpu,
+                               gpu_context* tree_gpu) -> void;
 
 public:
+    [[nodiscard]] auto get_thread_pool() const -> threadpool
+    {
+        return thread_pool;
+    }
+
+    [[nodiscard]] auto memory_usage() const -> ::memory_usage
+    {
+        ::memory_usage usage;
+        usage.physics_cpu = state.cpu_physics_bytes.load(std::memory_order_relaxed);
+        usage.physics_octree = state.octree_bytes.load(std::memory_order_relaxed);
+        usage.physics_readback = state.readback_bytes.load(std::memory_order_relaxed);
+        usage.gpu_physics = state.gpu_physics_bytes.load(std::memory_order_relaxed);
+        usage.gpu_octree = state.gpu_octree_bytes.load(std::memory_order_relaxed);
+        return usage;
+    }
+
     auto clear_cmd() -> void;
     auto add_mass_cmd() -> void;
     auto add_spring_cmd(size_t a, size_t b) -> void;
-    auto add_mass_springs_cmd(size_t num_masses,
-                              const std::vector<spring>& springs) -> void;
+    auto add_mass_springs_cmd(size_t num_masses, const std::vector<spring>& springs) -> void;
 };
 
 #endif

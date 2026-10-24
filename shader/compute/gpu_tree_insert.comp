@@ -1,0 +1,83 @@
+#version 430
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct HashEntry
+{
+    uint key;
+    uint head;
+    uint count;
+    uint used;
+};
+
+layout(std430, binding = 0) readonly buffer Refs
+{
+    uvec4 refs[];
+};
+
+layout(std430, binding = 1) buffer HashEntries
+{
+    HashEntry entries[];
+};
+
+layout(std430, binding = 2) writeonly buffer Records
+{
+    // x = original code, y = original depth, z = child node index, w = next record
+    uvec4 records[];
+};
+
+layout(std430, binding = 3) buffer Counters
+{
+    uint counters[];
+};
+
+uniform int currentDepth;
+uniform uint hashMask;
+
+uint hash_key(uint key)
+{
+    key ^= key >> 16;
+    key *= 0x7feb352du;
+    key ^= key >> 15;
+    key *= 0x846ca68bu;
+    key ^= key >> 16;
+    return key;
+}
+
+void main()
+{
+    const uint ref_index = gl_GlobalInvocationID.x;
+    if (ref_index >= counters[5]) {
+        return;
+    }
+
+    const uvec4 ref = refs[ref_index];
+    const uint code = ref.x;
+    const uint node = ref.z;
+    const int ref_depth = int(ref.w);
+
+    const int drop = 3 * (ref_depth - currentDepth);
+    const uint key = drop >= 32 ? 0u : (code >> uint(drop));
+
+    // 0 is the empty-key sentinel. Storing key + 1 lets the key reservation and the initialization
+    // (head/count are cleared for every slot) happen without a divergent spin loop, which would
+    // deadlock a warp when the CAS winner and the waiters are in the same warp.
+    uint key_plus = key + 1u;
+    if (key_plus == 0u) {
+        key_plus = 1u;
+    }
+
+    uint slot = hash_key(key) & hashMask;
+    while (true) {
+        const uint old_key = atomicCompSwap(entries[slot].key, 0u, key_plus);
+        if (old_key == 0u || old_key == key_plus) {
+            break;
+        }
+        slot = (slot + 1u) & hashMask;
+    }
+
+    const uint record_slot = atomicAdd(counters[3], 1u);
+    const uint previous = atomicExchange(entries[slot].head, record_slot);
+    records[record_slot] = uvec4(code, ref.w, node, previous);
+    atomicAdd(entries[slot].count, 1u);
+}

@@ -1,0 +1,77 @@
+#version 430
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) readonly buffer Source
+{
+    uvec4 elements[];
+};
+
+layout(std430, binding = 1) writeonly buffer Destination
+{
+    uvec4 output_elements[];
+};
+
+layout(std430, binding = 2) readonly buffer Offsets
+{
+    uint offsets[];
+};
+
+uniform int count;
+uniform int shift;
+
+const uint block_size = 1024u;
+const uint chunk_size = 64u;
+
+shared uvec4 block[1024];
+shared uint chunk_counts[16 * 16];
+
+uint digit_of(const uvec4 element, const int digit_shift)
+{
+    if (digit_shift < 32) {
+        return (element.x >> uint(digit_shift)) & 0xFu;
+    }
+    return (element.y >> uint(digit_shift - 32)) & 0xFu;
+}
+
+void main()
+{
+    const uint local = gl_LocalInvocationID.x;
+    const uint block_index = gl_WorkGroupID.x;
+    const uint base = block_index * block_size;
+    const uint remaining = uint(count) > base ? uint(count) - base : 0u;
+    const uint valid = min(block_size, remaining);
+
+    for (uint i = local; i < block_size; i += 256u) {
+        block[i] = i < valid ? elements[base + i] : uvec4(0u);
+    }
+    barrier();
+
+    // 16 bins x 16 chunks. Each thread owns one bin in one chunk, so all 256 threads do useful
+    // work while the concatenation inside a bin remains ordered by chunk and by source position.
+    const uint bin = local & 15u;
+    const uint chunk = local >> 4u;
+    const uint begin = chunk * chunk_size;
+    const uint end = min(begin + chunk_size, valid);
+
+    uint count_in_chunk = 0u;
+    for (uint i = begin; i < end; ++i) {
+        if (digit_of(block[i], shift) == bin) {
+            ++count_in_chunk;
+        }
+    }
+    chunk_counts[bin * 16u + chunk] = count_in_chunk;
+    barrier();
+
+    uint chunk_prefix = 0u;
+    for (uint previous = 0u; previous < chunk; ++previous) {
+        chunk_prefix += chunk_counts[bin * 16u + previous];
+    }
+
+    uint position = offsets[block_index * 16u + bin] + chunk_prefix;
+    for (uint i = begin; i < end; ++i) {
+        if (digit_of(block[i], shift) == bin) {
+            output_elements[position++] = block[i];
+        }
+    }
+}

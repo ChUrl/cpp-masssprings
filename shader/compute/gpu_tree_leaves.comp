@@ -1,0 +1,72 @@
+#version 430
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct Node
+{
+    vec3 center;
+    float mass_total;
+    float size;
+    int mass_id;
+    int first_child;
+    int child_count;
+};
+
+layout(std430, binding = 0) readonly buffer Sorted
+{
+    // x = mass id, y = Morton code low 32 bits
+    uvec2 sorted[];
+};
+
+layout(std430, binding = 1) readonly buffer Positions
+{
+    float positions[];
+};
+
+layout(std430, binding = 2) writeonly buffer Nodes
+{
+    Node nodes[];
+};
+
+layout(std430, binding = 3) writeonly buffer Order
+{
+    uint order[];
+};
+
+layout(std430, binding = 4) writeonly buffer Refs
+{
+    // x = original code, y = reserved, z = node index, w = depth of this reference
+    uvec4 refs[];
+};
+
+uniform int count;
+uniform int depth;
+uniform float rootExtent;
+uniform float mass;
+
+void main()
+{
+    const uint i = gl_GlobalInvocationID.x;
+    if (i >= uint(count)) {
+        return;
+    }
+
+    const uvec2 entry = sorted[i];
+    const uint id = entry.x;
+    const vec3 position = vec3(
+        positions[3u * id + 0u],
+        positions[3u * id + 1u],
+        positions[3u * id + 2u]);
+
+    Node leaf;
+    leaf.center = position;
+    leaf.mass_total = mass;
+    leaf.size = rootExtent / float(1u << uint(depth));
+    leaf.mass_id = int(id);
+    leaf.first_child = -1;
+    leaf.child_count = 0;
+    nodes[i] = leaf;
+
+    order[i] = id;
+    refs[i] = uvec4(entry.y, 0u, i, uint(depth));
+}

@@ -2,7 +2,24 @@
 
 #include <fstream>
 
-auto parse_preset_file(const std::string& preset_file) -> std::pair<std::vector<puzzle>, std::vector<std::string>>
+namespace
+{
+auto trim_carriage_return(std::string& line) -> void
+{
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
+}
+
+auto write_preset(std::fstream& file, const std::string& type, const std::string& comment,
+                  const std::string& payload) -> void
+{
+    file << "\n@type " << type << "\n# " << (comment.empty() ? type : comment) << "\n"
+         << payload << std::flush;
+}
+} // namespace
+
+auto parse_preset_file(const std::string& preset_file) -> std::vector<preset_entry>
 {
     std::fstream file(preset_file, std::ios::in);
     if (!file) {
@@ -10,73 +27,55 @@ auto parse_preset_file(const std::string& preset_file) -> std::pair<std::vector<
         return {};
     }
 
+    std::vector<preset_entry> presets;
+    std::string current_type = "sliding_block";
+    std::string pending_comment;
+
     std::string line;
-    std::vector<std::string> comment_lines;
-    std::vector<std::string> preset_lines;
     while (std::getline(file, line)) {
-        if (line.starts_with("S")) {
-            preset_lines.push_back(line);
-        } else if (line.starts_with("#")) {
-            comment_lines.push_back(line);
+        trim_carriage_return(line);
+
+        if (line.empty()) {
+            continue;
         }
-    }
 
-    if (preset_lines.empty() || comment_lines.size() != preset_lines.size()) {
-        infoln("Preset file \"{}\" couldn't be opened.", preset_file);
-        return {};
-    }
-
-    std::vector<puzzle> preset_states;
-    for (const auto& preset : preset_lines) {
-        // Each char is a bit
-        const puzzle& p = puzzle(preset);
-
-        if (const std::optional<std::string>& reason = p.try_get_invalid_reason()) {
-            infoln("Preset file \"{}\" contained invalid presets: {}", preset_file, *reason);
-            return {};
+        if (line.starts_with("@type ")) {
+            current_type = line.substr(6);
+            while (!current_type.empty() &&
+                   (current_type.back() == ' ' || current_type.back() == '\t')) {
+                current_type.pop_back();
+            }
+            continue;
         }
-        preset_states.emplace_back(p);
+
+        if (line.starts_with("#")) {
+            pending_comment = line;
+            continue;
+        }
+
+        presets.push_back(preset_entry{
+            current_type,
+            pending_comment.empty() ? std::string("# ") + current_type : pending_comment,
+            line,
+        });
+        pending_comment.clear();
     }
 
-    infoln("Loaded {} presets from \"{}\".", preset_lines.size(), preset_file);
-
-    return {preset_states, comment_lines};
+    infoln("Loaded {} presets from \"{}\".", presets.size(), preset_file);
+    return presets;
 }
 
-auto append_preset_file(const std::string& preset_file, const std::string& preset_name, const puzzle& p) -> bool
+auto append_preset_file(const std::string& preset_file, const std::string& type,
+                        const std::string& preset_name, const std::string& payload) -> bool
 {
     infoln(R"(Saving preset "{}" to "{}")", preset_name, preset_file);
 
-    if (p.try_get_invalid_reason()) {
-        return false;
-    }
-
     std::fstream file(preset_file, std::ios_base::app | std::ios_base::out);
     if (!file) {
         infoln("Preset file \"{}\" couldn't be opened.", preset_file);
         return false;
     }
 
-    file << "\n# " << preset_name << "\n" << p.string_repr() << std::flush;
-
-    return true;
-}
-
-auto append_preset_file_quiet(const std::string& preset_file,
-                              const std::string& preset_name,
-                              const puzzle& p,
-                              const bool validate) -> bool
-{
-    if (validate && p.try_get_invalid_reason()) {
-        return false;
-    }
-
-    std::fstream file(preset_file, std::ios_base::app | std::ios_base::out);
-    if (!file) {
-        return false;
-    }
-
-    file << "\n# " << preset_name << "\n" << p.string_repr() << std::flush;
-
+    write_preset(file, type, preset_name, payload);
     return true;
 }

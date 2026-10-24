@@ -4,6 +4,7 @@
 #include "orbit_camera.hpp"
 #include "state_manager.hpp"
 
+#include <cstdint>
 #include <functional>
 #include <queue>
 #include <raylib.h>
@@ -22,9 +23,19 @@ struct show_yes_no_message
     std::function<void()> on_yes;
 };
 
-struct show_save_preset_window {};
+struct show_save_preset_window
+{};
 
-using ui_command = std::variant<show_ok_message, show_yes_no_message, show_save_preset_window>;
+struct show_puzzle_space_file_window
+{
+    bool save = true;
+};
+
+struct toggle_help_window
+{};
+
+using ui_command = std::variant<show_ok_message, show_yes_no_message, show_save_preset_window,
+                                show_puzzle_space_file_window, toggle_help_window>;
 
 class input_handler
 {
@@ -57,24 +68,14 @@ public:
     std::queue<ui_command> ui_commands;
 
     bool disable = false;
-
-    // Block selection
-    int hov_x = -1;
-    int hov_y = -1;
-    int sel_x = 0;
-    int sel_y = 0;
-
-    // Editing
-    bool editing = false;
-    bool has_block_add_xy = false;
-    int block_add_x = -1;
-    int block_add_y = -1;
+    bool text_input_open = false;
 
     // Graph display
     bool mark_path = false;
     bool mark_solutions = false;
     bool connect_solutions = false;
     bool color_by_distance = false;
+    bool settings_open = false; // settings pane replaces the controls pane
 
     // Camera
     bool camera_lock = true;
@@ -89,9 +90,11 @@ public:
     // State selection from graph
     size_t collision_mass = -1;
 
+    // Detects puzzle switches so presenter-local state can be reset.
+    std::uint64_t last_puzzle_generation = 0;
+
 public:
-    input_handler(state_manager& _state, orbit_camera& _camera)
-        : state(_state), camera(_camera)
+    input_handler(state_manager& _state, orbit_camera& _camera) : state(_state), camera(_camera)
     {
         init_handlers();
     }
@@ -117,22 +120,13 @@ public:
     auto camera_stop_rotate() -> void;
     auto camera_zoom() const -> void;
     auto camera_fov() const -> void;
-    auto select_block() -> void;
-    auto start_add_block() -> void;
-    auto clear_add_block() -> void;
-    auto add_block() -> void;
-    auto remove_block() -> void;
-    auto place_goal() const -> void;
     auto select_state() const -> void;
 
     // Key actions
+    auto toggle_settings() -> void;
     auto toggle_camera_lock() -> void;
     auto toggle_camera_mass_center_lock() -> void;
     auto toggle_camera_projection() const -> void;
-    auto move_block_nor() -> void;
-    auto move_block_wes() -> void;
-    auto move_block_sou() -> void;
-    auto move_block_eas() -> void;
     auto print_state() const -> void;
     auto load_previous_preset() -> void;
     auto load_next_preset() -> void;
@@ -147,28 +141,24 @@ public:
     auto goto_most_distant_state() const -> void;
     auto goto_closest_target_state() const -> void;
     auto goto_previous_state() const -> void;
-    auto toggle_restricted_movement() const -> void;
-    auto toggle_target_block() const -> void;
-    auto toggle_wall_block() const -> void;
-    auto remove_board_column() const -> void;
-    auto add_board_column() const -> void;
-    auto remove_board_row() const -> void;
-    auto add_board_row() const -> void;
     auto toggle_editing() -> void;
-    auto clear_goal() const -> void;
     auto save_preset() -> void;
 
     // General
     auto register_generic_handler(const std::function<void(input_handler&)>& handler) -> void;
 
-    auto register_mouse_pressed_handler(MouseButton button, const std::function<void(input_handler&)>& handler) -> void;
+    auto register_mouse_pressed_handler(MouseButton button,
+                                        const std::function<void(input_handler&)>& handler) -> void;
 
     auto register_mouse_released_handler(MouseButton button,
-                                         const std::function<void(input_handler&)>& handler) -> void;
+                                         const std::function<void(input_handler&)>& handler)
+        -> void;
 
-    auto register_key_pressed_handler(KeyboardKey key, const std::function<void(input_handler&)>& handler) -> void;
+    auto register_key_pressed_handler(KeyboardKey key,
+                                      const std::function<void(input_handler&)>& handler) -> void;
 
-    auto register_key_released_handler(KeyboardKey key, const std::function<void(input_handler&)>& handler) -> void;
+    auto register_key_released_handler(KeyboardKey key,
+                                       const std::function<void(input_handler&)>& handler) -> void;
 
     auto handle_input() -> void;
 };

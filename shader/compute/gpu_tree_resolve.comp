@@ -1,0 +1,51 @@
+#version 430
+
+layout(local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) buffer Sorted
+{
+    // x = mass id, y = Morton code low 32 bits
+    uvec2 sorted[];
+};
+
+uniform int count;
+
+shared int chunk_max[1024];
+
+// The CPU builder makes leaf codes unique with the recurrence
+//   u[i] = max(c[i], u[i - 1] + 1)
+// which is equivalent to
+//   u[i] = i + max_{j <= i} (c[j] - j).
+// One workgroup computes that prefix maximum over all chunks, so the GPU tree has exactly the
+// same leaf cells and at most 8 children per internal node.
+void main()
+{
+    const uint tid = gl_LocalInvocationID.x;
+    const uint total = uint(count);
+    const uint chunk = (total + 1023u) / 1024u;
+    const uint begin = tid * chunk;
+    const uint end = min(begin + chunk, total);
+
+    int local_max = -2147483648;
+    for (uint i = begin; i < end; ++i) {
+        local_max = max(local_max, int(sorted[i].y) - int(i));
+    }
+    chunk_max[tid] = local_max;
+    barrier();
+
+    if (tid == 0u) {
+        int running = -2147483648;
+        for (uint i = 0u; i < 1024u; ++i) {
+            const int value = chunk_max[i];
+            chunk_max[i] = running;
+            running = max(running, value);
+        }
+    }
+    barrier();
+
+    int running = chunk_max[tid];
+    for (uint i = begin; i < end; ++i) {
+        running = max(running, int(sorted[i].y) - int(i));
+        sorted[i].y = uint(int(i) + running);
+    }
+}

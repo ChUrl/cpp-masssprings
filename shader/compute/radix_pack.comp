@@ -1,0 +1,27 @@
+#version 430
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) readonly buffer Elements
+{
+    uvec4 elements[];
+};
+
+layout(std430, binding = 1) writeonly buffer Packed
+{
+    // x = mass id, y = Morton code low 32 bits. On little-endian hosts this is exactly the
+    // (code << 32) | mass_id u64 layout used by the CPU sort container.
+    uvec2 packed_values[];
+};
+
+uniform int count;
+
+void main()
+{
+    const uint index = gl_GlobalInvocationID.x;
+    if (index >= uint(count)) {
+        return;
+    }
+    const uvec4 element = elements[index];
+    packed_values[index] = uvec2(element.z, element.x);
+}

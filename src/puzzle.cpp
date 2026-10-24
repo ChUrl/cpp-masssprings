@@ -1,15 +1,26 @@
 #include "puzzle.hpp"
 
 #include "graph_distances.hpp"
+#include "state_model.hpp"
 
 #include <algorithm>
-#include <set>
+#include <bit>
 #include <boost/program_options/detail/cmdline.hpp>
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <set>
 
-auto block::create_repr(const u8 x, const u8 y, const u8 w, const u8 h, const bool t, const bool i) -> u16
+auto block::create_repr(const u8 x, const u8 y, const u8 w, const u8 h, const bool t, const bool i)
+    -> u16
 {
-    return block().set_x(x).set_y(y).set_width(w).set_height(h).set_target(t).set_immovable(i).repr & ~INVALID;
+    return block()
+               .set_x(x)
+               .set_y(y)
+               .set_width(w)
+               .set_height(h)
+               .set_target(t)
+               .set_immovable(i)
+               .repr &
+        ~INVALID;
 }
 
 auto block::unpack_repr() const -> std::tuple<u8, u8, u8, u8, bool, bool>
@@ -99,21 +110,24 @@ auto puzzle::create_meta(const std::tuple<u8, u8, u8, u8, bool, bool>& meta) -> 
     return m;
 }
 
-auto puzzle::create_repr(const u8 w,
-                         const u8 h,
-                         const u8 tx,
-                         const u8 ty,
-                         const bool r,
-                         const bool g,
-                         const std::array<u16, MAX_BLOCKS>& b) -> repr_cooked
+auto puzzle::create_repr(const u8 w, const u8 h, const u8 tx, const u8 ty, const bool r,
+                         const bool g, const std::array<u16, MAX_BLOCKS>& b) -> repr_cooked
 {
-    repr_cooked repr = puzzle().set_width(w).set_height(h).set_goal_x(tx).set_goal_y(ty).set_restricted(r).set_goal(g).
-                                set_blocks(b).repr.cooked;
+    repr_cooked repr = puzzle()
+                           .set_width(w)
+                           .set_height(h)
+                           .set_goal_x(tx)
+                           .set_goal_y(ty)
+                           .set_restricted(r)
+                           .set_goal(g)
+                           .set_blocks(b)
+                           .repr.cooked;
     repr.meta &= ~INVALID;
     return repr;
 }
 
-auto puzzle::create_repr(const u64 byte_0, const u64 byte_1, const u64 byte_2, const u64 byte_3) -> repr_cooked
+auto puzzle::create_repr(const u64 byte_0, const u64 byte_1, const u64 byte_2, const u64 byte_3)
+    -> repr_cooked
 {
     repr_u repr{};
     repr.raw = std::array<u64, 4>{byte_0, byte_1, byte_2, byte_3};
@@ -121,9 +135,9 @@ auto puzzle::create_repr(const u64 byte_0, const u64 byte_1, const u64 byte_2, c
     return repr.cooked;
 }
 
-auto puzzle::create_repr(const std::string& string_repr) -> repr_cooked
+auto puzzle::create_repr(const std::string& string_repr) -> parsed_repr
 {
-    const std::optional<repr_cooked> repr = try_parse_string_repr(string_repr);
+    const std::optional<parsed_repr> repr = try_parse_string_repr(string_repr);
     if (!repr) {
         throw std::invalid_argument("Failed to parse string repr");
     }
@@ -137,6 +151,11 @@ auto puzzle::set_blocks(std::array<u16, MAX_BLOCKS> blocks) const -> puzzle
     std::ranges::sort(blocks);
     p.repr.cooked.blocks = blocks;
     return p;
+}
+
+auto puzzle::sorted_blocks() const -> puzzle
+{
+    return set_blocks(repr.cooked.blocks);
 }
 
 auto puzzle::unpack_meta() const -> std::tuple<u8, u8, u8, u8, bool, bool>
@@ -157,6 +176,7 @@ auto puzzle::hash() const -> size_t
     for (size_t i = 0; i < 4; ++i) {
         hash_combine(h, repr.raw[i]);
     }
+    hash_combine(h, wall_mask_);
     return h;
 }
 
@@ -168,6 +188,15 @@ auto puzzle::string_repr() const -> std::string
     std::vector<block> linear_blocks(w * h);
     for (const block b : block_view()) {
         linear_blocks[b.get_y() * w + b.get_x()] = b;
+    }
+    // Walls are stored separately, but the preset syntax keeps them as W*H tokens. A wall mask
+    // only knows cells, so each wall cell is emitted as 1*1.
+    for (u8 y = 0; y < h; ++y) {
+        for (u8 x = 0; x < w; ++x) {
+            if (wall_at(x, y)) {
+                linear_blocks[y * w + x] = block(x, y, 1, 1, false, true);
+            }
+        }
     }
 
     std::string size = std::format("S:[{}x{}] ", w, h);
@@ -198,7 +227,7 @@ auto puzzle::string_repr() const -> std::string
     return std::format("{}{}{}{}", size, goal, restricted, blocks);
 }
 
-auto puzzle::try_parse_string_repr(const std::string& string_repr) -> std::optional<repr_cooked>
+auto puzzle::try_parse_string_repr(const std::string& string_repr) -> std::optional<parsed_repr>
 {
     bool parsed_size = false;
     std::pair<u8, u8> size{0, 0};
@@ -213,10 +242,7 @@ auto puzzle::try_parse_string_repr(const std::string& string_repr) -> std::optio
     std::vector<u16> bs;
     std::array<u16, MAX_BLOCKS> blocks = invalid_blocks();
 
-    const auto digit = [&](const char c)
-    {
-        return std::string("0123456789").contains(c);
-    };
+    const auto digit = [&](const char c) { return std::string("0123456789").contains(c); };
 
     // S:[3x3]
     const auto parse_size = [&](size_t& pos)
@@ -346,13 +372,6 @@ auto puzzle::try_parse_string_repr(const std::string& string_repr) -> std::optio
                 return std::nullopt;
             }
             bs = parse_blocks(pos);
-
-            if (bs.size() > MAX_BLOCKS) {
-                warnln("Parsed too many blocks");
-                return std::nullopt;
-            }
-
-            std::copy_n(bs.begin(), bs.size(), blocks.begin());
             break;
         default:
             break;
@@ -364,7 +383,39 @@ auto puzzle::try_parse_string_repr(const std::string& string_repr) -> std::optio
         return std::nullopt;
     }
 
-    return create_repr(size.first, size.second, goal.first, goal.second, restricted, parsed_goal, blocks);
+    // Wall tokens stay valid in the preset format, but are stored in the separate wall mask.
+    // Only the target and movable blocks count towards MAX_BLOCKS.
+    u64 walls = 0;
+    size_t movable_count = 0;
+    for (const u16 value : bs) {
+        const block b(value);
+        if (b.get_immovable()) {
+            for (int dy = 0; dy < b.get_height(); ++dy) {
+                for (int dx = 0; dx < b.get_width(); ++dx) {
+                    const int x = b.get_x() + dx;
+                    const int y = b.get_y() + dy;
+                    if (x >= size.first || y >= size.second) {
+                        warnln("Wall outside the board");
+                        return std::nullopt;
+                    }
+                    walls |= u64{1} << (y * size.first + x);
+                }
+            }
+            continue;
+        }
+
+        if (movable_count >= MAX_BLOCKS) {
+            warnln("Parsed too many movable blocks");
+            return std::nullopt;
+        }
+        blocks[movable_count++] = value;
+    }
+
+    parsed_repr parsed;
+    parsed.cooked = create_repr(size.first, size.second, goal.first, goal.second, restricted,
+                                parsed_goal, blocks);
+    parsed.walls = walls;
+    return parsed;
 }
 
 auto puzzle::valid() const -> bool
@@ -386,9 +437,21 @@ auto puzzle::try_get_invalid_reason() const -> std::optional<std::string>
 
     const auto [w, h, gx, gy, r, g] = unpack_meta();
 
+    if ((wall_mask_ & ~board_cell_mask()) != 0) {
+        return "Walls Outside Board";
+    }
+    if ((wall_mask_ & blocks_bitmap_without_walls()) != 0) {
+        return "Wall Overlaps Block";
+    }
     // traceln("Validating puzzle \"{}\"", string_repr());
 
     const std::optional<block>& b = try_get_target_block();
+    if (g && b) {
+        const block goal_block(gx, gy, b->get_width(), b->get_height());
+        if (covers(goal_block) && (wall_mask_ & block_cell_mask(goal_block)) != 0) {
+            return "Goal Covered By Wall";
+        }
+    }
     if (get_goal() && !b) {
         return "Goal Without Target";
     }
@@ -403,7 +466,8 @@ auto puzzle::try_get_invalid_reason() const -> std::optional<std::string>
         }
     }
 
-    if (get_goal() && b && gx > 0 && gx + b->get_width() < w && gy > 0 && gy + b->get_height() < h) {
+    if (get_goal() && b && gx > 0 && gx + b->get_width() < w && gy > 0 &&
+        gy + b->get_height() < h) {
         return "Goal Inside";
     }
 
@@ -423,6 +487,143 @@ auto puzzle::block_count() const -> u8
         }
     }
     return count;
+}
+
+auto puzzle::board_cell_mask() const -> u64
+{
+    const int cells = get_width() * get_height();
+    return cells >= 64 ? ~u64{0} : ((u64{1} << cells) - 1);
+}
+
+auto puzzle::block_cell_mask(const block b) const -> u64
+{
+    const auto [x, y, w, h, target, immovable] = b.unpack_repr();
+    (void)target;
+    (void)immovable;
+    const u8 width = get_width();
+    u64 mask = 0;
+    for (int dy = 0; dy < h; ++dy) {
+        for (int dx = 0; dx < w; ++dx) {
+            mask |= u64{1} << ((y + dy) * width + x + dx);
+        }
+    }
+    return mask;
+}
+
+auto puzzle::blocks_bitmap_without_walls() const -> u64
+{
+    u64 bitmap = 0;
+    for (const block b : block_view()) {
+        bitmap |= block_cell_mask(b);
+    }
+    return bitmap;
+}
+
+auto puzzle::wall_mask() const -> u64
+{
+    return wall_mask_;
+}
+
+auto puzzle::wall_count() const -> u8
+{
+    return static_cast<u8>(std::popcount(wall_mask_));
+}
+
+auto puzzle::wall_at(const u8 x, const u8 y) const -> bool
+{
+    if (!covers(x, y)) {
+        return false;
+    }
+    return ((wall_mask_ >> (y * get_width() + x)) & 1u) != 0;
+}
+
+auto puzzle::has_walls() const -> bool
+{
+    return wall_mask_ != 0;
+}
+
+auto puzzle::wall_rectangles() const -> std::vector<block>
+{
+    std::vector<block> result;
+    u64 remaining = wall_mask_;
+    const u8 width = get_width();
+    const u8 height = get_height();
+
+    while (remaining != 0) {
+        const int cell = std::countr_zero(remaining);
+        const int x = cell % width;
+        const int y = cell / width;
+
+        // Horizontal-first greedy rectangle. The lowest unvisited wall cell is the top-left
+        // corner of the rectangle, so the decomposition is deterministic.
+        int w = 0;
+        while (x + w < width && ((remaining >> (y * width + x + w)) & 1u) != 0) {
+            ++w;
+        }
+        int h = 1;
+        while (y + h < height) {
+            bool full = true;
+            for (int dx = 0; dx < w; ++dx) {
+                if (((remaining >> ((y + h) * width + x + dx)) & 1u) == 0) {
+                    full = false;
+                    break;
+                }
+            }
+            if (!full) {
+                break;
+            }
+            ++h;
+        }
+
+        for (int dy = 0; dy < h; ++dy) {
+            for (int dx = 0; dx < w; ++dx) {
+                remaining &= ~(u64{1} << ((y + dy) * width + x + dx));
+            }
+        }
+        result.emplace_back(x, y, w, h, false, false);
+    }
+
+    return result;
+}
+
+auto puzzle::with_wall_mask(const u64 mask) const -> std::optional<puzzle>
+{
+    if ((mask & ~board_cell_mask()) != 0) {
+        return std::nullopt;
+    }
+    if ((mask & blocks_bitmap_without_walls()) != 0) {
+        return std::nullopt;
+    }
+
+    if (get_goal()) {
+        if (const auto target = try_get_target_block()) {
+            const block goal_block(get_goal_x(), get_goal_y(), target->get_width(),
+                                   target->get_height());
+            if ((mask & block_cell_mask(goal_block)) != 0) {
+                return std::nullopt;
+            }
+        }
+    }
+
+    puzzle result = *this;
+    result.wall_mask_ = mask;
+    return result;
+}
+
+auto puzzle::remap_wall_mask(const u8 old_w, const u8 old_h, const u8 new_w, const u8 new_h) const
+    -> u64
+{
+    u64 result = 0;
+    const u8 width = std::min(old_w, new_w);
+    const u8 height = std::min(old_h, new_h);
+    for (u8 y = 0; y < height; ++y) {
+        for (u8 x = 0; x < width; ++x) {
+            if (((wall_mask_ >> (y * old_w + x)) & 1u) != 0) {
+                result |= u64{1} << (y * new_w + x);
+            }
+        }
+    }
+    return result;
 }
 
 auto puzzle::goal_reached() const -> bool
@@ -483,6 +684,9 @@ auto puzzle::try_set_goal(const u8 x, const u8 y) const -> std::optional<puzzle>
     if (!b || !covers(x, y, b->get_width(), b->get_height())) {
         return std::nullopt;
     }
+    if ((block_cell_mask(block(x, y, b->get_width(), b->get_height())) & wall_mask_) != 0) {
+        return std::nullopt;
+    }
 
     if (get_goal_x() == x && get_goal_y() == y) {
         return clear_goal();
@@ -503,7 +707,9 @@ auto puzzle::try_add_column() const -> std::optional<puzzle>
         return std::nullopt;
     }
 
-    return set_width(w + 1);
+    puzzle p = set_width(w + 1);
+    p.wall_mask_ = remap_wall_mask(w, get_height(), w + 1, get_height());
+    return p;
 }
 
 auto puzzle::try_remove_column() const -> std::optional<puzzle>
@@ -521,6 +727,7 @@ auto puzzle::try_remove_column() const -> std::optional<puzzle>
             p = *_p;
         }
     }
+    p.wall_mask_ = remap_wall_mask(w, h, static_cast<u8>(w - 1), h);
 
     const std::optional<block> b = p.try_get_target_block();
     if (p.get_goal() && b && !p.covers(gx, gy, b->get_width(), b->get_height())) {
@@ -560,6 +767,7 @@ auto puzzle::try_remove_row() const -> std::optional<puzzle>
             p = *_p;
         }
     }
+    p.wall_mask_ = remap_wall_mask(w, h, w, static_cast<u8>(h - 1));
 
     const std::optional<block> b = p.try_get_target_block();
     if (p.get_goal() && b && !p.covers(gx, gy, b->get_width(), b->get_height())) {
@@ -576,12 +784,21 @@ auto puzzle::try_remove_row() const -> std::optional<puzzle>
 
 auto puzzle::try_add_block(const block b) const -> std::optional<puzzle>
 {
-    const u8 count = block_count();
-    if (count == MAX_BLOCKS) {
+    if (!covers(b)) {
+        return std::nullopt;
+    }
+    if ((block_cell_mask(b) & wall_mask_) != 0) {
         return std::nullopt;
     }
 
-    if (!covers(b)) {
+    // Legacy callers could still pass an immovable block. Treat it as wall cells instead of
+    // inserting it into the limited block array.
+    if (b.get_immovable()) {
+        return with_wall_mask(wall_mask_ | block_cell_mask(b));
+    }
+
+    const u8 count = block_count();
+    if (count == MAX_BLOCKS) {
         return std::nullopt;
     }
 
@@ -598,7 +815,7 @@ auto puzzle::try_add_block(const block b) const -> std::optional<puzzle>
     // This is the case because empty blocks' most significant bit is 1 and the array is sorted.
     blocks[count] = b.repr;
 
-    return puzzle(w, h, gx, gy, r, g, blocks);
+    return puzzle(w, h, gx, gy, r, g, blocks, wall_mask_);
 }
 
 auto puzzle::try_remove_block(const u8 x, const u8 y) const -> std::optional<puzzle>
@@ -616,7 +833,7 @@ auto puzzle::try_remove_block(const u8 x, const u8 y) const -> std::optional<puz
         }
     }
 
-    return puzzle(w, h, gx, gy, r, g, blocks);
+    return puzzle(w, h, gx, gy, r, g, blocks, wall_mask_);
 }
 
 auto puzzle::try_toggle_target(const u8 x, const u8 y) const -> std::optional<puzzle>
@@ -645,42 +862,91 @@ auto puzzle::try_toggle_target(const u8 x, const u8 y) const -> std::optional<pu
     }
 
     const block _b = block(gx, gy, b->get_width(), b->get_height());
-    if (covers(_b)) {
+    if (covers(_b) && (block_cell_mask(_b) & wall_mask_) == 0) {
         // Old goal still valid
-        return puzzle(w, h, gx, gy, r, g, blocks);
+        return puzzle(w, h, gx, gy, r, g, blocks, wall_mask_);
     }
 
-    return puzzle(w, h, 0, 0, r, g, blocks);
+    return puzzle(w, h, 0, 0, r, g, blocks, wall_mask_);
 }
 
 auto puzzle::try_toggle_wall(const u8 x, const u8 y) const -> std::optional<puzzle>
 {
-    const std::optional<block> b = try_get_block(x, y);
-    if (!b || b->get_target()) {
+    if (!covers(x, y)) {
         return std::nullopt;
     }
 
-    const auto [w, h, gx, gy, r, g] = unpack_meta();
-    std::array<u16, MAX_BLOCKS> blocks = repr.cooked.blocks;
-
-    for (u16& _b : blocks) {
-        if (!block(_b).valid()) {
-            // Empty blocks are at the end
-            break;
+    if (wall_at(x, y)) {
+        // Toggle the whole wall piece back into a movable block. The mask stores cells, so use
+        // the same greedy rectangle decomposition as the editor and wall inventory.
+        for (const block wall : wall_rectangles()) {
+            if (!wall.covers(x, y)) {
+                continue;
+            }
+            const std::optional<puzzle> without_wall = try_remove_wall(x, y);
+            if (!without_wall) {
+                return std::nullopt;
+            }
+            return without_wall->try_add_block(
+                block(wall.get_x(), wall.get_y(), wall.get_width(), wall.get_height(), false));
         }
-
-        if (_b == b->repr) {
-            // Toggle wall
-            _b = block(_b).set_immovable(!b->get_immovable()).repr;
-        }
+        return std::nullopt;
     }
 
-    return puzzle(w, h, gx, gy, r, g, blocks);
+    if (const std::optional<block> b = try_get_block(x, y)) {
+        if (b->get_target()) {
+            return std::nullopt;
+        }
+        const std::optional<puzzle> without_block = try_remove_block(x, y);
+        if (!without_block) {
+            return std::nullopt;
+        }
+        return without_block->with_wall_mask(without_block->wall_mask_ | block_cell_mask(*b));
+    }
+
+    return try_add_wall(x, y);
+}
+
+auto puzzle::try_remove_wall(const u8 x, const u8 y) const -> std::optional<puzzle>
+{
+    if (!wall_at(x, y)) {
+        return std::nullopt;
+    }
+
+    for (const block wall : wall_rectangles()) {
+        if (!wall.covers(x, y)) {
+            continue;
+        }
+        u64 mask = wall_mask_;
+        for (int dy = 0; dy < wall.get_height(); ++dy) {
+            for (int dx = 0; dx < wall.get_width(); ++dx) {
+                mask &= ~(u64{1} << ((wall.get_y() + dy) * get_width() + wall.get_x() + dx));
+            }
+        }
+        return with_wall_mask(mask);
+    }
+    return std::nullopt;
+}
+
+auto puzzle::try_add_wall(const u8 x, const u8 y) const -> std::optional<puzzle>
+{
+    if (!covers(x, y) || wall_at(x, y) || try_get_block(x, y)) {
+        return std::nullopt;
+    }
+    return with_wall_mask(wall_mask_ | (u64{1} << (y * get_width() + x)));
+}
+
+auto puzzle::try_add_wall_block(const block b) const -> std::optional<puzzle>
+{
+    if (!covers(b) || b.get_target()) {
+        return std::nullopt;
+    }
+    return with_wall_mask(wall_mask_ | block_cell_mask(b));
 }
 
 auto puzzle::blocks_bitmap() const -> u64
 {
-    u64 bitmap = 0;
+    u64 bitmap = wall_mask_;
     for (u8 i = 0; i < MAX_BLOCKS; ++i) {
         block b(repr.cooked.blocks[i]);
         if (!b.valid()) {
@@ -791,6 +1057,10 @@ auto puzzle::try_move_block_at(const u8 x, const u8 y, const dir dir) const -> s
     }
     const block moved_b = block(_target_x, _target_y, bw, bh, bt);
 
+    if ((block_cell_mask(moved_b) & wall_mask_) != 0) {
+        return std::nullopt;
+    }
+
     // Check collisions
     for (const block _b : block_view()) {
         if (_b != b && _b.collides(moved_b)) {
@@ -811,76 +1081,168 @@ auto puzzle::try_move_block_at(const u8 x, const u8 y, const dir dir) const -> s
     return p;
 }
 
-auto puzzle::explore_state_space() const -> std::pair<std::vector<puzzle>, std::vector<spring>>
+auto puzzle::explore_state_space_with_indices(const threadpool thread_pool,
+                                              exploration_observer* observer) const
+    -> state_space_result
 {
-    std::vector<puzzle> state_pool;
-    puzzlemap<size_t> state_indices;
-    std::vector<spring> links;
+    constexpr size_t batch_size = 4096;
 
-    // Buffer for all states we want to call GetNextStates() on
-    std::vector<size_t> queue; // indices into state_pool
+    state_space_result result;
+    auto& state_pool = result.states;
+    auto& state_indices = result.indices;
+    auto& links = result.links;
 
-    // Start with the current state
+    // Start with the current state. Indices are assigned in insertion order, so the BFS frontier
+    // is always a contiguous range of state_pool.
     state_indices.emplace(*this, 0);
     state_pool.push_back(*this);
-    queue.push_back(0);
 
-    size_t head = 0;
-    while (head < queue.size()) {
-        const size_t current_idx = queue[head++];
+    const bool use_parallel = thread_pool.has_value() && *thread_pool != nullptr &&
+        (*thread_pool)->get_thread_count() > 1;
+    std::vector<std::vector<puzzle>> neighbors;
+    // A lower-index-only rule misses an edge when the higher-index endpoint already existed
+    // before the lower-index endpoint was processed. Track the undirected edge explicitly so
+    // every transition appears exactly once in the graph.
+    boost::unordered_flat_set<u64> seen_edges;
 
-        // Make a copy because references might be invalidated when inserting into the vector
-        const puzzle current = state_pool[current_idx];
+    const auto merge_candidate = [&](const puzzle& candidate, const size_t current_idx)
+    {
+        auto [it, inserted] = state_indices.emplace(candidate, state_pool.size());
+        if (inserted) {
+            state_pool.push_back(candidate);
+        }
 
-        current.for_each_adjacent([&](const puzzle& p)
-        {
-            auto [it, inserted] = state_indices.emplace(p, state_pool.size());
-            if (inserted) {
-                state_pool.push_back(p);
-                queue.push_back(it->second);
+        const size_t first = std::min(current_idx, static_cast<size_t>(it->second));
+        const size_t second = std::max(current_idx, static_cast<size_t>(it->second));
+        if (seen_edges.insert((u64{first} << 32) | static_cast<u64>(second)).second) {
+            links.emplace_back(first, second);
+        }
+    };
+
+    // Process one BFS frontier at a time. A frontier is the range of states that existed before
+    // the previous frontier produced new states. Neighbour generation is parallel; merging stays
+    // in state order so indices and links are identical to the sequential BFS.
+    size_t frontier_begin = 0;
+    size_t frontier_end = state_pool.size();
+    while (frontier_begin < frontier_end) {
+        for (size_t batch_begin = frontier_begin; batch_begin < frontier_end;
+             batch_begin += batch_size) {
+            const size_t batch_end = std::min(frontier_end, batch_begin + batch_size);
+            const size_t batch_count = batch_end - batch_begin;
+
+            if (use_parallel && batch_count >= 64) {
+                neighbors.resize(batch_count);
+                for (size_t i = 0; i < batch_count; ++i) {
+                    auto& node_neighbors = neighbors[i];
+                    node_neighbors.clear();
+                    const size_t expected = 4 * state_pool[batch_begin + i].block_count();
+                    if (node_neighbors.capacity() < expected) {
+                        node_neighbors.reserve(expected);
+                    }
+                }
+
+                (*thread_pool)
+                    ->submit_loop(0, batch_count,
+                                  [&](const size_t i)
+                                  {
+                                      state_pool[batch_begin + i].for_each_adjacent(
+                                          [&](const puzzle& p) { neighbors[i].push_back(p); });
+                                  })
+                    .wait();
+
+                for (size_t i = 0; i < batch_count; ++i) {
+                    const size_t current_idx = batch_begin + i;
+                    for (const puzzle& p : neighbors[i]) {
+                        merge_candidate(p, current_idx);
+                    }
+                }
+            } else {
+                for (size_t current_idx = batch_begin; current_idx < batch_end; ++current_idx) {
+                    const puzzle current = state_pool[current_idx];
+                    current.for_each_adjacent([&](const puzzle& p)
+                                              { merge_candidate(p, current_idx); });
+                }
             }
-            links.emplace_back(current_idx, it->second);
-        });
+
+            if (observer != nullptr && !observer->on_states_explored(state_pool.size())) {
+                result.cancelled = true;
+                return result;
+            }
+        }
+
+        frontier_begin = frontier_end;
+        frontier_end = state_pool.size();
     }
 
-    return {std::move(state_pool), std::move(links)};
+    return result;
 }
 
-auto puzzle::get_cluster_id_and_solution() const -> std::tuple<puzzle, std::vector<puzzle>, bool, int>
+auto puzzle::explore_state_space(const threadpool thread_pool) const
+    -> std::pair<std::vector<puzzle>, std::vector<spring>>
 {
-    const auto& [puzzles, moves] = explore_state_space();
+    state_space_result result = explore_state_space_with_indices(thread_pool);
+    return {std::move(result.states), std::move(result.links)};
+}
+
+auto puzzle::get_cluster_id_and_solution(exploration_observer* observer) const
+    -> cluster_exploration
+{
+    state_space_result explored = explore_state_space_with_indices(std::nullopt, observer);
+
+    cluster_exploration result;
+    result.states = std::move(explored.states);
+    result.cancelled = explored.cancelled;
+
+    if (result.states.empty()) {
+        result.cluster_id = *this;
+        result.hardest = *this;
+        return result;
+    }
 
     std::vector<size_t> solutions;
-    puzzle min = puzzles[0];
-    for (size_t i = 0; i < puzzles.size(); ++i) {
-        if (puzzles[i] < min) {
-            min = puzzles[i];
+    result.cluster_id = result.states[0];
+    for (size_t i = 0; i < result.states.size(); ++i) {
+        if (result.states[i] < result.cluster_id) {
+            result.cluster_id = result.states[i];
         }
-        if (puzzles[i].goal_reached()) {
+        if (result.states[i].goal_reached()) {
             solutions.emplace_back(i);
         }
     }
 
+    result.hardest = result.cluster_id;
+    if (result.cancelled) {
+        return result;
+    }
+    if (solutions.empty()) {
+        return result;
+    }
+
     // TODO: We only need to search until a distance equal to min_moves is found.
     //       Maybe DFS instead of BFS could even be faster on average?
-    // TODO: Split moves from solvable calculation. We only need to count the moves if the cluster is solvable at all.
+    // TODO: Split moves from solvable calculation. We only need to count the moves if the cluster
+    // is solvable at all.
     graph_distances distances;
-    distances.calculate_distances(puzzles.size(), moves, solutions);
+    distances.calculate_distances(result.states.size(), explored.links, solutions);
 
+    result.winnable = true;
     int max_distance = 0;
+    size_t hardest_index = 0;
     for (size_t i = 0; i < distances.distances.size(); ++i) {
         if (distances.distances[i] > max_distance) {
             max_distance = distances.distances[i];
+            hardest_index = i;
         }
     }
 
-    return {min, puzzles, !solutions.empty(), max_distance};
+    result.max_moves = max_distance;
+    result.hardest = result.states[hardest_index];
+    return result;
 }
 
-auto puzzle::generate_block_sets(const puzzle& p,
-                                 const blockset2& permitted_blocks,
-                                 const block target_block,
-                                 const u8 max_blocks) -> std::vector<blockmap2<u8>>
+auto puzzle::generate_block_sets(const puzzle& p, const blockset2& permitted_blocks,
+                                 const block target_block, const u8 max_blocks,
+                                 const std::stop_token stop) -> std::vector<blockmap2<u8>>
 {
     std::vector<blockmap2<u8>> result;
 
@@ -896,11 +1258,16 @@ auto puzzle::generate_block_sets(const puzzle& p,
     const u8 target_area = target_block.get_width() * target_block.get_height();
     for (const block& b : permitted_blocks) {
         const u8 block_area = block_areas[b];
-        max_counts[b] = std::min(max_blocks, static_cast<u8>((board_area - target_area) / block_area));
+        max_counts[b] =
+            std::min(max_blocks, static_cast<u8>((board_area - target_area) / block_area));
     }
 
     blockmap2<u8> current_set;
     while (true) {
+        if (stop.stop_requested()) {
+            break;
+        }
+
         // Check if we have generated a valid set
         int used_blocks = 0;
         int used_area = 0;
@@ -934,9 +1301,9 @@ auto puzzle::generate_block_sets(const puzzle& p,
     return result;
 }
 
-auto puzzle::generate_initial_puzzles(const puzzle& p,
-                                      const block target_block,
-                                      const std::tuple<u8, u8, u8, u8>& target_block_pos_range) -> std::vector<puzzle>
+auto puzzle::generate_initial_puzzles(const puzzle& p, const block target_block,
+                                      const std::tuple<u8, u8, u8, u8>& target_block_pos_range,
+                                      const std::stop_token stop) -> std::vector<puzzle>
 {
     std::vector<puzzle> result;
 
@@ -944,16 +1311,20 @@ auto puzzle::generate_initial_puzzles(const puzzle& p,
 
     for (int tx = txs; tx <= txe; ++tx) {
         for (int ty = tys; ty <= tye; ++ty) {
+            if (stop.stop_requested()) {
+                return result;
+            }
+
             block t = target_block;
             t = t.set_x(tx);
             t = t.set_y(ty);
 
-            // This cannot happen if the target_block_pos_range is set correctly
-            #ifdef RUNTIME_CHECKS
+// This cannot happen if the target_block_pos_range is set correctly
+#ifdef RUNTIME_CHECKS
             if (!p.covers(t)) {
                 continue;
             }
-            #endif
+#endif
 
             std::array<u16, MAX_BLOCKS> blocks = invalid_blocks();
             blocks[0] = t.repr;
@@ -967,141 +1338,9 @@ auto puzzle::generate_initial_puzzles(const puzzle& p,
             // }
             // result.emplace_back(_p);
 
-            result.emplace_back(p.repr.cooked.meta, blocks);
+            result.emplace_back(p.repr.cooked.meta, blocks, p.wall_mask_);
         }
     }
 
     return result;
-}
-
-auto puzzle::explore_puzzle_space(const blockset2& permitted_blocks,
-                                  const block target_block,
-                                  const std::tuple<u8, u8, u8, u8>& target_block_pos_range,
-                                  const size_t max_blocks,
-                                  const int min_moves,
-                                  const threadpool thread_pool) const -> puzzleset
-{
-    const auto [w, h, gx, gy, r, g] = unpack_meta();
-
-    // Implemented in the slowest, stupidest way for now:
-    // 1. Iterate through all possible permitted_blocks permutations using recursive tree descent
-    // 2. Find the cluster id of the permutation by populating the entire state space
-    //    - We could do some preprocessing to quickly reduce the numeric value
-    //      of the state and check if its already contained in visited_clusters,
-    //      this could save some state space calculations.
-    // 3. Add it to visited_clusters if unseen
-
-    // TODO: Use thread local resources instead of this fuckery (or concurrent map?)
-    std::mutex mtx;
-    std::mutex cache_mtx;
-    std::mutex print_mtx;
-    puzzleset visited_clusters;
-    const puzzle empty_puzzle = puzzle(w, h, gx, gy, r, g);
-
-    // TODO: Don't use a hashmap for this, use denser vector representation for better recursion performance
-    // Call with max_blocks - 1 because the target is already placed
-    const std::vector<blockmap2<u8>> sets = generate_block_sets(empty_puzzle,
-                                                                permitted_blocks,
-                                                                target_block,
-                                                                max_blocks - 1);
-    traceln("Generated {} block inventories", sets.size());
-
-    const std::vector<puzzle> puzzles = generate_initial_puzzles(empty_puzzle, target_block, target_block_pos_range);
-    traceln("Generated {} starting configurations", puzzles.size());
-
-    int total = 0;
-    int duplicates = 0;
-
-    // TODO: This cache can easily fill system ram
-    //       - Only store hashes, not puzzles?
-    //       - Use an LRU cache to have a memory consumption bound?
-    puzzleset seen_statespaces;
-
-    const auto place_blocks = [&](const size_t i)
-    {
-        const size_t current_inventory = i / puzzles.size();
-        const size_t current_puzzle = i % puzzles.size();
-
-        const blockmap2<u8> set = sets[current_inventory];
-        const puzzle& p = puzzles[current_puzzle];
-        const u64 bitmap = p.blocks_bitmap();
-
-        {
-            std::lock_guard<std::mutex> lock(print_mtx);
-            traceln("Placing inventory {} for starting configuration {}", current_inventory, current_puzzle);
-        }
-        place_block_set(p,
-                        set,
-                        bitmap,
-                        1,
-                        [&](const puzzle& _p)
-                        {
-                            // Sort the blocks, so identical puzzles get the same hash
-                            const puzzle& sorted = _p.set_blocks(_p.repr.cooked.blocks);
-
-                            // TODO: Pre-filter using a coarse key:
-                            // - If two puzzles are in the same cluster, this key must match
-                            // - If the key matches, puzzles might still be in different clusters
-                            // If a new puzzle arrives, do a bidirectional BFS from the new
-                            // puzzle to all puzzles with the same key, if both directions meet,
-                            // we already had this cluster.
-                            // If nothing meets, we have to do the full statespace generation.
-                            //
-                            // Key could contain:
-                            // - counts of block types (inventory)
-                            // - which row/column pieces live in
-                            // - ordering of pieces in a row or column
-
-                            bool inserted;
-                            {
-                                std::lock_guard<std::mutex> lock(cache_mtx);
-                                const auto& [it, _inserted] = seen_statespaces.insert(sorted);
-                                inserted = _inserted;
-
-                                ++total;
-                            }
-
-                            // Only scan statespace if we haven't seen the state
-                            if (!inserted) {
-                                return;
-                            }
-
-                            // TODO: This is the main issue. Need a lot of prefiltering/as much caching as I have memory
-                            const auto [cluster_id, statespace, winnable, max_moves] = sorted.
-                                get_cluster_id_and_solution();
-
-                            {
-                                std::lock_guard<std::mutex> lock(cache_mtx);
-                                for (const puzzle& seen : statespace) {
-                                    seen_statespaces.insert(seen);
-                                }
-                            }
-
-                            {
-                                std::lock_guard<std::mutex> lock(mtx);
-                                if (visited_clusters.contains(cluster_id)) {
-                                    ++duplicates;
-                                } else if (winnable && max_moves >= min_moves) {
-                                    // print_bitmap(cluster_id.blocks_bitmap(), _p.get_width(), _p.get_height(), "Found Cluster");
-                                    visited_clusters.emplace(cluster_id);
-                                }
-                            }
-                        });
-    };
-
-    // Iterate through all starting configurations + inventories
-    if (thread_pool) {
-        (*thread_pool)->submit_loop(0, puzzles.size() * sets.size(), place_blocks, LARGE_TASK_BLOCK_SIZE).wait();
-    } else {
-        for (size_t i = 0; i < puzzles.size() * sets.size(); ++i) {
-            place_blocks(i);
-        }
-    }
-
-    infoln("Found {} solvable clusters with at least {} required moves", visited_clusters.size(), min_moves);
-    traceln("- Scanned {} puzzles", total);
-    traceln("- {} belong to duplicate clusters", duplicates);
-    traceln("- {} don't match the requirements", total - duplicates - visited_clusters.size());
-
-    return visited_clusters;
 }

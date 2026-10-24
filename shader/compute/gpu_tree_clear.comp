@@ -1,0 +1,43 @@
+#version 430
+
+layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+struct HashEntry
+{
+    uint key;
+    uint head;
+    uint count;
+    uint used;
+};
+
+layout(std430, binding = 0) buffer HashEntries
+{
+    HashEntry entries[];
+};
+
+layout(std430, binding = 1) buffer Counters
+{
+    // 0: next node index, 1: next child slot, 2: output ref count, 3: next record index,
+    // 4: root node index, 5..7: reserved
+    uint counters[];
+};
+
+uniform uint hashSize;
+
+void main()
+{
+    const uint index = gl_GlobalInvocationID.x;
+    if (index >= hashSize) {
+        return;
+    }
+
+    entries[index].key = 0u;
+    entries[index].head = 0xFFFFFFFFu;
+    entries[index].count = 0u;
+    entries[index].used = 0u;
+
+    if (index == 0u) {
+        counters[3] = 0u;
+        counters[6] = 0u;
+    }
+}

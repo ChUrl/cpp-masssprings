@@ -1,25 +1,32 @@
 // ReSharper disable CppTooWideScope
 // ReSharper disable CppDFAUnreadVariable
 #include "puzzle.hpp"
+#include "puzzle_space.hpp"
 
-#include <random>
-#include <unordered_set>
 #include <benchmark/benchmark.h>
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <random>
+#include <unordered_set>
 
 static std::vector<std::string> puzzles = {
     // 0: RushHour 1
-    "S:[6x6] G:[4,2] M:[R] B:[{3x1 _ _ _ _ 1x3} {_ _ _ _ _ _} {_ _ 1x2 2X1 _ _} {_ _ _ 1x2 2x1 _} {1x2 _ 1x2 _ 2x1 _} {_ _ _ 3x1 _ _}]",
+    "S:[6x6] G:[4,2] M:[R] B:[{3x1 _ _ _ _ 1x3} {_ _ _ _ _ _} {_ _ 1x2 2X1 _ _} {_ _ _ 1x2 2x1 _} "
+    "{1x2 _ 1x2 _ 2x1 _} {_ _ _ 3x1 _ _}]",
     // 1: RushHour 2
-    "S:[6x6] G:[4,2] M:[R] B:[{1x2 3x1 _ _ 1x2 1x3} {_ 3x1 _ _ _ _} {2X1 _ 1x2 1x2 1x2 _} {2x1 _ _ _ _ _} {_ _ _ 1x2 2x1 _} {_ _ _ _ 2x1 _}]",
+    "S:[6x6] G:[4,2] M:[R] B:[{1x2 3x1 _ _ 1x2 1x3} {_ 3x1 _ _ _ _} {2X1 _ 1x2 1x2 1x2 _} {2x1 _ _ "
+    "_ _ _} {_ _ _ 1x2 2x1 _} {_ _ _ _ 2x1 _}]",
     // 2: RushHour 3
-    "S:[6x6] G:[4,2] M:[R] B:[{3x1 _ _ 1x2 _ _} {1x2 2x1 _ _ _ 1x2} {_ 2X1 _ 1x2 1x2 _} {2x1 _ 1x2 _ _ 1x2} {_ _ _ 2x1 _ _} {_ 2x1 _ 2x1 _ _}]",
+    "S:[6x6] G:[4,2] M:[R] B:[{3x1 _ _ 1x2 _ _} {1x2 2x1 _ _ _ 1x2} {_ 2X1 _ 1x2 1x2 _} {2x1 _ 1x2 "
+    "_ _ 1x2} {_ _ _ 2x1 _ _} {_ 2x1 _ 2x1 _ _}]",
     // 3: RushHour 4
-    "S:[6x6] G:[4,2] M:[R] B:[{1x3 2x1 _ _ 1x2 _} {_ 1x2 1x2 _ _ 1x3} {_ _ _ 2X1 _ _} {3x1 _ _ 1x2 _ _} {_ _ 1x2 _ 2x1 _} {2x1 _ _ 2x1 _ _}]",
+    "S:[6x6] G:[4,2] M:[R] B:[{1x3 2x1 _ _ 1x2 _} {_ 1x2 1x2 _ _ 1x3} {_ _ _ 2X1 _ _} {3x1 _ _ 1x2 "
+    "_ _} {_ _ 1x2 _ 2x1 _} {2x1 _ _ 2x1 _ _}]",
     // 4: RushHour + Walls 1
-    "S:[6x6] G:[4,2] M:[R] B:[{1x2 2x1 _ 1*1 _ _} {_ _ _ 1x2 2x1 _} {1x2 2X1 _ _ _ _} {_ _ 1x2 2x1 _ 1x3} {2x1 _ _ _ _ _} {2x1 _ 3x1 _ _ _}]",
+    "S:[6x6] G:[4,2] M:[R] B:[{1x2 2x1 _ 1*1 _ _} {_ _ _ 1x2 2x1 _} {1x2 2X1 _ _ _ _} {_ _ 1x2 2x1 "
+    "_ 1x3} {2x1 _ _ _ _ _} {2x1 _ 3x1 _ _ _}]",
     // 5: RushHour + Walls 2
-    "S:[6x6] G:[4,2] M:[R] B:[{2x1 _ _ 1x2 1x2 1*1} {3x1 _ _ _ _ _} {1x2 2X1 _ 1x2 _ _} {_ _ 1x2 _ 2x1 _} {_ _ _ 2x1 _ 1x2} {_ _ 2x1 _ 1*1 _}]",
+    "S:[6x6] G:[4,2] M:[R] B:[{2x1 _ _ 1x2 1x2 1*1} {3x1 _ _ _ _ _} {1x2 2X1 _ 1x2 _ _} {_ _ 1x2 _ "
+    "2x1 _} {_ _ _ 2x1 _ 1x2} {_ _ 2x1 _ 1*1 _}]",
     // 6: Dad's Puzzler
     "S:[4x5] G:[0,3] M:[F] B:[{2X2 _ 2x1 _} {_ _ 2x1 _} {1x1 1x1 _ _} {1x2 1x2 2x1 _} {_ _ 2x1 _}]",
     // 7: Nine Blocks
@@ -27,17 +34,27 @@ static std::vector<std::string> puzzles = {
     // 8: Quzzle
     "S:[4x5] G:[2,0] M:[F] B:[{2X2 _ 2x1 _} {_ _ 1x2 1x2} {_ _ _ _} {1x2 2x1 _ 1x1} {_ 2x1 _ 1x1}]",
     // 9: Thin Klotski
-    "S:[4x5] G:[1,4] M:[F] B:[{1x2 _ 2X1 _} {_ 2x2 _ 1x1} {_ _ _ 1x1} {2x2 _ 1x1 1x1} {_ _ 1x1 1x1}]",
+    "S:[4x5] G:[1,4] M:[F] B:[{1x2 _ 2X1 _} {_ 2x2 _ 1x1} {_ _ _ 1x1} {2x2 _ 1x1 1x1} {_ _ 1x1 "
+    "1x1}]",
     // 10: Fat Klotski
-    "S:[4x5] G:[1,3] M:[F] B:[{_ 2X2 _ 1x1} {1x1 _ _ 1x2} {1x1 2x2 _ _} {1x1 _ _ _} {1x1 1x1 2x1 _}]",
+    "S:[4x5] G:[1,3] M:[F] B:[{_ 2X2 _ 1x1} {1x1 _ _ 1x2} {1x1 2x2 _ _} {1x1 _ _ _} {1x1 1x1 2x1 "
+    "_}]",
     // 11: Klotski
-    "S:[4x5] G:[1,3] M:[F] B:[{1x2 2X2 _ 1x2} {_ _ _ _} {1x2 2x1 _ 1x2} {_ 1x1 1x1 _} {1x1 _ _ 1x1}]",
+    "S:[4x5] G:[1,3] M:[F] B:[{1x2 2X2 _ 1x2} {_ _ _ _} {1x2 2x1 _ 1x2} {_ 1x1 1x1 _} {1x1 _ _ "
+    "1x1}]",
     // 12: Century
-    "S:[4x5] G:[1,3] M:[F] B:[{1x1 2X2 _ 1x1} {1x2 _ _ 1x2} {_ 1x2 _ _} {1x1 _ _ 1x1} {2x1 _ 2x1 _}]",
+    "S:[4x5] G:[1,3] M:[F] B:[{1x1 2X2 _ 1x1} {1x2 _ _ 1x2} {_ 1x2 _ _} {1x1 _ _ 1x1} {2x1 _ 2x1 "
+    "_}]",
     // 13: Super Century
-    "S:[4x5] G:[1,3] M:[F] B:[{1x2 1x1 1x1 1x1} {_ 1x2 2X2 _} {1x2 _ _ _} {_ 2x1 _ 1x1} {_ 2x1 _ _}]",
+    "S:[4x5] G:[1,3] M:[F] B:[{1x2 1x1 1x1 1x1} {_ 1x2 2X2 _} {1x2 _ _ _} {_ 2x1 _ 1x1} {_ 2x1 _ "
+    "_}]",
     // 14: Supercompo
-    "S:[4x5] G:[1,3] M:[F] B:[{_ 2X2 _ _} {1x1 _ _ 1x1} {1x2 2x1 _ 1x2} {_ 2x1 _ _} {1x1 2x1 _ 1x1}]",
+    "S:[4x5] G:[1,3] M:[F] B:[{_ 2X2 _ _} {1x1 _ _ 1x1} {1x2 2x1 _ 1x2} {_ 2x1 _ _} {1x1 2x1 _ "
+    "1x1}]",
+    // 15: PerfDbg
+    "S:[8x8] G:[6,2] M:[R] B:[{3x1 _ _ _ _ 1x3 _ _} {_ _ _ _ _ _ _ _} {_ _ 1x2 2X1 _ _ _ _} {_ _ _ "
+    "1x2 2x1 _ _ _} {1x2 _ 1x2 _ 2x1 _ _ _} {_ _ _ 3x1 _ _ _ _} {_ _ _ _ _ _ _ _} {_ _ _ _ _ _ _ "
+    "_}]",
 };
 
 template <u8 N>
@@ -60,10 +77,8 @@ static auto unordered_set_uint64(benchmark::State& state) -> void
 {
     std::random_device random_device;
     std::mt19937 generator(random_device());
-    std::uniform_int_distribution<u64> distribution(
-        std::numeric_limits<u64>::min(),
-        std::numeric_limits<u64>::max()
-    );
+    std::uniform_int_distribution<u64> distribution(std::numeric_limits<u64>::min(),
+                                                    std::numeric_limits<u64>::max());
 
     std::unordered_set<std::array<u64, N>, uint_hasher<N>> set;
     std::array<u64, N> ints;
@@ -85,10 +100,8 @@ static auto unordered_flat_set_uint64(benchmark::State& state) -> void
 {
     std::random_device random_device;
     std::mt19937 generator(random_device());
-    std::uniform_int_distribution<u64> distribution(
-        std::numeric_limits<u64>::min(),
-        std::numeric_limits<u64>::max()
-    );
+    std::uniform_int_distribution<u64> distribution(std::numeric_limits<u64>::min(),
+                                                    std::numeric_limits<u64>::max());
 
     boost::unordered_flat_set<std::array<u64, N>, uint_hasher<N>> set;
     std::array<u64, N> ints;
@@ -168,30 +181,22 @@ static auto explore_rush_hour_puzzle_space(benchmark::State& state) -> void
     constexpr u8 goal_y = 2;
     constexpr bool restricted = true;
 
-    const blockset2 permitted_blocks = {
-        block(0, 0, 2, 1, false, false),
-        block(0, 0, 3, 1, false, false),
-        block(0, 0, 1, 2, false, false),
-        block(0, 0, 1, 3, false, false)
-    };
-    const block target_block = block(0, 0, 2, 1, true, false);
-    constexpr std::tuple<u8, u8, u8, u8> target_block_pos_range = {
-        0,
-        goal_y,
-        goal_x,
-        goal_y
-    };
-
-    const puzzle p = puzzle(board_width, board_height, goal_x, goal_y, restricted, true);
+    puzzle_space_config config;
+    config.width = board_width;
+    config.height = board_height;
+    config.goal_x = goal_x;
+    config.goal_y = goal_y;
+    config.restricted = restricted;
+    config.inventory = {block(0, 0, 2, 1, false, false), block(0, 0, 3, 1, false, false),
+                        block(0, 0, 1, 2, false, false), block(0, 0, 1, 3, false, false)};
+    config.target = block(0, 0, 2, 1, true, false);
+    config.target_positions = {0, goal_y, goal_x, goal_y};
+    config.max_blocks = max_blocks;
+    config.min_moves = 0;
 
     for (auto _ : state) {
-        puzzleset result = p.explore_puzzle_space(
-            permitted_blocks,
-            target_block,
-            target_block_pos_range,
-            max_blocks,
-            0,
-            std::nullopt);
+        puzzle_space_result result =
+            run_puzzle_space_search(config, nullptr, std::stop_token{}, std::nullopt);
 
         benchmark::DoNotOptimize(result);
     }

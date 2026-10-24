@@ -48,6 +48,16 @@ rec {
 
         inherit (pkgs) lib stdenv;
 
+        # OpenGL 4.3 is required for compute shaders. Keep this in one place so the Linux and
+        # Windows packages use the same raylib configuration.
+        raylib43 = pkgs.raylib.overrideAttrs (old: {
+          cmakeFlags = (old.cmakeFlags or []) ++ ["-DOPENGL_VERSION=4.3"];
+        });
+
+        windowsRaylib43 = windowsPkgs.raylib.overrideAttrs (old: {
+          cmakeFlags = (old.cmakeFlags or []) ++ ["-DOPENGL_VERSION=4.3"];
+        });
+
         # =========================================================================================
         # Define shell environment
         # =========================================================================================
@@ -308,9 +318,10 @@ rec {
         # - Interpreters needed by patchShebangs for scripts which are installed, which can be the case for e.g. perl
         buildInputs = with pkgs; [
           # C/C++:
-          raylib
+          raylib43
           raygui
           glew
+          glfw
           thread-pool
           libmorton
           boost
@@ -347,13 +358,11 @@ rec {
             "-DDISABLE_BACKWARD=On"
             "-DDISABLE_TESTS=On"
             "-DDISABLE_BENCH=On"
+            # The package is built for and run on this machine.
+            "-DMARCH=znver4"
           ];
 
           hardeningDisable = ["all"];
-
-          preConfigure = ''
-            unset NIX_ENFORCE_NO_NATIVE
-          '';
 
           installPhase = ''
             runHook preInstall
@@ -394,9 +403,10 @@ rec {
           ];
 
           buildInputs = with windowsPkgs; [
-            raylib
+            windowsRaylib43
             raygui
             glew-windows
+            glfw
             thread-pool
             libmorton
 
@@ -417,6 +427,8 @@ rec {
             "-DDISABLE_BACKWARD=On"
             "-DDISABLE_TESTS=On"
             "-DDISABLE_BENCH=On"
+            # Distributed artifact: portable baseline (Haswell 2013+ / Zen 2017+).
+            "-DMARCH=x86-64-v3"
           ];
 
           installPhase = ''
@@ -470,9 +482,10 @@ rec {
 
               buildInputs = with pkgs; [
                 # C/C++:
-                raylib
+                raylib43
                 raygui
                 glew
+                glfw
                 thread-pool
                 libmorton
                 boost

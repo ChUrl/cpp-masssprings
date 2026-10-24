@@ -1,0 +1,70 @@
+#version 430
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) buffer Positions
+{
+    float positions[];
+};
+
+layout(std430, binding = 1) buffer PreviousPositions
+{
+    float previous[];
+};
+
+layout(std430, binding = 2) buffer Velocities
+{
+    float velocities[];
+};
+
+layout(std430, binding = 3) readonly buffer Forces
+{
+    float forces[];
+};
+
+uniform int count;
+uniform float dt;
+uniform float mass;
+uniform float verletDamping;
+uniform float maxStep;
+
+void main()
+{
+    const uint index = gl_GlobalInvocationID.x;
+    if (index >= uint(count)) {
+        return;
+    }
+
+    const vec3 pos = vec3(positions[3 * index + 0], positions[3 * index + 1],
+                          positions[3 * index + 2]);
+    const vec3 previous_pos = vec3(previous[3 * index + 0], previous[3 * index + 1],
+                                   previous[3 * index + 2]);
+    const vec3 force = vec3(forces[3 * index + 0], forces[3 * index + 1], forces[3 * index + 2]);
+
+    // Velocity at the start of the step, matching the CPU Verlet implementation.
+    const vec3 velocity = (pos - previous_pos) / dt;
+
+    vec3 delta = pos - previous_pos;
+    delta *= 1.0 - verletDamping;
+
+    const vec3 acceleration = (force / mass) * dt * dt;
+    vec3 step = delta + acceleration;
+
+    const float step_sq = dot(step, step);
+    if (step_sq > maxStep * maxStep) {
+        step *= maxStep * inversesqrt(step_sq);
+    }
+
+    const vec3 new_pos = pos + step;
+    positions[3 * index + 0] = new_pos.x;
+    positions[3 * index + 1] = new_pos.y;
+    positions[3 * index + 2] = new_pos.z;
+
+    previous[3 * index + 0] = pos.x;
+    previous[3 * index + 1] = pos.y;
+    previous[3 * index + 2] = pos.z;
+
+    velocities[3 * index + 0] = velocity.x;
+    velocities[3 * index + 1] = velocity.y;
+    velocities[3 * index + 2] = velocity.z;
+}

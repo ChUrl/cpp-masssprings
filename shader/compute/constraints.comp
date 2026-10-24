@@ -1,0 +1,59 @@
+#version 430
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) buffer Positions
+{
+    float positions[];
+};
+
+layout(std430, binding = 1) readonly buffer Springs
+{
+    uint springs[];
+};
+
+layout(std430, binding = 2) readonly buffer ColoredSprings
+{
+    uint colored_springs[];
+};
+
+uniform uint offset;
+uniform uint count;
+uniform float restLength;
+uniform float relaxation;
+
+void main()
+{
+    const uint index = gl_GlobalInvocationID.x;
+    if (index >= count) {
+        return;
+    }
+
+    const uint spring_index = colored_springs[offset + index];
+    const uint a = springs[2 * spring_index + 0];
+    const uint b = springs[2 * spring_index + 1];
+
+    vec3 delta = vec3(positions[3 * a + 0] - positions[3 * b + 0],
+                      positions[3 * a + 1] - positions[3 * b + 1],
+                      positions[3 * a + 2] - positions[3 * b + 2]);
+    const float len_sq = dot(delta, delta);
+    if (len_sq < 1e-12) {
+        return;
+    }
+
+    const float len = sqrt(len_sq);
+    if (len >= restLength) {
+        return;
+    }
+
+    const float correction = (len - restLength) / len * 0.5 * relaxation;
+    delta *= correction;
+
+    positions[3 * a + 0] -= delta.x;
+    positions[3 * a + 1] -= delta.y;
+    positions[3 * a + 2] -= delta.z;
+
+    positions[3 * b + 0] += delta.x;
+    positions[3 * b + 1] += delta.y;
+    positions[3 * b + 2] += delta.z;
+}

@@ -1,24 +1,30 @@
 #ifndef UTIL_HPP_
 #define UTIL_HPP_
 
-#include <vector>
+#include <atomic>
+#include <cmath>
+#include <cstddef>
+#include <format>
 #include <iostream>
 #include <raylib.h>
+#include <string>
+#include <vector>
 
 #define INLINE __attribute__((always_inline))
 #define PACKED __attribute__((packed))
 
 #define STARTTIME const auto start = std::chrono::high_resolution_clock::now()
-#define ENDTIME(msg, cast, unit) const auto end = std::chrono::high_resolution_clock::now(); \
+#define ENDTIME(msg, cast, unit)                                                                   \
+    const auto end = std::chrono::high_resolution_clock::now();                                    \
     infoln("{}. Took {}{}.", msg, std::chrono::duration_cast<cast>(end - start).count(), unit)
 
 #define COMMENT if (false)
 
-#define NO_COPY_NO_MOVE(typename) \
-    typename(const typename& copy) = delete; \
-    auto operator=(const typename& copy) -> typename& = delete; \
-    typename(typename&& move) = delete; \
-    auto operator=(typename&& move) -> typename& = delete;
+#define NO_COPY_NO_MOVE(typename)                                                                  \
+    typename(const typename& copy) = delete;                                                       \
+    auto operator=(const typename& copy)->typename& = delete;                                      \
+    typename(typename && move) = delete;                                                           \
+    auto operator=(typename&& move)->typename& = delete;
 
 using u8 = uint8_t;
 using u16 = uint16_t;
@@ -120,37 +126,97 @@ inline auto operator<<(std::ostream& os, const Vector3& v) -> std::ostream&
     return os;
 }
 
+// Log level: 0 = off (warnings/errors still print), 1 = info, 2 = detailed (trace).
+extern std::atomic<int> g_log_level;
+
+inline auto log_enabled(const int level) -> bool
+{
+    return g_log_level.load(std::memory_order_relaxed) >= level;
+}
+
+inline auto format_count(const size_t value) -> std::string
+{
+    std::string text = std::to_string(value);
+    for (int i = static_cast<int>(text.size()) - 3; i > 0; i -= 3) {
+        text.insert(static_cast<size_t>(i), 1, ',');
+    }
+    return text;
+}
+
+inline auto format_duration(const double seconds) -> std::string
+{
+    if (!std::isfinite(seconds) || seconds < 0.0) {
+        return "--";
+    }
+    const auto total = static_cast<size_t>(std::round(seconds));
+    if (total < 60) {
+        return std::format("{}s", total);
+    }
+    const size_t minutes = total / 60;
+    const size_t remaining = total % 60;
+    if (minutes < 60) {
+        return std::format("{}m {:02}s", minutes, remaining);
+    }
+    const size_t hours = minutes / 60;
+    return std::format("{}h {:02}m", hours, minutes % 60);
+}
+
+inline auto format_gb(const size_t bytes) -> std::string
+{
+    constexpr double bytes_per_gb = 1024.0 * 1024.0 * 1024.0;
+    return std::format("{:.2f} GB", static_cast<double>(bytes) / bytes_per_gb);
+}
+
+inline auto format_memory(const size_t bytes) -> std::string
+{
+    constexpr double bytes_per_kb = 1024.0;
+    constexpr double bytes_per_mb = 1024.0 * 1024.0;
+    constexpr double bytes_per_gb = 1024.0 * 1024.0 * 1024.0;
+    if (bytes >= static_cast<size_t>(bytes_per_gb)) {
+        return std::format("{:.2f} GB", static_cast<double>(bytes) / bytes_per_gb);
+    }
+    if (bytes >= static_cast<size_t>(bytes_per_mb)) {
+        return std::format("{:.1f} MB", static_cast<double>(bytes) / bytes_per_mb);
+    }
+    if (bytes >= static_cast<size_t>(bytes_per_kb)) {
+        return std::format("{:.0f} KB", static_cast<double>(bytes) / bytes_per_kb);
+    }
+    return std::format("{} B", bytes);
+}
+
 // std::println doesn't work with mingw
 template <typename... Args>
 auto traceln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}TRACE{}]: ", ansi_bold_fg(fg::cyan), ansi_reset()) << std::format(
-        fmt,
-        std::forward<Args>(args)...) << std::endl;
+    if (!log_enabled(2)) {
+        return;
+    }
+    std::cout << std::format("[{}TRACE{}]: ", ansi_bold_fg(fg::cyan), ansi_reset())
+              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto infoln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}INFO{}]: ", ansi_bold_fg(fg::blue), ansi_reset()) << std::format(
-        fmt,
-        std::forward<Args>(args)...) << std::endl;
+    if (!log_enabled(1)) {
+        return;
+    }
+    std::cout << std::format("[{}INFO{}]: ", ansi_bold_fg(fg::blue), ansi_reset())
+              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto warnln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}WARNING{}]: ", ansi_bold_fg(fg::yellow), ansi_reset()) << std::format(
-        fmt,
-        std::forward<Args>(args)...) << std::endl;
+    std::cout << std::format("[{}WARNING{}]: ", ansi_bold_fg(fg::yellow), ansi_reset())
+              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 template <typename... Args>
 auto errln(std::format_string<Args...> fmt, Args&&... args) -> void
 {
-    std::cout << std::format("[{}ERROR{}]: ", ansi_bold_fg(fg::red), ansi_reset()) << std::format(
-        fmt,
-        std::forward<Args>(args)...) << std::endl;
+    std::cout << std::format("[{}ERROR{}]: ", ansi_bold_fg(fg::red), ansi_reset())
+              << std::format(fmt, std::forward<Args>(args)...) << std::endl;
 }
 
 #endif

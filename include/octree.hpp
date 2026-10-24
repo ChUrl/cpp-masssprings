@@ -1,35 +1,116 @@
 #ifndef OCTREE_HPP_
 #define OCTREE_HPP_
 
-#include "util.hpp"
 #include "config.hpp"
+#include "settings.hpp"
+#include "util.hpp"
 
 #include <array>
+#include <utility>
 #include <vector>
 
+#include <libmorton/morton.h>
 #include <raylib.h>
 #include <raymath.h>
-#include <libmorton/morton.h>
+
+// Optional result of preparing the Morton keys outside the octree builder (currently the GPU
+// radix sort). The builder can consume this in place of its own bbox/morton/sort stages.
+struct morton_sort_input
+{
+    std::vector<u64> sorted; // packed (morton_code << 32) | mass_id, in ascending order
+    Vector3 root_min = Vector3Zero();
+    Vector3 root_max = Vector3Zero();
+    float root_extent = 0.0f;
+    float bbox_ms = 0.0f;
+    float morton_ms = 0.0f;
+    float sort_ms = 0.0f;
+};
 
 class octree
 {
     class node
     {
     public:
-        Vector3 mass_center = Vector3Zero();
-        float mass_total = 0.0;
-        u8 depth = 0;
-        float size = 0.0f; // Because our octree cells are cubic we don't need to store the bounds
-        std::array<int, 8> children = {-1, -1, -1, -1, -1, -1, -1, -1};
-        int mass_id = -1;
-        bool leaf = true;
+        Vector3 mass_center = Vector3Zero(); // 12
+        float mass_total = 0.0;              // 4
+        float size = 0.0f;    // 4 - our octree cells are cubic, so no bounds are needed
+        int mass_id = -1;     // 4 - >= 0 for a leaf, -1 for an internal node
+        int first_child = -1; // 4 - index into octree::children (internal nodes only)
+        int child_count = 0;  // 4 - at most 8 (an int keeps the GPU std430 layout identical)
+
+        [[nodiscard]] auto leaf() const -> bool
+        {
+            return mass_id >= 0;
+        }
     };
+    static_assert(sizeof(node) == 32, "octree::node should stay compact for cache efficiency");
+
+    friend class gpu_physics;
 
 private:
-    // 21 * 3 = 63, fits in u64 for combined x/y/z morton-code
-    static constexpr int MAX_DEPTH = 21;
+    // Upper bound for the configurable tree depth (12 * 3 = 36 Morton bits). The actual depth
+    // is a runtime setting in [6, MAX_DEPTH_LIMIT].
+    static constexpr int MAX_DEPTH_LIMIT = 12;
+
+    struct leaf_ref
+    {
+        u64 code;
+        u32 first_leaf; // index of the first leaf covered by this subtree
+        // Packed (level_index << 4) | depth. level_index needs < 2^28 entries, depth < 16.
+        u32 depth_and_index;
+
+        [[nodiscard]] auto depth() const -> int
+        {
+            return static_cast<int>(depth_and_index & 0xFu);
+        }
+        [[nodiscard]] auto level_index() const -> int
+        {
+            return static_cast<int>(depth_and_index >> 4);
+        }
+    };
 
     std::vector<node> nodes;
+
+    // Layout is leaves first, then internal levels up to the root, so leaf nodes never have to
+    // be copied into their final position.
+    int root_idx = 0;
+
+    // Build-time configuration. Force queries use these exact values so the tree and the force
+    // model stay consistent even if the UI changes them later.
+    int depth = 8;
+    float theta = 1.6f;
+    float bh_force = 3.0f;
+    float softening = 0.05f;
+    float mass = 1.0f;
+
+    // Child node indices, stored contiguously per parent. Kept out of `node` so that leaves
+    // (the vast majority of nodes) don't waste 32 bytes on unused child slots.
+    std::vector<int> children;
+
+    // Mass ids in Morton order of the last build. Iterating force queries in this order keeps
+    // the tree traversal cache-friendly instead of jumping randomly through memory per mass.
+    std::vector<u32> order;
+
+    // Positions the tree was built from. Force queries must use these rather than the current
+    // positions; mixing current positions with stale mass centers makes the force field
+    // inconsistent and visibly jitters dense clusters.
+    std::vector<Vector3> snapshot;
+
+    // Scratch buffers reused across builds. Without these, every physics step allocated and
+    // grew ~15 vectors, which showed up as allocator churn in the step time.
+    // Packed (morton_code << 32) | mass_id. The code needs at most 3 * MAX_DEPTH bits, so an
+    // 8-byte record is enough and halves the radix-sort memory traffic.
+    std::vector<u64> sort_scratch;
+    std::vector<u64> sort_tmp;
+
+public:
+    // Debug: wall time of each build stage (bbox, morton, sort, leaves, levels, flatten).
+    std::array<float, 6> stage_ms{};
+
+private:
+    std::vector<std::vector<node>> level_scratch;
+    std::vector<leaf_ref> leaves_scratch;
+    std::vector<leaf_ref> next_refs_scratch;
 
     // This approach is actually slower than the array of nodes
     // beacuse we access all the attributes in the same function
@@ -48,29 +129,13 @@ public:
     // NO_COPY_NO_MOVE(octree);
 
 private:
-    [[nodiscard]] INLINE static inline auto get_octant(const Vector3& box_min,
-                                                       const Vector3& box_max,
-                                                       const Vector3& pos) -> int;
-    [[nodiscard]] INLINE static inline auto get_child_bounds(const Vector3& box_min,
-                                                             const Vector3& box_max,
-                                                             int octant) -> std::pair<Vector3, Vector3>;
-
     // Map a floating point coordinate to a discrete integer (so its morton-code can be computed)
     // The "bits" parameter determines the discrete axis resolution
-    [[nodiscard]] INLINE static inline auto quantize_axis(float coordinate,
-                                                          float box_min,
-                                                          float box_max,
-                                                          int bits) -> u32;
+    [[nodiscard]] INLINE static inline auto quantize_axis(float coordinate, float box_min,
+                                                          float box_max, int bits) -> u32;
 
-    [[nodiscard]] INLINE static inline auto pos_to_morton(const Vector3& p,
-                                                          const Vector3& root_min,
-                                                          const Vector3& root_max) -> u64;
-
-    [[nodiscard]] INLINE static inline auto jitter_pos(Vector3 p,
-                                                       u32 seed,
-                                                       const Vector3& root_min,
-                                                       const Vector3& root_max,
-                                                       float root_extent) -> Vector3;
+    [[nodiscard]] INLINE static inline auto pos_to_morton(const Vector3& p, const Vector3& root_min,
+                                                          const Vector3& root_max, int bits) -> u64;
 
     // Use this to obtain an ancestor node of a leaf node (on any level).
     // Because the morton codes (interleaved coordinates) encode the octree path, we can take
@@ -80,131 +145,71 @@ private:
     // - [101 110 100]
     // - [101 110]
     // - [101] (root)
-    [[nodiscard]] INLINE static inline auto path_to_ancestor(u64 leaf_code, int leaf_depth, int depth) -> u64;
-
-    // Use this to obtain the octant a leaf node is contained in (on any level).
-    // The 3 interleaved bits in the morten code encode the octant [0, 7].
-    // Leaf Code: [101 110 100 001] -> Octants:
-    // - [100] (Level 2)
-    // - [110] (Level 1)
-    // - [101] (Level 0)
-    [[nodiscard]] INLINE static inline auto octant_at_level(u64 leaf_code, int level, int leaf_depth) -> int;
+    [[nodiscard]] INLINE static inline auto path_to_ancestor(u64 leaf_code, int leaf_depth,
+                                                             int depth) -> u64;
 
 public:
     auto clear() -> void;
-    auto reserve(size_t count) -> void;
     [[nodiscard]] auto empty() const -> bool;
     [[nodiscard]] auto root() const -> const node&;
+    [[nodiscard]] auto morton_order() const -> const std::vector<u32>&;
+    [[nodiscard]] auto node_root_index() const -> int
+    {
+        return root_idx;
+    }
+    [[nodiscard]] auto positions_snapshot() const -> const std::vector<Vector3>&;
+    [[nodiscard]] auto node_count() const -> size_t;
+    [[nodiscard]] auto child_count() const -> size_t;
+    [[nodiscard]] auto memory_bytes() const -> size_t;
 
-    // Morton/linear octree implementation
-    static auto build_octree_morton(octree& t,
-                                    const std::vector<Vector3>& positions,
-                                    const std::optional<BS::thread_pool<>*>& thread_pool) -> void;
-    [[nodiscard]] auto calculate_force_morton(int node_idx, const Vector3& pos, int self_id) const -> Vector3;
+    // Padded cubic bounds used by the Morton builder. Shared with the GPU sort so both paths
+    // quantize positions identically.
+    static auto compute_bounds(const std::vector<Vector3>& positions)
+        -> std::pair<Vector3, Vector3>;
+
+    // Morton/linear octree implementation. If `precomputed` is provided, its sorted keys and
+    // bounds replace the CPU bbox/morton/sort stages; the remaining leaf/level stages are
+    // unchanged.
+    static auto build_octree_morton(octree& t, const std::vector<Vector3>& positions,
+                                    const std::optional<BS::thread_pool<>*>& thread_pool,
+                                    const simulation_settings& settings,
+                                    morton_sort_input* precomputed = nullptr) -> void;
+    [[nodiscard]] auto calculate_force_morton(int node_idx, const Vector3& pos, int self_id) const
+        -> Vector3;
 };
 
-INLINE inline auto octree::get_octant(const Vector3& box_min, const Vector3& box_max, const Vector3& pos) -> int
-{
-    auto [cx, cy, cz] = (box_min + box_max) / 2.0f;
-
-    // The octant is encoded as a 3-bit integer "zyx". The node area is split
-    // along all 3 axes, if a position is right of an axis, this bit is set to 1.
-    // If a position is right of the x-axis and y-axis and left of the z-axis, the
-    // encoded octant is "011".
-    return (pos.x >= cx) | ((pos.y >= cy) << 1) | ((pos.z >= cz) << 2);
-}
-
-INLINE inline auto octree::get_child_bounds(const Vector3& box_min,
-                                            const Vector3& box_max,
-                                            const int octant) -> std::pair<Vector3, Vector3>
-{
-    auto [cx, cy, cz] = (box_min + box_max) / 2.0f;
-
-    Vector3 min = Vector3Zero();
-    Vector3 max = Vector3Zero();
-
-    // If (octant & 1), the octant is to the right of the node region's x-axis
-    // (see GetOctant). This means the left bound is the x-axis and the right
-    // bound the node's region max.
-    min.x = octant & 1 ? cx : box_min.x;
-    max.x = octant & 1 ? box_max.x : cx;
-    min.y = octant & 2 ? cy : box_min.y;
-    max.y = octant & 2 ? box_max.y : cy;
-    min.z = octant & 4 ? cz : box_min.z;
-    max.z = octant & 4 ? box_max.z : cz;
-
-    return std::make_pair(min, max);
-}
-
-INLINE inline auto octree::quantize_axis(const float coordinate,
-                                         const float box_min,
-                                         const float box_max,
-                                         const int bits) -> u32
+INLINE inline auto octree::quantize_axis(const float coordinate, const float box_min,
+                                         const float box_max, const int bits) -> u32
 {
     const float extent = box_max - box_min;
     if (extent <= 0.0f) {
         return 0;
     }
 
-    float normalized = (coordinate - box_min) / extent;                            // normalize to [0,1]
-    normalized = std::max(0.0f, std::min(normalized, std::nextafter(1.0f, 0.0f))); // avoid exactly 1.0
+    float normalized = (coordinate - box_min) / extent; // normalize to [0,1]
+    normalized =
+        std::max(0.0f, std::min(normalized, std::nextafter(1.0f, 0.0f))); // avoid exactly 1.0
 
     // bits up to 21 => (1u << bits) safe in 32-bit
     const u32 grid_max = (1u << bits) - 1u;
     return static_cast<u32>(normalized * static_cast<float>(grid_max));
 }
 
-INLINE inline auto octree::pos_to_morton(const Vector3& p, const Vector3& root_min, const Vector3& root_max) -> u64
+INLINE inline auto octree::pos_to_morton(const Vector3& p, const Vector3& root_min,
+                                         const Vector3& root_max, const int bits) -> u64
 {
-    const u32 x = quantize_axis(p.x, root_min.x, root_max.x, MAX_DEPTH);
-    const u32 y = quantize_axis(p.y, root_min.y, root_max.y, MAX_DEPTH);
-    const u32 z = quantize_axis(p.z, root_min.z, root_max.z, MAX_DEPTH);
+    const u32 x = quantize_axis(p.x, root_min.x, root_max.x, bits);
+    const u32 y = quantize_axis(p.y, root_min.y, root_max.y, bits);
+    const u32 z = quantize_axis(p.z, root_min.z, root_max.z, bits);
     return libmorton::morton3D_64_encode(x, y, z);
 }
 
-INLINE inline auto octree::jitter_pos(Vector3 p,
-                                      const u32 seed,
-                                      const Vector3& root_min,
-                                      const Vector3& root_max,
-                                      const float root_extent) -> Vector3
-{
-    // Use a hash to calculate a deterministic jitter: The same position should always get the same jitter.
-    // We want this to get stable physics, particles at the same position shouldn't get different jitters
-    // across frames...
-    u32 h = (seed ^ 61u) ^ (seed >> 16);
-    h *= 9u;
-    h = h ^ (h >> 4);
-    h *= 0x27d4eb2du;
-    h = h ^ (h >> 15);
-
-    // finest cell size at depth L
-    const float finest_cell = root_extent / static_cast<float>(1u << MAX_DEPTH);
-    const float s = finest_cell * 1e-4f; // small pp
-
-    p.x += (h & 1u) ? +s : -s;
-    p.y += (h & 2u) ? +s : -s;
-    p.z += (h & 4u) ? +s : -s;
-
-    // clamp back into bounds just in case
-    p.x = std::max(root_min.x, std::min(p.x, root_max.x));
-    p.y = std::max(root_min.y, std::min(p.y, root_max.y));
-    p.z = std::max(root_min.z, std::min(p.z, root_max.z));
-
-    return p;
-}
-
-INLINE inline auto octree::path_to_ancestor(const u64 leaf_code, const int leaf_depth, const int depth) -> u64
+INLINE inline auto octree::path_to_ancestor(const u64 leaf_code, const int leaf_depth,
+                                            const int depth) -> u64
 {
     // keep top 3*depth bits; drop the rest
     const int drop = 3 * (leaf_depth - depth);
     return (drop > 0) ? (leaf_code >> drop) : leaf_code;
-}
-
-INLINE inline auto octree::octant_at_level(const u64 leaf_code, const int level, const int leaf_depth) -> int
-{
-    // level 1 => child of root => topmost 3 bits
-    const int shift = 3 * (leaf_depth - level);
-    return static_cast<int>((leaf_code >> shift) & 0x7ull);
 }
 
 #endif

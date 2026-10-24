@@ -1,0 +1,111 @@
+#version 430
+
+layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+struct Node
+{
+    vec3 center;
+    float mass_total;
+    float size;
+    int mass_id;
+    int first_child;
+    int child_count;
+};
+
+struct HashEntry
+{
+    uint key;
+    uint head;
+    uint count;
+    uint used;
+};
+
+layout(std430, binding = 0) readonly buffer HashEntries
+{
+    HashEntry entries[];
+};
+
+layout(std430, binding = 1) readonly buffer Records
+{
+    uvec4 records[];
+};
+
+layout(std430, binding = 2) buffer Nodes
+{
+    Node nodes[];
+};
+
+layout(std430, binding = 3) buffer Children
+{
+    int children[];
+};
+
+layout(std430, binding = 4) writeonly buffer OutRefs
+{
+    uvec4 out_refs[];
+};
+
+layout(std430, binding = 5) buffer Counters
+{
+    uint counters[];
+};
+
+uniform uint hashSize;
+uniform int currentDepth;
+uniform float rootExtent;
+
+void main()
+{
+    const uint slot = gl_GlobalInvocationID.x;
+    if (slot >= hashSize) {
+        return;
+    }
+    if (entries[slot].key == 0u || entries[slot].count == 0u) {
+        return;
+    }
+
+    const uint child_count = entries[slot].count;
+    if (child_count == 1u) {
+        const uvec4 ref_record = records[entries[slot].head];
+        if (currentDepth == 0) {
+            counters[4] = ref_record.z;
+        } else {
+            const uint out_slot = atomicAdd(counters[6], 1u);
+            out_refs[out_slot] = uvec4(ref_record.x, 0u, ref_record.z, ref_record.y);
+        }
+        return;
+    }
+
+    const uint parent = atomicAdd(counters[0], 1u);
+    const uint first_child = atomicAdd(counters[1], child_count);
+    const float parent_size = rootExtent / float(1u << uint(currentDepth));
+
+    vec3 center = vec3(0.0);
+    float total_mass = 0.0;
+    uint record_index = entries[slot].head;
+    for (uint i = 0u; i < child_count; ++i) {
+        const uvec4 ref_record = records[record_index];
+        const uint child = ref_record.z;
+        const Node child_node = nodes[child];
+        children[first_child + i] = int(child);
+        center += child_node.center * child_node.mass_total;
+        total_mass += child_node.mass_total;
+        record_index = ref_record.w;
+    }
+
+    Node parent_node;
+    parent_node.center = total_mass > 0.0 ? center / total_mass : vec3(0.0);
+    parent_node.mass_total = total_mass;
+    parent_node.size = parent_size;
+    parent_node.mass_id = -1;
+    parent_node.first_child = int(first_child);
+    parent_node.child_count = int(child_count);
+    nodes[parent] = parent_node;
+
+    if (currentDepth == 0) {
+        counters[4] = parent;
+    } else {
+        const uint out_slot = atomicAdd(counters[6], 1u);
+        out_refs[out_slot] = uvec4(entries[slot].key - 1u, 0u, parent, uint(currentDepth));
+    }
+}

@@ -1,0 +1,50 @@
+#version 430
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) readonly buffer Elements
+{
+    uvec4 elements[];
+};
+
+layout(std430, binding = 1) writeonly buffer Histogram
+{
+    uint histogram[];
+};
+
+uniform int count;
+uniform int shift;
+
+const uint block_size = 1024u;
+
+uint digit_of(const uvec4 element, const int digit_shift)
+{
+    if (digit_shift < 32) {
+        return (element.x >> uint(digit_shift)) & 0xFu;
+    }
+    return (element.y >> uint(digit_shift - 32)) & 0xFu;
+}
+
+shared uint bins[16];
+
+void main()
+{
+    const uint local = gl_LocalInvocationID.x;
+    if (local < 16u) {
+        bins[local] = 0u;
+    }
+    barrier();
+
+    const uint base = gl_WorkGroupID.x * block_size;
+    for (uint i = local; i < block_size; i += 256u) {
+        const uint index = base + i;
+        if (index < uint(count)) {
+            atomicAdd(bins[digit_of(elements[index], shift)], 1u);
+        }
+    }
+    barrier();
+
+    if (local < 16u) {
+        histogram[gl_WorkGroupID.x * 16u + local] = bins[local];
+    }
+}

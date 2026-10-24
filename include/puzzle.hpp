@@ -1,19 +1,21 @@
 #ifndef PUZZLE_HPP_
 #define PUZZLE_HPP_
 
-#include "config.hpp"
-#include "util.hpp"
 #include "bits.hpp"
+#include "config.hpp"
 #include "cpu_spring_system.hpp"
+#include "util.hpp"
 
 #include <array>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cstddef>
 #include <functional>
 #include <ranges>
+#include <stop_token>
 #include <string>
+#include <utility>
 #include <vector>
-#include <boost/unordered/unordered_flat_set.hpp>
-#include <boost/unordered/unordered_flat_map.hpp>
 
 // #define RUNTIME_CHECKS
 
@@ -22,6 +24,9 @@ struct block_hasher;
 struct block_hasher2;
 struct block_equal2;
 struct puzzle_hasher;
+struct state_space_result;
+struct cluster_exploration;
+class exploration_observer;
 
 /*
  * 8x8 board
@@ -75,11 +80,12 @@ public:
          *  ---------- -----------
          *    Byte 1     Byte 0
          *
-         * Store the y-position at the most significant bits to obtain a row-major ordering when comparing reprs.
-         * The block at (0, 0) will be the smallest, the block at (width, height) the largest,
-         * the block at (1, 0) will be smaller than the block at (0, 1), all independent of block size.
-         * Then, the block with size (1, 1) will be smaller than the block with size (2, 2),
-         * the block with size (1, 0) - horizontal - will be smaller than the block with size (0, 1) - vertical.
+         * Store the y-position at the most significant bits to obtain a row-major ordering when
+         * comparing reprs. The block at (0, 0) will be the smallest, the block at (width, height)
+         * the largest, the block at (1, 0) will be smaller than the block at (0, 1), all
+         * independent of block size. Then, the block with size (1, 1) will be smaller than the
+         * block with size (2, 2), the block with size (1, 0) - horizontal - will be smaller than
+         * the block with size (0, 1) - vertical.
          *
          * To mark if a block is empty, the first B bit is set to 1. This is required,
          * since otherwise u16{0} would be a valid block. This also makes empty blocks sorted last.
@@ -88,13 +94,14 @@ public:
 
     public:
         // Produces an invalid block, for usage with std::array<block, MaxBlocks>
-        block()
-            : repr(INVALID) {}
+        block() : repr(INVALID)
+        {}
 
-        explicit block(const u16 _repr)
-            : repr(_repr) {}
+        explicit block(const u16 _repr) : repr(_repr)
+        {}
 
-        block(const int x, const int y, const int w, const int h, const bool t = false, const bool i = false)
+        block(const int x, const int y, const int w, const int h, const bool t = false,
+              const bool i = false)
             : repr(create_repr(x, y, w, h, t, i))
         {
             if (x < 0 || x + w > MAX_WIDTH || y < 0 || y + h > MAX_HEIGHT) {
@@ -137,7 +144,8 @@ public:
 
     private:
         // Repr setters
-        [[nodiscard]] static auto create_repr(u8 x, u8 y, u8 w, u8 h, bool t = false, bool i = false) -> u16;
+        [[nodiscard]] static auto create_repr(u8 x, u8 y, u8 w, u8 h, bool t = false,
+                                              bool i = false) -> u16;
         [[nodiscard]] inline auto set_x(u8 x) const -> block;
         [[nodiscard]] inline auto set_y(u8 y) const -> block;
         [[nodiscard]] inline auto set_width(u8 width) const -> block;
@@ -210,7 +218,8 @@ private:
          *    Byte 1     Byte 0
          *
          * To mark if a puzzle is empty, the first B bit is set to 1.
-         * An extra bit is used to mark if the board has a goal, because we can't store MAX_WIDTH=8 in 3 bits.
+         * An extra bit is used to mark if the board has a goal, because we can't store MAX_WIDTH=8
+         * in 3 bits.
          */
         u16 meta;
 
@@ -221,12 +230,13 @@ private:
         // repr_cooked() = delete;
         // repr_cooked(const repr_cooked& copy) = delete;
         // repr_cooked(repr_cooked&& move) = delete;
-    }
-        PACKED;
+    } PACKED;
 
     /**
-     * With gcc, were allowed to acces the members arbitrarily, even if they're not active (not the ones last written):
-     * - https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Structures-unions-enumerations-and-bit_002dfields-implementation.html#Structures-unions-enumerations-and-bit_002dfields-implementation
+     * With gcc, were allowed to acces the members arbitrarily, even if they're not active (not the
+     * ones last written):
+     * -
+     * https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Structures-unions-enumerations-and-bit_002dfields-implementation.html#Structures-unions-enumerations-and-bit_002dfields-implementation
      * - https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Optimize-Options.html#Type_002dpunning
      */
     union repr_u
@@ -234,33 +244,54 @@ private:
         // The representation split into meta information and the blocks array
         repr_cooked cooked;
 
-        // For 15 blocks, we have sizeof(meta) + blocks.size() * sizeof(block) = 2 + 15 * 2 = 32 Bytes
+        // For 15 blocks, we have sizeof(meta) + blocks.size() * sizeof(block) = 2 + 15 * 2 = 32
+        // Bytes
         std::array<u64, 4> raw;
     };
 
+    struct parsed_repr
+    {
+        repr_cooked cooked{};
+        u64 walls = 0;
+    };
+
     repr_u repr;
+    // Wall cells are stored separately from the movable block array, so walls do not consume
+    // MAX_BLOCKS slots. Bit y * width + x is set for every wall cell.
+    u64 wall_mask_ = 0;
+
+    explicit puzzle(const parsed_repr& parsed) : wall_mask_(parsed.walls)
+    {
+        repr.cooked = parsed.cooked;
+    }
 
 public:
     // Produces an invalid puzzle, for usage with containers
-    puzzle()
-        : repr(repr_cooked{INVALID, invalid_blocks()}) {}
+    puzzle() : repr(repr_cooked{INVALID, invalid_blocks()})
+    {}
 
-    explicit puzzle(const u16 meta)
-        : repr(repr_cooked{meta, invalid_blocks()}) {}
+    explicit puzzle(const u16 meta) : repr(repr_cooked{meta, invalid_blocks()})
+    {}
 
     // NOTE: This constructor does not sort the blocks and is only for state space generation
-    puzzle(const std::tuple<u8, u8, u8, u8, bool, bool>& meta, const std::array<u16, MAX_BLOCKS>& sorted_blocks)
-        : repr(repr_cooked{create_meta(meta), sorted_blocks}) {}
+    puzzle(const std::tuple<u8, u8, u8, u8, bool, bool>& meta,
+           const std::array<u16, MAX_BLOCKS>& sorted_blocks, const u64 walls = 0)
+        : repr(repr_cooked{create_meta(meta), sorted_blocks}), wall_mask_(walls)
+    {}
 
-    puzzle(const u64 byte_0, const u64 byte_1, const u64 byte_2, const u64 byte_3)
-        : repr(create_repr(byte_0, byte_1, byte_2, byte_3)) {}
+    puzzle(const u64 byte_0, const u64 byte_1, const u64 byte_2, const u64 byte_3,
+           const u64 walls = 0)
+        : repr(create_repr(byte_0, byte_1, byte_2, byte_3)), wall_mask_(walls)
+    {}
 
     // NOTE: This constructor does not sort the blocks
-    puzzle(const u16 meta, const std::array<u16, MAX_BLOCKS>& blocks)
-        : repr(repr_cooked{meta, blocks}) {}
+    puzzle(const u16 meta, const std::array<u16, MAX_BLOCKS>& blocks, const u64 walls = 0)
+        : repr(repr_cooked{meta, blocks}), wall_mask_(walls)
+    {}
 
-    puzzle(const u8 w, const u8 h, const u8 tx, const u8 ty, const bool r, const bool g)
-        : repr(create_repr(w, h, tx, ty, r, g, invalid_blocks()))
+    puzzle(const u8 w, const u8 h, const u8 tx, const u8 ty, const bool r, const bool g,
+           const u64 walls = 0)
+        : repr(create_repr(w, h, tx, ty, r, g, invalid_blocks())), wall_mask_(walls)
     {
         if (w < MIN_WIDTH || w > MAX_WIDTH || h < MIN_HEIGHT || h > MAX_HEIGHT) {
             throw std::invalid_argument("Board size out of bounds");
@@ -270,14 +301,9 @@ public:
         }
     }
 
-    puzzle(const u8 w,
-           const u8 h,
-           const u8 tx,
-           const u8 ty,
-           const bool r,
-           const bool g,
-           const std::array<u16, MAX_BLOCKS>& b)
-        : repr(create_repr(w, h, tx, ty, r, g, b))
+    puzzle(const u8 w, const u8 h, const u8 tx, const u8 ty, const bool r, const bool g,
+           const std::array<u16, MAX_BLOCKS>& b, const u64 walls = 0)
+        : repr(create_repr(w, h, tx, ty, r, g, b)), wall_mask_(walls)
     {
         if (w < MIN_WIDTH || w > MAX_WIDTH || h < MIN_HEIGHT || h > MAX_HEIGHT) {
             throw std::invalid_argument("Board size out of bounds");
@@ -287,26 +313,25 @@ public:
         }
     }
 
-    puzzle(const u8 w, const u8 h)
-        : repr(create_repr(w, h, 0, 0, false, false, invalid_blocks()))
+    puzzle(const u8 w, const u8 h) : repr(create_repr(w, h, 0, 0, false, false, invalid_blocks()))
     {
         if (w < MIN_WIDTH || w > MAX_WIDTH || h < MIN_HEIGHT || h > MAX_HEIGHT) {
             throw std::invalid_argument("Board size out of bounds");
         }
     }
 
-    explicit puzzle(const std::string& string_repr)
-        : repr(create_repr(string_repr)) {}
+    explicit puzzle(const std::string& string_repr) : puzzle(create_repr(string_repr))
+    {}
 
 public:
     auto operator==(const puzzle& other) const -> bool
     {
-        return repr.raw == other.repr.raw;
+        return repr.raw == other.repr.raw && wall_mask_ == other.wall_mask_;
     }
 
     auto operator!=(const puzzle& other) const -> bool
     {
-        return repr.raw != other.repr.raw;
+        return !(*this == other);
     }
 
     auto operator<(const puzzle& other) const -> bool
@@ -321,8 +346,7 @@ public:
             }
         }
 
-        // All are equal
-        return false;
+        return wall_mask_ < other.wall_mask_;
     }
 
     auto operator<=(const puzzle& other) const -> bool
@@ -347,10 +371,8 @@ public:
 
     auto block_view() const
     {
-        return std::span<const u16>(repr.cooked.blocks.data(), block_count()) | std::views::transform([](const u16 val)
-        {
-            return block(val);
-        });
+        return std::span<const u16>(repr.cooked.blocks.data(), block_count()) |
+            std::views::transform([](const u16 val) { return block(val); });
     }
 
     template <typename T, typename... Rest>
@@ -367,16 +389,17 @@ private:
     }
 
     // Repr setters
-    [[nodiscard]] static auto create_meta(const std::tuple<u8, u8, u8, u8, bool, bool>& meta) -> u16;
-    [[nodiscard]] static auto create_repr(u8 w,
-                                          u8 h,
-                                          u8 tx,
-                                          u8 ty,
-                                          bool r,
-                                          bool g,
+    [[nodiscard]] static auto create_meta(const std::tuple<u8, u8, u8, u8, bool, bool>& meta)
+        -> u16;
+    [[nodiscard]] static auto create_repr(u8 w, u8 h, u8 tx, u8 ty, bool r, bool g,
                                           const std::array<u16, MAX_BLOCKS>& b) -> repr_cooked;
-    [[nodiscard]] static auto create_repr(u64 byte_0, u64 byte_1, u64 byte_2, u64 byte_3) -> repr_cooked;
-    [[nodiscard]] static auto create_repr(const std::string& string_repr) -> repr_cooked;
+    [[nodiscard]] static auto create_repr(u64 byte_0, u64 byte_1, u64 byte_2, u64 byte_3)
+        -> repr_cooked;
+    [[nodiscard]] static auto create_repr(const std::string& string_repr) -> parsed_repr;
+    [[nodiscard]] auto board_cell_mask() const -> u64;
+    [[nodiscard]] auto block_cell_mask(block b) const -> u64;
+    [[nodiscard]] auto remap_wall_mask(u8 old_w, u8 old_h, u8 new_w, u8 new_h) const -> u64;
+    [[nodiscard]] auto blocks_bitmap_without_walls() const -> u64;
     [[nodiscard]] inline auto set_restricted(bool restricted) const -> puzzle;
     [[nodiscard]] inline auto set_width(u8 width) const -> puzzle;
     [[nodiscard]] inline auto set_height(u8 height) const -> puzzle;
@@ -384,6 +407,14 @@ private:
     [[nodiscard]] inline auto set_goal_x(u8 target_x) const -> puzzle;
     [[nodiscard]] inline auto set_goal_y(u8 target_y) const -> puzzle;
     [[nodiscard]] auto set_blocks(std::array<u16, MAX_BLOCKS> blocks) const -> puzzle;
+
+    // Recursive worker for place_block_set(). The inventory is flattened into a mutable
+    // count list once per top-level call, so the recursion does not allocate or copy a hash
+    // map at every branch.
+    template <typename F>
+    static auto place_block_set_flat(const puzzle& p, std::vector<std::pair<block, u8>>& counts,
+                                     u64 bitmap, u8 block_index, std::stop_token stop, F&& callback)
+        -> void;
 
 public:
     // Repr getters
@@ -398,7 +429,9 @@ public:
     // Util
     [[nodiscard]] auto hash() const -> size_t;
     [[nodiscard]] auto string_repr() const -> std::string;
-    [[nodiscard]] static auto try_parse_string_repr(const std::string& string_repr) -> std::optional<repr_cooked>;
+    [[nodiscard]] auto sorted_blocks() const -> puzzle;
+    [[nodiscard]] static auto try_parse_string_repr(const std::string& string_repr)
+        -> std::optional<parsed_repr>;
     [[nodiscard]] auto valid() const -> bool;
     [[nodiscard]] auto try_get_invalid_reason() const -> std::optional<std::string>;
     [[nodiscard]] auto block_count() const -> u8;
@@ -408,6 +441,17 @@ public:
     [[nodiscard]] auto covers(u8 x, u8 y, u8 _w, u8 _h) const -> bool;
     [[nodiscard]] auto covers(u8 x, u8 y) const -> bool;
     [[nodiscard]] auto covers(block b) const -> bool;
+
+    // Walls
+    [[nodiscard]] auto wall_mask() const -> u64;
+    [[nodiscard]] auto wall_count() const -> u8;
+    [[nodiscard]] auto wall_at(u8 x, u8 y) const -> bool;
+    [[nodiscard]] auto has_walls() const -> bool;
+    [[nodiscard]] auto with_wall_mask(u64 mask) const -> std::optional<puzzle>;
+    // Decomposes the wall mask into positioned rectangles (greedy, horizontal-first). The mask
+    // stores cells rather than the original wall-piece grouping, so adjacent walls can merge.
+    // Callers that need inventory shapes normalize the returned blocks themselves.
+    [[nodiscard]] auto wall_rectangles() const -> std::vector<block>;
 
     // Editing
     [[nodiscard]] auto toggle_restricted() const -> puzzle;
@@ -421,6 +465,9 @@ public:
     [[nodiscard]] auto try_remove_block(u8 x, u8 y) const -> std::optional<puzzle>;
     [[nodiscard]] auto try_toggle_target(u8 x, u8 y) const -> std::optional<puzzle>;
     [[nodiscard]] auto try_toggle_wall(u8 x, u8 y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_remove_wall(u8 x, u8 y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_add_wall(u8 x, u8 y) const -> std::optional<puzzle>;
+    [[nodiscard]] auto try_add_wall_block(block b) const -> std::optional<puzzle>;
 
     // Bitmap
     [[nodiscard]] auto blocks_bitmap() const -> u64;
@@ -434,52 +481,52 @@ public:
     [[nodiscard]] INLINE inline auto bitmap_is_empty(u64 bitmap) const -> bool;
     [[nodiscard]] INLINE inline auto bitmap_is_full(u64 bitmap) const -> bool;
     [[nodiscard]] INLINE inline auto bitmap_check_collision(u64 bitmap, block b) const -> bool;
-    [[nodiscard]] INLINE inline auto bitmap_check_collision(u64 bitmap, block b, dir dir) const -> bool;
-    [[nodiscard]] INLINE inline auto bitmap_find_first_empty(u64 bitmap, int& x, int& y) const -> bool;
+    [[nodiscard]] INLINE inline auto bitmap_check_collision(u64 bitmap, block b, dir dir) const
+        -> bool;
+    [[nodiscard]] INLINE inline auto bitmap_find_first_empty(u64 bitmap, int& x, int& y) const
+        -> bool;
 
     // Playing
     [[nodiscard]] auto try_move_block_at(u8 x, u8 y, dir dir) const -> std::optional<puzzle>;
 
     // Statespace
 
-    [[nodiscard]] INLINE inline auto try_move_block_at_fast(u64 bitmap,
-                                                            u8 block_idx,
-                                                            dir dir,
-                                                            bool check_collision = true) const -> std::optional<puzzle>;
+    [[nodiscard]] INLINE inline auto try_move_block_at_fast(u64 bitmap, u8 block_idx, dir dir,
+                                                            bool check_collision = true,
+                                                            int precomputed_dirs = -1) const
+        -> std::optional<puzzle>;
     [[nodiscard]] INLINE static inline auto sorted_replace(std::array<u16, MAX_BLOCKS> blocks,
-                                                           u8 idx,
-                                                           u16 new_val) -> std::array<u16, MAX_BLOCKS>;
+                                                           u8 idx, u16 new_val)
+        -> std::array<u16, MAX_BLOCKS>;
     template <typename F>
     // ReSharper disable once CppRedundantInlineSpecifier
     INLINE inline auto for_each_adjacent(F&& callback) const -> void;
 
-    [[nodiscard]] auto explore_state_space() const -> std::pair<std::vector<puzzle>, std::vector<spring>>;
+    [[nodiscard]] auto explore_state_space(threadpool thread_pool = std::nullopt) const
+        -> std::pair<std::vector<puzzle>, std::vector<spring>>;
+    [[nodiscard]] auto
+    explore_state_space_with_indices(threadpool thread_pool = std::nullopt,
+                                     exploration_observer* observer = nullptr) const
+        -> state_space_result;
 
     // Puzzle space
 
     // Determines to which cluster a puzzle belongs. Clusters are identified by the
     // state with the numerically smallest binary representation.
-    [[nodiscard]] auto get_cluster_id_and_solution() const -> std::tuple<puzzle, std::vector<puzzle>, bool, int>;
+    [[nodiscard]] auto get_cluster_id_and_solution(exploration_observer* observer = nullptr) const
+        -> cluster_exploration;
 
-    static auto generate_block_sets(const puzzle& p,
-                                    const blockset2& permitted_blocks,
-                                    block target_block,
-                                    u8 max_blocks) -> std::vector<blockmap2<u8>>;
+    static auto generate_block_sets(const puzzle& p, const blockset2& permitted_blocks,
+                                    block target_block, u8 max_blocks, std::stop_token stop = {})
+        -> std::vector<blockmap2<u8>>;
 
-    static auto generate_initial_puzzles(const puzzle& p,
-                                         block target_block,
-                                         const std::tuple<u8, u8, u8, u8>& target_block_pos_range) -> std::vector<
-        puzzle>;
+    static auto generate_initial_puzzles(const puzzle& p, block target_block,
+                                         const std::tuple<u8, u8, u8, u8>& target_block_pos_range,
+                                         std::stop_token stop = {}) -> std::vector<puzzle>;
 
     template <typename F>
-    static auto place_block_set(const puzzle& p, const blockmap2<u8>& set, u64 bitmap, u8 block_index, F&& callback) -> void;
-
-    [[nodiscard]] auto explore_puzzle_space(const blockset2& permitted_blocks,
-                                            block target_block,
-                                            const std::tuple<u8, u8, u8, u8>& target_block_pos_range,
-                                            size_t max_blocks,
-                                            int min_moves,
-                                            threadpool thread_pool = std::nullopt) const -> puzzleset;
+    static auto place_block_set(const puzzle& p, const blockmap2<u8>& set, u64 bitmap,
+                                u8 block_index, std::stop_token stop, F&& callback) -> void;
 };
 
 // Type aliases
@@ -533,6 +580,27 @@ struct puzzle_hasher
     }
 };
 
+// Result of a state-space exploration. The index map is returned with the graph so callers can
+// move all three containers instead of rebuilding the map.
+struct state_space_result
+{
+    std::vector<puzzle> states;
+    std::vector<spring> links;
+    puzzlemap<size_t> indices;
+    bool cancelled = false;
+};
+
+// Result of exploring one connected component of the sliding-block puzzle space.
+struct cluster_exploration
+{
+    puzzle cluster_id;
+    puzzle hardest;
+    std::vector<puzzle> states;
+    bool winnable = false;
+    int max_moves = 0;
+    bool cancelled = false;
+};
+
 struct link_hasher
 {
     auto operator()(const std::pair<puzzle, puzzle>& s) const noexcept -> size_t
@@ -549,9 +617,11 @@ struct link_hasher
 
 struct link_equal
 {
-    auto operator()(const std::pair<puzzle, puzzle>& a, const std::pair<puzzle, puzzle>& b) const noexcept -> bool
+    auto operator()(const std::pair<puzzle, puzzle>& a,
+                    const std::pair<puzzle, puzzle>& b) const noexcept -> bool
     {
-        return (a.first == b.first && a.second == b.second) || (a.first == b.second && a.second == b.first);
+        return (a.first == b.first && a.second == b.second) ||
+            (a.first == b.second && a.second == b.first);
     }
 };
 
@@ -679,7 +749,7 @@ inline auto puzzle::set_restricted(const bool restricted) const -> puzzle
 {
     u16 meta = repr.cooked.meta;
     set_bits(meta, RESTRICTED_S, RESTRICTED_E, restricted);
-    return puzzle(meta, repr.cooked.blocks);
+    return puzzle(meta, repr.cooked.blocks, wall_mask_);
 }
 
 inline auto puzzle::set_width(const u8 width) const -> puzzle
@@ -692,7 +762,7 @@ inline auto puzzle::set_width(const u8 width) const -> puzzle
 
     u16 meta = repr.cooked.meta;
     set_bits(meta, WIDTH_S, WIDTH_E, width - 1u);
-    return puzzle(meta, repr.cooked.blocks);
+    return puzzle(meta, repr.cooked.blocks, wall_mask_);
 }
 
 inline auto puzzle::set_height(const u8 height) const -> puzzle
@@ -705,14 +775,14 @@ inline auto puzzle::set_height(const u8 height) const -> puzzle
 
     u16 meta = repr.cooked.meta;
     set_bits(meta, HEIGHT_S, HEIGHT_E, height - 1u);
-    return puzzle(meta, repr.cooked.blocks);
+    return puzzle(meta, repr.cooked.blocks, wall_mask_);
 }
 
 inline auto puzzle::set_goal(const bool goal) const -> puzzle
 {
     u16 meta = repr.cooked.meta;
     set_bits(meta, GOAL_S, GOAL_E, goal);
-    return puzzle(meta, repr.cooked.blocks);
+    return puzzle(meta, repr.cooked.blocks, wall_mask_);
 }
 
 inline auto puzzle::set_goal_x(const u8 target_x) const -> puzzle
@@ -725,7 +795,7 @@ inline auto puzzle::set_goal_x(const u8 target_x) const -> puzzle
 
     u16 meta = repr.cooked.meta;
     set_bits(meta, GOAL_X_S, GOAL_X_E, target_x);
-    return puzzle(meta, repr.cooked.blocks);
+    return puzzle(meta, repr.cooked.blocks, wall_mask_);
 }
 
 inline auto puzzle::set_goal_y(const u8 target_y) const -> puzzle
@@ -738,7 +808,7 @@ inline auto puzzle::set_goal_y(const u8 target_y) const -> puzzle
 
     u16 meta = repr.cooked.meta;
     set_bits(meta, GOAL_Y_S, GOAL_Y_E, target_y);
-    return puzzle(meta, repr.cooked.blocks);
+    return puzzle(meta, repr.cooked.blocks, wall_mask_);
 }
 
 inline auto puzzle::get_restricted() const -> bool
@@ -781,7 +851,8 @@ INLINE inline auto puzzle::bitmap_set_bit(u64& bitmap, const u8 w, const u8 x, c
     set_bits(bitmap, y * w + x, y * w + x, 1u);
 }
 
-INLINE inline auto puzzle::bitmap_get_bit(const u64 bitmap, const u8 w, const u8 x, const u8 y) -> bool
+INLINE inline auto puzzle::bitmap_get_bit(const u64 bitmap, const u8 w, const u8 x, const u8 y)
+    -> bool
 {
     return get_bits(bitmap, y * w + x, y * w + x);
 }
@@ -838,7 +909,8 @@ INLINE inline auto puzzle::bitmap_check_collision(const u64 bitmap, const block 
     return false;
 }
 
-INLINE inline auto puzzle::bitmap_check_collision(const u64 bitmap, const block b, const dir dir) const -> bool
+INLINE inline auto puzzle::bitmap_check_collision(const u64 bitmap, const block b,
+                                                  const dir dir) const -> bool
 {
     const auto [x, y, w, h, t, i] = b.unpack_repr();
     const u8 width = get_width();
@@ -904,10 +976,10 @@ INLINE inline auto puzzle::bitmap_find_first_empty(const u64 bitmap, int& x, int
     return true;
 }
 
-INLINE inline auto puzzle::try_move_block_at_fast(u64 bitmap,
-                                                  const u8 block_idx,
-                                                  const dir dir,
-                                                  const bool check_collision) const -> std::optional<puzzle>
+INLINE inline auto puzzle::try_move_block_at_fast(u64 bitmap, const u8 block_idx, const dir dir,
+                                                  const bool check_collision,
+                                                  const int precomputed_dirs) const
+    -> std::optional<puzzle>
 {
     const block b = block(repr.cooked.blocks[block_idx]);
     const auto [bx, by, bw, bh, bt, bi] = b.unpack_repr();
@@ -916,7 +988,8 @@ INLINE inline auto puzzle::try_move_block_at_fast(u64 bitmap,
     }
 
     const auto [w, h, gx, gy, r, g] = unpack_meta();
-    const int dirs = r ? b.principal_dirs() : nor | eas | sou | wes;
+    const int dirs =
+        precomputed_dirs >= 0 ? precomputed_dirs : (r ? b.principal_dirs() : nor | eas | sou | wes);
 
     // Get target block
     int _target_x = bx;
@@ -957,16 +1030,14 @@ INLINE inline auto puzzle::try_move_block_at_fast(u64 bitmap,
     }
 
     // Replace block
-    const std::array<u16, MAX_BLOCKS> blocks = sorted_replace(repr.cooked.blocks,
-                                                              block_idx,
-                                                              block::create_repr(_target_x, _target_y, bw, bh, bt));
+    const std::array<u16, MAX_BLOCKS> blocks = sorted_replace(
+        repr.cooked.blocks, block_idx, block::create_repr(_target_x, _target_y, bw, bh, bt));
 
     // This constructor doesn't sort
-    return puzzle(std::make_tuple(w, h, gx, gy, r, g), blocks);
+    return puzzle(std::make_tuple(w, h, gx, gy, r, g), blocks, wall_mask_);
 }
 
-INLINE inline auto puzzle::sorted_replace(std::array<u16, MAX_BLOCKS> blocks,
-                                          const u8 idx,
+INLINE inline auto puzzle::sorted_replace(std::array<u16, MAX_BLOCKS> blocks, const u8 idx,
                                           const u16 new_val) -> std::array<u16, MAX_BLOCKS>
 {
     // Remove old entry
@@ -1007,7 +1078,7 @@ INLINE inline auto puzzle::for_each_adjacent(F&& callback) const -> void
         const int dirs = r ? b.principal_dirs() : nor | eas | sou | wes;
         for (const dir d : {nor, eas, sou, wes}) {
             if (dirs & d) {
-                if (auto moved = try_move_block_at_fast(bitmap, idx, d)) {
+                if (auto moved = try_move_block_at_fast(bitmap, idx, d, true, dirs)) {
                     callback(*moved);
                 }
             }
@@ -1015,17 +1086,37 @@ INLINE inline auto puzzle::for_each_adjacent(F&& callback) const -> void
     }
 }
 
-// TODO: Work on a mutable set + bitmap. Do change, call subtree, then undo change after to reduce copying
+// TODO: Work on a mutable set + bitmap. Do change, call subtree, then undo change after to reduce
+// copying
 template <typename F>
-auto puzzle::place_block_set(const puzzle& p,
-                             const blockmap2<u8>& set,
-                             const u64 bitmap,
-                             const u8 block_index,
-                             F&& callback) -> void
+auto puzzle::place_block_set(const puzzle& p, const blockmap2<u8>& set, const u64 bitmap,
+                             const u8 block_index, const std::stop_token stop, F&& callback) -> void
 {
+    // Flatten the inventory once. The previous implementation copied the whole
+    // boost::unordered_flat_map at every placement branch, which dominated both the counting
+    // and the exploration phase of the puzzle-space search.
+    std::vector<std::pair<block, u8>> counts;
+    counts.reserve(set.size());
+    for (const auto& [shape, count] : set) {
+        counts.emplace_back(shape, count);
+    }
+
+    place_block_set_flat(p, counts, bitmap, block_index, stop, std::forward<F>(callback));
+}
+
+template <typename F>
+auto puzzle::place_block_set_flat(const puzzle& p, std::vector<std::pair<block, u8>>& counts,
+                                  const u64 bitmap, const u8 block_index,
+                                  const std::stop_token stop, F&& callback) -> void
+{
+    if (stop.stop_requested()) {
+        return;
+    }
+
     // All blocks placed. We don't need to check for max_blocks because block set generation does
     bool blocks_remain = false;
-    for (const u8 count : set | std::views::values) {
+    for (const auto& [shape, count] : counts) {
+        (void)shape;
         if (count > 0) {
             blocks_remain = true;
             break;
@@ -1043,39 +1134,36 @@ auto puzzle::place_block_set(const puzzle& p,
         return;
     }
 
-    for (const auto& [_b, count] : set) {
+    for (auto& [shape, count] : counts) {
         // Already picked all of those blocks
         if (count == 0) {
             continue;
         }
 
-        // Take block from the inventory
-        blockmap2<u8> next_set = set;
-        --next_set[_b];
-
-        block b = _b;
+        block b = shape;
         b = b.set_x(static_cast<u8>(x));
         b = b.set_y(static_cast<u8>(y));
 
-        // Place the next block and call the resulting subtree, then remove the block and continue here
+        // Place the next block and call the resulting subtree, then remove the block and continue
+        // here
         if (!p.bitmap_check_collision(bitmap, b) && p.covers(b)) {
             // We don't need to sort during puzzle generation, only after
             std::array<u16, MAX_BLOCKS> blocks = p.repr.cooked.blocks;
             blocks[block_index] = b.repr;
-            const puzzle next_p = puzzle(p.repr.cooked.meta, blocks);
+            const puzzle next_p = puzzle(p.repr.cooked.meta, blocks, p.wall_mask_);
 
             u64 next_bm = bitmap;
             next_p.bitmap_set_block(next_bm, b);
-            // print_bitmap(next_bm, p.get_width(), p.get_height(), "Next Block");
-            place_block_set(next_p, next_set, next_bm, block_index + 1, callback);
+            --count;
+            place_block_set_flat(next_p, counts, next_bm, block_index + 1, stop, callback);
+            ++count;
         }
     }
 
     // Create an empty cell and call the resulting subtree (without advancing the block index)
     u64 next_bm = bitmap;
     bitmap_set_bit(next_bm, p.get_width(), x, y);
-    // print_bitmap(next_bm, p.get_width(), p.get_height(), "Empty Cell");
-    place_block_set(p, set, next_bm, block_index, callback);
+    place_block_set_flat(p, counts, next_bm, block_index, stop, callback);
 }
 
 #endif

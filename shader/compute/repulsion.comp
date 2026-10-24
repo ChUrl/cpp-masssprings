@@ -1,0 +1,96 @@
+#version 430
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// Matches octree::node (32 bytes):
+//   vec3 center; float mass_total; float size; int mass_id; int first_child; int child_count;
+struct Node
+{
+    vec3 center;
+    float mass_total;
+    float size;
+    int mass_id;
+    int first_child;
+    int child_count;
+};
+
+layout(std430, binding = 0) buffer Forces
+{
+    float forces[];
+};
+
+layout(std430, binding = 1) readonly buffer Queries
+{
+    float queries[];
+};
+
+layout(std430, binding = 2) readonly buffer Nodes
+{
+    Node nodes[];
+};
+
+layout(std430, binding = 3) readonly buffer Children
+{
+    int children[];
+};
+
+layout(std430, binding = 4) readonly buffer MortonOrder
+{
+    uint order[];
+};
+
+uniform int root;
+uniform int count;
+uniform float theta2;
+uniform float bhForce;
+uniform float softening;
+
+void main()
+{
+    const uint slot = gl_GlobalInvocationID.x;
+    if (slot >= uint(count)) {
+        return;
+    }
+    // Walk queries in Morton order, matching the CPU traversal and keeping nearby threads on
+    // nearby tree nodes.
+    const uint mass = order[slot];
+
+    const vec3 query = vec3(
+        queries[3 * mass + 0],
+        queries[3 * mass + 1],
+        queries[3 * mass + 2]);
+
+    // A DFS over a depth-12 octree needs at most 1 + 7 * 12 entries.
+    int stack[1 + 7 * 12];
+    int stack_size = 0;
+    stack[stack_size++] = root;
+
+    vec3 force = vec3(0.0);
+    while (stack_size > 0) {
+        const Node node = nodes[stack[--stack_size]];
+        const bool is_leaf = node.mass_id >= 0;
+
+        if (is_leaf && node.mass_id == int(mass)) {
+            continue;
+        }
+
+        const vec3 delta = query - node.center;
+        const float dist_sq = dot(delta, delta) + softening;
+
+        if (is_leaf || (node.size * node.size) / dist_sq < theta2) {
+            const float inv_dist = inversesqrt(dist_sq);
+            const float force_mag = (bhForce * node.mass_total) / dist_sq;
+            force += delta * (force_mag * inv_dist);
+            continue;
+        }
+
+        const int end = node.first_child + node.child_count;
+        for (int child = node.first_child; child < end; ++child) {
+            stack[stack_size++] = children[child];
+        }
+    }
+
+    forces[3 * mass + 0] += force.x;
+    forces[3 * mass + 1] += force.y;
+    forces[3 * mass + 2] += force.z;
+}

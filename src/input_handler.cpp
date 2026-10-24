@@ -1,5 +1,7 @@
 #include "input_handler.hpp"
 #include "config.hpp"
+#include "layout.hpp"
+#include "settings.hpp"
 
 #include <raylib.h>
 
@@ -14,22 +16,11 @@ auto input_handler::init_handlers() -> void
     register_generic_handler(&input_handler::mouse_hover);
 
     register_mouse_pressed_handler(MOUSE_BUTTON_LEFT, &input_handler::camera_start_pan);
-    register_mouse_pressed_handler(MOUSE_BUTTON_LEFT, &input_handler::select_block);
-    register_mouse_pressed_handler(MOUSE_BUTTON_LEFT, &input_handler::add_block);
-    register_mouse_pressed_handler(MOUSE_BUTTON_LEFT, &input_handler::start_add_block);
-    register_mouse_pressed_handler(MOUSE_BUTTON_MIDDLE, &input_handler::place_goal);
     register_mouse_pressed_handler(MOUSE_BUTTON_MIDDLE, &input_handler::select_state);
     register_mouse_pressed_handler(MOUSE_BUTTON_RIGHT, &input_handler::camera_start_rotate);
-    register_mouse_pressed_handler(MOUSE_BUTTON_RIGHT, &input_handler::remove_block);
-    register_mouse_pressed_handler(MOUSE_BUTTON_RIGHT, &input_handler::clear_add_block);
 
     register_mouse_released_handler(MOUSE_BUTTON_LEFT, &input_handler::camera_stop_pan);
     register_mouse_released_handler(MOUSE_BUTTON_RIGHT, &input_handler::camera_stop_rotate);
-
-    register_key_pressed_handler(KEY_W, &input_handler::move_block_nor);
-    register_key_pressed_handler(KEY_D, &input_handler::move_block_eas);
-    register_key_pressed_handler(KEY_S, &input_handler::move_block_sou);
-    register_key_pressed_handler(KEY_A, &input_handler::move_block_wes);
 
     register_key_pressed_handler(KEY_N, &input_handler::load_previous_preset);
     register_key_pressed_handler(KEY_M, &input_handler::load_next_preset);
@@ -45,15 +36,8 @@ auto input_handler::init_handlers() -> void
     register_key_pressed_handler(KEY_O, &input_handler::toggle_connect_solutions);
     register_key_pressed_handler(KEY_Z, &input_handler::toggle_color_by_distance);
 
+    register_key_pressed_handler(KEY_COMMA, &input_handler::toggle_settings);
     register_key_pressed_handler(KEY_TAB, &input_handler::toggle_editing);
-    register_key_pressed_handler(KEY_F, &input_handler::toggle_restricted_movement);
-    register_key_pressed_handler(KEY_T, &input_handler::toggle_target_block);
-    register_key_pressed_handler(KEY_Y, &input_handler::toggle_wall_block);
-    register_key_pressed_handler(KEY_UP, &input_handler::add_board_row);
-    register_key_pressed_handler(KEY_RIGHT, &input_handler::add_board_column);
-    register_key_pressed_handler(KEY_DOWN, &input_handler::remove_board_row);
-    register_key_pressed_handler(KEY_LEFT, &input_handler::remove_board_column);
-    register_key_pressed_handler(KEY_X, &input_handler::clear_goal);
     register_key_pressed_handler(KEY_P, &input_handler::print_state);
     register_key_pressed_handler(KEY_S, &input_handler::save_preset); // + CTRL
 
@@ -64,17 +48,25 @@ auto input_handler::init_handlers() -> void
 
 auto input_handler::mouse_in_menu_pane() const -> bool
 {
-    return mouse.y < MENU_HEIGHT;
+    return mouse.y < COMPACT_MENU_HEIGHT;
 }
 
 auto input_handler::mouse_in_board_pane() const -> bool
 {
-    return mouse.x < GetScreenWidth() / 2.0 && mouse.y >= MENU_HEIGHT;
+    return CheckCollisionPointRec(mouse, board_pane_bounds());
 }
 
 auto input_handler::mouse_in_graph_pane() const -> bool
 {
-    return mouse.x >= GetScreenWidth() / 2.0 && mouse.y >= MENU_HEIGHT;
+    const simulation_settings cfg = get_settings();
+    if (cfg.show_performance_overlay &&
+        CheckCollisionPointRec(mouse, performance_overlay_bounds())) {
+        return false;
+    }
+    if (cfg.show_memory_overlay && CheckCollisionPointRec(mouse, memory_overlay_bounds())) {
+        return false;
+    }
+    return CheckCollisionPointRec(mouse, graph_pane_bounds());
 }
 
 auto input_handler::mouse_hover() -> void
@@ -108,7 +100,7 @@ auto input_handler::camera_stop_pan() -> void
 
 auto input_handler::camera_start_rotate() -> void
 {
-    if (!mouse_in_graph_pane()) {
+    if (!mouse_in_graph_pane() || camera.planar) {
         return;
     }
 
@@ -129,16 +121,23 @@ auto input_handler::camera_stop_rotate() -> void
 
 auto input_handler::camera_zoom() const -> void
 {
-    if (!mouse_in_graph_pane() || IsKeyDown(KEY_LEFT_CONTROL) || camera.projection == CAMERA_ORTHOGRAPHIC) {
+    if (!mouse_in_graph_pane() || IsKeyDown(KEY_LEFT_CONTROL)) {
         return;
     }
 
     const float wheel = GetMouseWheelMove();
+    const float zoom_speed = get_settings().zoom_speed;
+
+    if (camera.projection == CAMERA_ORTHOGRAPHIC) {
+        // Orthographic zoom is controlled by the field of view.
+        camera.fov -= wheel * zoom_speed * FOV_MULTIPLIER;
+        return;
+    }
 
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
-        camera.distance -= wheel * ZOOM_SPEED * ZOOM_MULTIPLIER;
+        camera.distance -= wheel * zoom_speed * ZOOM_MULTIPLIER;
     } else {
-        camera.distance -= wheel * ZOOM_SPEED;
+        camera.distance -= wheel * zoom_speed;
     }
 }
 
@@ -149,113 +148,13 @@ auto input_handler::camera_fov() const -> void
     }
 
     const float wheel = GetMouseWheelMove();
+    const float fov_speed = get_settings().fov_speed;
 
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
-        camera.fov -= wheel * FOV_SPEED * FOV_MULTIPLIER;
+        camera.fov -= wheel * fov_speed * FOV_MULTIPLIER;
     } else {
-        camera.fov -= wheel * FOV_SPEED;
+        camera.fov -= wheel * fov_speed;
     }
-}
-
-auto input_handler::select_block() -> void
-{
-    const puzzle& current = state.get_current_state();
-    if (current.try_get_block(hov_x, hov_y)) {
-        sel_x = hov_x;
-        sel_y = hov_y;
-    }
-}
-
-auto input_handler::start_add_block() -> void
-{
-    const puzzle& current = state.get_current_state();
-    if (!editing || current.try_get_block(hov_x, hov_y) || has_block_add_xy || current.block_count() >=
-        puzzle::MAX_BLOCKS) {
-        return;
-    }
-
-    if (hov_x >= 0 && hov_x < current.get_width() && hov_y >= 0 && hov_y < current.get_height()) {
-        block_add_x = hov_x;
-        block_add_y = hov_y;
-        has_block_add_xy = true;
-    }
-}
-
-auto input_handler::clear_add_block() -> void
-{
-    if (!editing || !has_block_add_xy) {
-        return;
-    }
-
-    block_add_x = -1;
-    block_add_y = -1;
-    has_block_add_xy = false;
-}
-
-auto input_handler::add_block() -> void
-{
-    const puzzle& current = state.get_current_state();
-    if (!editing || current.try_get_block(hov_x, hov_y) || !has_block_add_xy || current.block_count() >=
-        puzzle::MAX_BLOCKS) {
-        return;
-    }
-
-    const int block_add_width = hov_x - block_add_x + 1;
-    const int block_add_height = hov_y - block_add_y + 1;
-    if (block_add_width <= 0 || block_add_height <= 0) {
-        block_add_x = -1;
-        block_add_y = -1;
-        has_block_add_xy = false;
-    } else if (current.covers(block_add_x, block_add_y, block_add_width, block_add_height)) {
-        const std::optional<puzzle>& next = current.try_add_block(
-            block(block_add_x, block_add_y, block_add_width, block_add_height, false));
-
-        if (next) {
-            sel_x = block_add_x;
-            sel_y = block_add_y;
-            block_add_x = -1;
-            block_add_y = -1;
-            has_block_add_xy = false;
-            state.edit_starting_state(*next);
-        }
-    }
-}
-
-auto input_handler::remove_block() -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<block>& b = current.try_get_block(hov_x, hov_y);
-    if (!editing || has_block_add_xy || !b) {
-        return;
-    }
-
-    const std::optional<puzzle>& next = current.try_remove_block(hov_x, hov_y);
-    if (!next) {
-        return;
-    }
-
-    // Reset selection if we removed the selected block
-    if (b->covers(sel_x, sel_y)) {
-        sel_x = 0;
-        sel_y = 0;
-    }
-
-    state.edit_starting_state(*next);
-}
-
-auto input_handler::place_goal() const -> void
-{
-    const puzzle& current = state.get_current_state();
-    if (!editing || !mouse_in_board_pane() || !current.covers(hov_x, hov_y)) {
-        return;
-    }
-
-    const std::optional<puzzle>& next = current.try_set_goal(hov_x, hov_y);
-    if (!next) {
-        return;
-    }
-
-    state.edit_starting_state(*next);
 }
 
 auto input_handler::select_state() const -> void
@@ -264,8 +163,15 @@ auto input_handler::select_state() const -> void
         return;
     }
 
-    const puzzle& selected = state.get_state(collision_mass);
-    state.update_current_state(selected);
+    state.update_current_state(collision_mass);
+}
+
+auto input_handler::toggle_settings() -> void
+{
+    settings_open = !settings_open;
+    if (!settings_open) {
+        save_settings();
+    }
 }
 
 auto input_handler::toggle_camera_lock() -> void
@@ -289,75 +195,26 @@ auto input_handler::toggle_camera_mass_center_lock() -> void
 
 auto input_handler::toggle_camera_projection() const -> void
 {
-    camera.projection = camera.projection == CAMERA_PERSPECTIVE ? CAMERA_ORTHOGRAPHIC : CAMERA_PERSPECTIVE;
-}
-
-auto input_handler::move_block_nor() -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, nor);
-    if (!next) {
+    if (camera.planar) {
         return;
     }
 
-    sel_y--;
-    state.update_current_state(*next);
-}
-
-auto input_handler::move_block_wes() -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, wes);
-    if (!next) {
-        return;
-    }
-
-    sel_x--;
-    state.update_current_state(*next);
-}
-
-auto input_handler::move_block_sou() -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, sou);
-    if (!next) {
-        return;
-    }
-
-    sel_y++;
-    state.update_current_state(*next);
-}
-
-auto input_handler::move_block_eas() -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_move_block_at(sel_x, sel_y, eas);
-    if (!next) {
-        return;
-    }
-
-    sel_x++;
-    state.update_current_state(*next);
+    camera.projection =
+        camera.projection == CAMERA_PERSPECTIVE ? CAMERA_ORTHOGRAPHIC : CAMERA_PERSPECTIVE;
 }
 
 auto input_handler::print_state() const -> void
 {
-    infoln("State: \"{}\"", state.get_current_state().string_repr());
+    infoln("State: \"{}\"", state.describe_current());
 }
 
 auto input_handler::load_previous_preset() -> void
 {
-    if (editing) {
+    if (state.presenter().editing()) {
         return;
     }
 
-    const auto handler = [&]
-    {
-        block_add_x = -1;
-        block_add_y = -1;
-        has_block_add_xy = false;
-        state.load_previous_preset();
-    };
+    const auto handler = [&] { state.load_previous_preset(); };
 
     if (state.was_edited()) {
         ui_commands.emplace(show_yes_no_message{"Switch Preset?", "Edits Will Be Lost.", handler});
@@ -368,17 +225,11 @@ auto input_handler::load_previous_preset() -> void
 
 auto input_handler::load_next_preset() -> void
 {
-    if (editing) {
+    if (state.presenter().editing()) {
         return;
     }
 
-    const auto handler = [&]
-    {
-        block_add_x = -1;
-        block_add_y = -1;
-        has_block_add_xy = false;
-        state.load_next_preset();
-    };
+    const auto handler = [&] { state.load_next_preset(); };
 
     if (state.was_edited()) {
         ui_commands.emplace(show_yes_no_message{"Switch Preset?", "Edits Will Be Lost.", handler});
@@ -389,29 +240,29 @@ auto input_handler::load_next_preset() -> void
 
 auto input_handler::goto_starting_state() -> void
 {
-    const auto handler = [&]
-    {
-        state.goto_starting_state();
-        sel_x = 0;
-        sel_y = 0;
-    };
+    const auto handler = [&] { state.goto_starting_state(); };
 
-    ui_commands.emplace(show_yes_no_message{"Reset Board?", "This Clears the Move History.", handler});
+    ui_commands.emplace(
+        show_yes_no_message{"Reset Board?", "This Clears the Move History.", handler});
 }
 
 auto input_handler::populate_graph() const -> void
 {
-    state.populate_graph();
+    if (state.search_is_running()) {
+        if (state.get_search_kind() == search_kind::state_space) {
+            state.cancel_search();
+        }
+        return;
+    }
+    state.start_state_space_search();
 }
 
 auto input_handler::clear_graph() -> void
 {
-    const auto handler = [&]
-    {
-        state.clear_graph_and_add_current();
-    };
+    const auto handler = [&] { state.clear_graph_and_add_current(); };
 
-    ui_commands.emplace(show_yes_no_message{"Clear Graph?", "This Clears the Move History.", handler});
+    ui_commands.emplace(
+        show_yes_no_message{"Clear Graph?", "This Clears the Move History.", handler});
 }
 
 auto input_handler::toggle_mark_solutions() -> void
@@ -454,111 +305,11 @@ auto input_handler::goto_previous_state() const -> void
     state.goto_previous_state();
 }
 
-auto input_handler::toggle_restricted_movement() const -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.toggle_restricted();
-
-    if (!editing || !next) {
-        return;
-    }
-
-    state.edit_starting_state(*next);
-}
-
-auto input_handler::toggle_target_block() const -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_toggle_target(sel_x, sel_y);
-
-    if (!editing || !next) {
-        return;
-    }
-
-    state.edit_starting_state(*next);
-}
-
-auto input_handler::toggle_wall_block() const -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_toggle_wall(sel_x, sel_y);
-
-    if (!editing || !next) {
-        return;
-    }
-
-    state.edit_starting_state(*next);
-}
-
-auto input_handler::remove_board_column() const -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_remove_column();
-
-    if (!editing || current.get_width() <= puzzle::MIN_WIDTH || !next) {
-        return;
-    }
-
-    state.edit_starting_state(*next);
-}
-
-auto input_handler::add_board_column() const -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_add_column();
-
-    if (!editing || current.get_width() >= puzzle::MAX_WIDTH || !next) {
-        return;
-    }
-
-    state.edit_starting_state(*next);
-}
-
-auto input_handler::remove_board_row() const -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_remove_row();
-
-    if (!editing || current.get_height() <= puzzle::MIN_HEIGHT || !next) {
-        return;
-    }
-
-    state.edit_starting_state(*next);
-}
-
-auto input_handler::add_board_row() const -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.try_add_row();
-
-    if (!editing || current.get_height() >= puzzle::MAX_HEIGHT || !next) {
-        return;
-    }
-
-    state.edit_starting_state(*next);
-}
-
 auto input_handler::toggle_editing() -> void
 {
-    if (editing) {
-        has_block_add_xy = false;
-        block_add_x = -1;
-        block_add_y = -1;
+    if (state.presenter().supports_editing()) {
+        state.presenter().toggle_editing();
     }
-
-    editing = !editing;
-}
-
-auto input_handler::clear_goal() const -> void
-{
-    const puzzle& current = state.get_current_state();
-    const std::optional<puzzle>& next = current.clear_goal();
-
-    if (!editing || !next) {
-        return;
-    }
-
-    state.edit_starting_state(*next);
 }
 
 auto input_handler::save_preset() -> void
@@ -567,67 +318,123 @@ auto input_handler::save_preset() -> void
         return;
     }
 
-    if (const std::optional<std::string>& reason = state.get_current_state().try_get_invalid_reason()) {
-        ui_commands.emplace(show_ok_message{"Can't Save Preset", std::format("Invalid Board: {}.", *reason)});
+    if (const std::optional<std::string>& reason = state.validate_current()) {
+        ui_commands.emplace(
+            show_ok_message{"Can't Save Preset", std::format("Invalid Board: {}.", *reason)});
     } else {
         ui_commands.emplace(show_save_preset_window{});
     }
 }
 
-auto input_handler::register_generic_handler(const std::function<void(input_handler&)>& handler) -> void
+auto input_handler::register_generic_handler(const std::function<void(input_handler&)>& handler)
+    -> void
 {
     generic_handlers.push_back({handler});
 }
 
-auto input_handler::register_mouse_pressed_handler(const MouseButton button,
-                                                   const std::function<void(input_handler&)>& handler) -> void
+auto input_handler::register_mouse_pressed_handler(
+    const MouseButton button, const std::function<void(input_handler&)>& handler) -> void
 {
     mouse_pressed_handlers.push_back({{handler}, button});
 }
 
-auto input_handler::register_mouse_released_handler(const MouseButton button,
-                                                    const std::function<void(input_handler&)>& handler) -> void
+auto input_handler::register_mouse_released_handler(
+    const MouseButton button, const std::function<void(input_handler&)>& handler) -> void
 {
     mouse_released_handlers.push_back({{handler}, button});
 }
 
 auto input_handler::register_key_pressed_handler(const KeyboardKey key,
-                                                 const std::function<void(input_handler&)>& handler) -> void
+                                                 const std::function<void(input_handler&)>& handler)
+    -> void
 {
     key_pressed_handlers.push_back({{handler}, key});
 }
 
-auto input_handler::register_key_released_handler(const KeyboardKey key,
-                                                  const std::function<void(input_handler&)>& handler) -> void
+auto input_handler::register_key_released_handler(
+    const KeyboardKey key, const std::function<void(input_handler&)>& handler) -> void
 {
     key_released_handlers.push_back({{handler}, key});
 }
 
 auto input_handler::handle_input() -> void
 {
-    if (disable) {
+    // Text fields own all keyboard input. Message boxes and floating panels do not: hotkeys remain
+    // available while they are open, only pointer input is blocked behind them.
+    if (text_input_open) {
+        camera_panning = false;
+        camera_rotating = false;
         return;
     }
 
-    for (const auto& [handler] : generic_handlers) {
-        handler(*this);
-    }
-
-    for (const mouse_handler& handler : mouse_pressed_handlers) {
-        if (IsMouseButtonPressed(handler.button)) {
-            handler.handler(*this);
+    // The help overlay is toggled by the actual "?" character, so it also works on keyboard
+    // layouts where the slash/question key is not KEY_SLASH.
+    for (int character = GetCharPressed(); character != 0; character = GetCharPressed()) {
+        if (character == '?') {
+            ui_commands.emplace(toggle_help_window{});
         }
     }
 
-    for (const mouse_handler& handler : mouse_released_handlers) {
-        if (IsMouseButtonReleased(handler.button)) {
-            handler.handler(*this);
+    if (last_puzzle_generation != state.generation()) {
+        last_puzzle_generation = state.generation();
+        collision_mass = static_cast<size_t>(-1);
+        state.presenter().reset();
+    }
+
+    const bool pointer_blocked = disable;
+    if (pointer_blocked) {
+        camera_panning = false;
+        camera_rotating = false;
+    } else {
+        for (const auto& [handler] : generic_handlers) {
+            handler(*this);
+        }
+
+        for (const mouse_handler& handler : mouse_pressed_handlers) {
+            if (IsMouseButtonPressed(handler.button)) {
+                handler.handler(*this);
+            }
+        }
+
+        for (const mouse_handler& handler : mouse_released_handlers) {
+            if (IsMouseButtonReleased(handler.button)) {
+                handler.handler(*this);
+            }
+        }
+
+        puzzle_canvas canvas;
+        canvas.bounds = board_canvas_bounds();
+        canvas.columns =
+            state.presenter().board_columns(state.model(), state.get_current_state_id());
+        canvas.rows = state.presenter().board_rows(state.model(), state.get_current_state_id());
+        canvas.padding = BOARD_PADDING;
+
+        if (mouse_in_board_pane()) {
+            for (const MouseButton button :
+                 {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT}) {
+                if (IsMouseButtonPressed(button)) {
+                    state.presenter().on_board_press(button, canvas, state);
+                }
+                if (IsMouseButtonReleased(button)) {
+                    state.presenter().on_board_release(button, canvas, state);
+                }
+            }
         }
     }
 
     for (const keyboard_handler& handler : key_pressed_handlers) {
         if (IsKeyPressed(handler.key)) {
             handler.handler(*this);
+        }
+    }
+
+    const bool ctrl = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+    const bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    for (const KeyboardKey key :
+         {KEY_W, KEY_A, KEY_S, KEY_D, KEY_T, KEY_Y, KEY_F, KEY_X, KEY_UP, KEY_DOWN, KEY_LEFT,
+          KEY_RIGHT, KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_F2, KEY_F3}) {
+        if (IsKeyPressed(key) && state.presenter().on_key(key, ctrl, shift, state)) {
+            break;
         }
     }
 
