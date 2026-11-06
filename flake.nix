@@ -352,15 +352,18 @@ rec {
             makeWrapper
           ];
 
-          cmakeFlags = [
-            "-DDISABLE_THREADPOOL=Off"
-            "-DDISABLE_TRACY=On"
-            "-DDISABLE_BACKWARD=On"
-            "-DDISABLE_TESTS=On"
-            "-DDISABLE_BENCH=On"
-            # The package is built for and run on this machine.
-            "-DMARCH=znver4"
-          ];
+          cmakeFlags =
+            [
+              "-DDISABLE_THREADPOOL=Off"
+              "-DDISABLE_TRACY=On"
+              "-DDISABLE_BACKWARD=On"
+              "-DDISABLE_TESTS=On"
+              "-DDISABLE_BENCH=On"
+            ]
+            ++ lib.optionals (system == "x86_64-linux") [
+              # The package is built for and run on this machine.
+              "-DMARCH=znver4"
+            ];
 
           hardeningDisable = ["all"];
 
